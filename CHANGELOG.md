@@ -2,7 +2,7 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## 0.1.2（未发布）
+## 0.1.2（2026-09-12）
 
 ### 修复
 
