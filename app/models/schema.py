@@ -151,6 +151,15 @@ class ActivityQueryIn(BaseModel):
     accountIds: list[str] | None = None
 
 
+class SignDetailInfo(BaseModel):
+    """一次游戏签到或账号共享的社区签到结果。"""
+
+    kind: Literal["game", "community"] = Field(..., description="签到任务类型")
+    status: str = ""
+    reward: str = ""
+    reason: str = ""
+
+
 class SignGameOut(BaseModel):
     account: str = ""
     game: str = ""
@@ -158,6 +167,10 @@ class SignGameOut(BaseModel):
     reward: str = ""
     reason: str = ""
     signedAt: str = Field(default="", description="实际执行时间，ISO 8601 北京时间")
+    details: list[SignDetailInfo] = Field(
+        default_factory=list,
+        description="分项签到结果；空列表表示旧版合并结果，共享社区签到只出现一次",
+    )
 
 
 class SignAccountOut(BaseModel):

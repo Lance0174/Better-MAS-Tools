@@ -24,6 +24,8 @@
 
 抽卡game枚举为`genshin`、`starrail`、`zzz`、`wuthering`、`arknights`、`endfield`。米家三游戏支持Starward/UIGF文件；鸣潮使用官方链接或请求JSON；明日方舟使用森空岛accountId与playerUid；终末地仍需粘贴官方记录链接中的u8_token，未实现从森空岛自动取得该链接。
 
+签到结果的`games[].status`保留游戏与社区的合并完成状态。新版库街区结果另外提供`details`，每项包含`kind`（`game`或`community`）、`status`、`reward`和`reason`，用于分别展示游戏签到与库洛币签到；账号共享的社区签到只附在一条游戏结果中，统计时只计算一次。旧记录没有分项数据，`details`为空，不应据此推断游戏或社区单独成功；各分项的执行时间沿用所属结果的`signedAt`。
+
 记录ID保持字符串，避免超过JavaScript整数精度。仅统计已保存记录，不能保证官方保留期外历史完整。部分池失败以warnings返回，全部失败不会显示读取成功。
 
 米游币人工续跑及MAS控制的具体模型、完整路径见运行后端的`/openapi.json`或生成的`frontend/openapi.json`。接口均需检查HTTP状态及业务code，不能只看HTTP200。新增契约后运行：

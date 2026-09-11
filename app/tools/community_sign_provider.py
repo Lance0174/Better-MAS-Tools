@@ -665,6 +665,7 @@ def format_community_sign_results(
                 "reward": item.get("reward", ""),
                 "reason": item.get("reason", ""),
                 "signedAt": item.get("signedAt", ""),
+                "details": item.get("details", []),
             }
         )
 

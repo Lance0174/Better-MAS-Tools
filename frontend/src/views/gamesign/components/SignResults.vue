@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SignAccountOut } from '@/api'
-import { summarizeSignResults } from '../signSummary'
+import { getAccountSignSteps, getSignSummaryState, summarizeSignResults } from '../signSummary'
 import { usePerformanceStore } from '@/stores/performance'
 
 const props = defineProps<{ results: Record<string, SignAccountOut[]>; today: string }>()
@@ -13,8 +14,26 @@ const summary = (accounts: SignAccountOut[]) => {
   const counts = summarizeSignResults(accounts, props.today)
   if (!counts.success && !counts.failed) return t('standalone.todayPending')
   if (!counts.failed && !counts.pending) return t('standalone.todayAllSuccess')
+  if (counts.failed && counts.success) return t('standalone.todayPartialFailure', counts)
   return t('standalone.todaySummary', counts)
 }
+const summaryStyles = {
+  success: { color: 'success', label: 'standalone.signAllSuccess' },
+  partial: { color: 'warning', label: 'standalone.signPartialFailure' },
+  failed: { color: 'error', label: 'standalone.signFailedStatus' },
+  pending: { color: 'default', label: 'standalone.signPendingStatus' },
+} as const
+const groups = computed(() =>
+  Object.entries(props.results).map(([platform, accounts]) => ({
+    platform,
+    summary: summary(accounts),
+    accounts: accounts.map(account => ({
+      ...account,
+      steps: getAccountSignSteps(account),
+      summary: summaryStyles[getSignSummaryState(summarizeSignResults([account], props.today))],
+    })),
+  }))
+)
 </script>
 
 <template>
@@ -26,20 +45,37 @@ const summary = (accounts: SignAccountOut[]) => {
       :image="undefined"
     />
     <a-collapse v-else :default-active-key="Object.keys(results)">
-      <a-collapse-panel v-for="(accounts, platform) in results" :key="platform" :header="platform">
+      <a-collapse-panel v-for="group in groups" :key="group.platform" :header="group.platform">
         <template #extra
-          ><span class="platform-summary">{{ summary(accounts) }}</span></template
+          ><span class="platform-summary">{{ group.summary }}</span></template
         >
-        <div v-for="account in accounts" :key="account.account_uid" class="result-account">
-          <strong>{{ account.account_alias }}</strong>
-          <p v-if="!account.games?.length" class="result-detail">
+        <div v-for="account in group.accounts" :key="account.account_uid" class="result-account">
+          <div class="result-account-header">
+            <strong>{{ account.account_alias }}</strong>
+            <a-tag :color="account.summary.color">{{ t(account.summary.label) }}</a-tag>
+          </div>
+          <p v-if="!account.steps.length" class="result-detail">
             {{ t('standalone.todayPending') }}
           </p>
-          <div v-for="(game, index) in account.games" :key="index" class="result-line">
-            <a-tag :color="isSuccess(game.status) ? 'success' : 'error'">{{ game.status }}</a-tag>
-            <span class="result-game">{{ game.game }}</span
-            ><span>{{ game.account }}</span>
-            <span class="result-detail">{{ game.reward || game.reason }}</span>
+          <div
+            v-for="(step, index) in account.steps"
+            :key="index"
+            class="result-step"
+            :data-kind="step.kind"
+          >
+            <div class="result-line">
+              <a-tag :color="isSuccess(step.status) ? 'success' : 'error'">{{ step.status }}</a-tag>
+              <span class="result-game">{{
+                step.kind === 'community'
+                  ? t('standalone.kuroCoinSign')
+                  : step.kind === 'game'
+                    ? t('standalone.gameSignTask', { game: step.game })
+                    : step.game
+              }}</span>
+              <span v-if="step.account" class="result-role">{{ step.account }}</span>
+            </div>
+            <p v-if="step.reward" class="result-detail">{{ step.reward }}</p>
+            <p v-if="step.reason" class="result-reason">{{ step.reason }}</p>
           </div>
         </div>
       </a-collapse-panel>
@@ -82,6 +118,15 @@ const summary = (accounts: SignAccountOut[]) => {
 .result-account + .result-account {
   margin-top: 16px;
 }
+.result-account-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.result-step {
+  overflow-wrap: anywhere;
+}
 .result-line {
   display: flex;
   align-items: baseline;
@@ -93,7 +138,15 @@ const summary = (accounts: SignAccountOut[]) => {
 .result-game {
   font-weight: 500;
 }
+.result-role,
 .result-detail {
   color: var(--ant-color-text-secondary);
+}
+.result-detail,
+.result-reason {
+  margin: 4px 0 0;
+}
+.result-reason {
+  color: var(--ant-color-error);
 }
 </style>

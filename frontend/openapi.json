@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "paths": {
     "/api/session": {
@@ -3148,6 +3148,40 @@
         "type": "object",
         "title": "SignAccountOut"
       },
+      "SignDetailInfo": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "game",
+              "community"
+            ],
+            "title": "Kind",
+            "description": "签到任务类型"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "reward": {
+            "type": "string",
+            "title": "Reward",
+            "default": ""
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "SignDetailInfo",
+        "description": "一次游戏签到或账号共享的社区签到结果。"
+      },
       "SignGameOut": {
         "properties": {
           "account": {
@@ -3180,6 +3214,14 @@
             "title": "Signedat",
             "description": "实际执行时间，ISO 8601 北京时间",
             "default": ""
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/SignDetailInfo"
+            },
+            "type": "array",
+            "title": "Details",
+            "description": "分项签到结果；空列表表示旧版合并结果，共享社区签到只出现一次"
           }
         },
         "type": "object",

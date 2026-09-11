@@ -59,6 +59,7 @@ export type { SessionOut } from './models/SessionOut';
 export type { SettingsData } from './models/SettingsData';
 export type { SettingsOut } from './models/SettingsOut';
 export type { SignAccountOut } from './models/SignAccountOut';
+export type { SignDetailInfo } from './models/SignDetailInfo';
 export type { SignGameOut } from './models/SignGameOut';
 export type { StatusOut } from './models/StatusOut';
 export type { TaygedoLoginIn } from './models/TaygedoLoginIn';
