@@ -2,7 +2,11 @@
 
 本文件遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
-## 0.1.0（未发布）
+## 0.1.0（2026-09-11）
+
+### 修复
+
+- 修复验证码识别阻塞后端与透明图标丢失，完善人工验证故障提示，并通过 GitHub Actions 构建 Windows Release。
 
 ### 新增
 

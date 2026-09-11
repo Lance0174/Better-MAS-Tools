@@ -102,7 +102,7 @@ def create_app(
                     status_code=401,
                 )
         response = await call_next(request)
-        if request.url.path.startswith("/api/"):
+        if request.url.path.startswith(("/api/", "/captcha.")):
             response.headers["Cache-Control"] = "no-store"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"

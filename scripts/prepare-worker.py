@@ -20,8 +20,10 @@ for name in ("LICENSE", "NOTICE.md"):
 (target / "web/_headers").write_text(
     "/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: no-referrer\n"
     "  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://doc.auto-mas.top; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'\n"
-    "/captcha.html\n  ! Content-Security-Policy\n"
-    "  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-eval' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; style-src 'self' 'unsafe-inline' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com; img-src data: blob: https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; connect-src https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; frame-src https://*.geetest.com; base-uri 'none'; form-action 'none'; frame-ancestors 'self'\n",
+    "/captcha.html\n  Cache-Control: no-store\n  ! Content-Security-Policy\n"
+    "  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-eval' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; style-src 'self' 'unsafe-inline' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com; img-src data: blob: https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; connect-src https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; frame-src https://*.geetest.com; base-uri 'none'; form-action 'none'; frame-ancestors 'self'\n"
+    "/captcha.js\n  Cache-Control: no-store\n"
+    "/captcha.css\n  Cache-Control: no-store\n",
     encoding="utf-8",
 )
 print("Workers 源码与静态前端已准备；未部署。")

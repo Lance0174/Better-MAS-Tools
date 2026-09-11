@@ -16,6 +16,13 @@ frontend/out/
 frontend/.yarn/install-state.gz
 build/
 dist/
+*.exe
+*.msi
+*.apk
+*.aab
+*.zip
+*.dll
+*.pyd
 *.spec
 deploy/worker/src/app/
 deploy/worker/web/

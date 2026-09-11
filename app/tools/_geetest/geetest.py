@@ -10,6 +10,7 @@ import httpx
 from app.services.network import network
 
 from .consts import DEFAULT_HEADERS
+from .errors import CaptchaError
 from .track_detact import slide
 from .utils import geetest_m, get_current_timestamp, get_guid
 
@@ -34,8 +35,14 @@ class Geetest:
         )
 
     def _convert_callback(self, context: str):
-        json_str = context[len(self.CALLBACK_SIG) + 1 : -1]
-        return json.loads(json_str)
+        body = context.strip().removesuffix(";").strip()
+        prefix = self.CALLBACK_SIG + "("
+        if body.startswith(prefix) and body.endswith(")"):
+            body = body[len(prefix) : -1]
+        value = json.loads(body)
+        if not isinstance(value, dict):
+            raise CaptchaError("极验返回的验证数据格式无效，请重试")
+        return value
 
     async def close(self):
         await self.client.aclose()
@@ -64,16 +71,16 @@ class Geetest:
                 url="https://gcaptcha4.geetest.com/load", params=params
             )
             response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise Exception(f"Send load network error: {e}")
+        except httpx.HTTPError:
+            raise CaptchaError("极验加载失败，请检查网络或本工具的代理设置") from None
 
         geetest_info = self._convert_callback(context=response.text)
         if geetest_info.get("status") != "success":
-            raise Exception(f"Send load error: {geetest_info}")
+            raise CaptchaError("极验未能创建验证挑战，请重试")
 
         geetest_data = geetest_info.get("data")
-        if geetest_data is None:
-            raise Exception(f"Send load error: {geetest_info}")
+        if not isinstance(geetest_data, dict):
+            raise CaptchaError("极验返回的挑战数据无效，请重试")
 
         self.geetest_info = geetest_data
 
@@ -81,7 +88,7 @@ class Geetest:
         pow_detail = self.geetest_info["pow_detail"]
         hash_func = pow_detail["hashfunc"]
         if int(pow_detail["bits"]) != 0 or hash_func not in {"md5", "sha1", "sha256"}:
-            raise ValueError("当前验证码需要人工验证")
+            raise CaptchaError("当前验证码需要人工验证")
         pow_info = [
             str(pow_detail["version"]),
             str(pow_detail["bits"]),
@@ -120,9 +127,9 @@ class Geetest:
                 proxy=self.proxy,
             )
 
-        raise Exception(
-            f"captcha_type: {captcha_type} is not supported, Please send issue"
-        )
+        if captcha_type == "icon":
+            raise CaptchaError("当前为图标验证码，请人工完成或在设置中配置云码")
+        raise CaptchaError("当前验证码类型不支持自动识别，请使用人工验证")
 
     async def _verify(self, w: str):
         params = {
@@ -142,21 +149,44 @@ class Geetest:
                 url="https://gcaptcha4.geetest.com/verify", params=params
             )
             response.raise_for_status()
-        except httpx.HTTPError as e:
-            raise Exception(f"Verify network error: {e}")
+        except httpx.HTTPError:
+            raise CaptchaError("极验校验请求失败，请检查网络后重试") from None
 
         response_data = self._convert_callback(context=response.text)
-        if response_data.get("status") != "success":
-            raise Exception(f"Captcha not pass, please retry: {response_data}")
+        data = response_data.get("data")
+        if (
+            response_data.get("status") != "success"
+            or not isinstance(data, dict)
+            or data.get("result") != "success"
+        ):
+            raise CaptchaError("极验未通过本次识别结果，请重试或使用人工验证")
+
+        proof = data.get("seccode")
+        if (
+            not isinstance(proof, dict)
+            or proof.get("captcha_id") != self.captcha_id
+            or not all(
+                isinstance(proof.get(key), str) and proof[key]
+                for key in ("lot_number", "pass_token", "gen_time", "captcha_output")
+            )
+        ):
+            raise CaptchaError("极验未返回完整验证凭证，请重新验证")
 
         return response_data
 
     async def fetch_sec_code(self) -> str:
-        await self._send_load()
-
-        pow_message, sign = self._get_pow()
-        track = await self._fetch_track(pow_message, sign)
-
-        w = geetest_m(track)
-        verify_result = await self._verify(w)
-        return json.dumps(verify_result["data"]["seccode"])
+        stage = "极验加载"
+        try:
+            await self._send_load()
+            pow_message, sign = self._get_pow()
+            stage = "验证码图片识别"
+            track = await self._fetch_track(pow_message, sign)
+            stage = "极验校验"
+            verify_result = await self._verify(geetest_m(track))
+            return json.dumps(verify_result["data"]["seccode"])
+        except CaptchaError:
+            raise
+        except httpx.HTTPError:
+            raise CaptchaError(f"{stage}网络请求失败，请重试或使用人工验证") from None
+        except Exception:
+            raise CaptchaError(f"{stage}未完成，请重试或使用人工验证") from None

@@ -99,7 +99,16 @@ export class BackendService {
     const child = this.child
     if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return
     await new Promise<void>(resolve => {
-      const timer = setTimeout(() => child.kill(), 12000)
+      const timer = setTimeout(() => {
+        // Windows venv 包装器可能还有实际 Python 子进程，超时退出必须一起回收。
+        if (process.platform === 'win32') {
+          const cleanup = spawn('taskkill', ['/PID', String(child.pid), '/T', '/F'], {
+            windowsHide: true,
+            stdio: 'ignore',
+          })
+          cleanup.on('error', () => child.kill())
+        } else child.kill()
+      }, 12000)
       child.once('exit', () => {
         clearTimeout(timer)
         resolve()

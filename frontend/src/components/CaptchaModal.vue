@@ -14,13 +14,22 @@ const { t } = useI18n()
 const frame = ref<HTMLIFrameElement | null>(null)
 const nonce = ref('')
 const failed = ref(false)
+const ready = ref(false)
+const pageLoaded = ref(false)
+const failureReason = ref('standalone.captchaFailed')
 let loadTimer: ReturnType<typeof setTimeout> | undefined
 const reload = () => {
   clearTimeout(loadTimer)
   nonce.value = crypto.randomUUID()
   failed.value = false
+  ready.value = false
+  pageLoaded.value = false
+  failureReason.value = 'standalone.captchaFailed'
   // iframe 自身脚本若被拦截，也必须结束等待并提供重试入口。
   loadTimer = setTimeout(() => {
+    failureReason.value = pageLoaded.value
+      ? 'standalone.captchaNetworkFailed'
+      : 'standalone.captchaBackendFailed'
     failed.value = true
   }, 25000)
 }
@@ -46,7 +55,12 @@ watch(
   { immediate: true }
 )
 function receive(event: MessageEvent) {
-  if (!props.open || event.source !== frame.value?.contentWindow) return
+  if (
+    !props.open ||
+    event.origin !== window.location.origin ||
+    event.source !== frame.value?.contentWindow
+  )
+    return
   const data: unknown = event.data
   if (
     !data ||
@@ -57,9 +71,25 @@ function receive(event: MessageEvent) {
     data.kind !== 'community-captcha'
   )
     return
-  if ('ready' in data || 'error' in data || 'solution' in data) clearTimeout(loadTimer)
-  if ('ready' in data) return
+  if ('loading' in data) {
+    pageLoaded.value = true
+    return
+  }
+  if ('ready' in data || 'error' in data || 'solution' in data || 'closed' in data)
+    clearTimeout(loadTimer)
+  if ('closed' in data) {
+    emit('close')
+    return
+  }
+  if ('ready' in data) {
+    ready.value = true
+    return
+  }
   if ('error' in data) {
+    failureReason.value =
+      'reason' in data && data.reason === 'policy'
+        ? 'standalone.captchaPolicyFailed'
+        : 'standalone.captchaNetworkFailed'
     failed.value = true
     return
   }
@@ -90,18 +120,19 @@ onBeforeUnmount(() => {
     @cancel="emit('close')"
   >
     <a-space v-if="failed" direction="vertical" class="captcha-error">
-      <a-alert type="error" show-icon :message="t('standalone.captchaFailed')" />
+      <a-alert type="error" show-icon :message="t(failureReason)" />
       <a-button @click="reload">{{ t('standalone.retry') }}</a-button>
     </a-space>
-    <iframe
-      v-if="open && !failed"
-      :key="nonce"
-      ref="frame"
-      :src="source"
-      sandbox="allow-scripts allow-same-origin"
-      class="captcha-frame"
-      :title="t('standalone.humanVerification')"
-    />
+    <a-spin v-if="open && !failed" :spinning="!ready">
+      <iframe
+        :key="nonce"
+        ref="frame"
+        :src="source"
+        sandbox="allow-scripts allow-same-origin"
+        class="captcha-frame"
+        :title="t('standalone.humanVerification')"
+      />
+    </a-spin>
   </a-modal>
 </template>
 

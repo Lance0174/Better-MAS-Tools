@@ -8,6 +8,8 @@ from urllib.parse import urljoin, urlsplit
 
 import httpx
 
+from ..errors import CaptchaError
+
 
 def _calculate_slide_distance_numpy(bg_bytes: bytes, target_bytes: bytes) -> int:
     """Workers 无 OpenCV，使用灰度梯度相关匹配；无法识别的挑战仍交人工。"""
@@ -67,7 +69,7 @@ def _calculate_slide_distance_cv2(bg_bytes: bytes, target_bytes: bytes) -> int:
     import numpy as np
     from PIL import Image
 
-    # 限定同步识别的计算量；超时取消不会强制终止已经运行的 OpenCV 线程。
+    # 限定同步识别的计算量；该函数由可终止的独立进程执行，不在 Web 线程加载 OpenCV。
     sizes = []
     for raw in (bg_bytes, target_bytes):
         with Image.open(io.BytesIO(raw)) as image:
@@ -130,9 +132,12 @@ async def get_slide_distance(
     if sys.platform == "emscripten":
         distance = _calculate_slide_distance_numpy(bg_bytes, target_bytes)
     else:
-        distance = await asyncio.to_thread(
-            _calculate_slide_distance_cv2, bg_bytes, target_bytes
-        )
+        from app.services.captcha_process import calculate_slide_distance
+
+        try:
+            distance = await calculate_slide_distance(bg_bytes, target_bytes)
+        except ValueError as error:
+            raise CaptchaError(str(error)) from None
 
     return distance
 

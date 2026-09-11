@@ -17,6 +17,7 @@ const captchaId = ref('')
 const verifying = ref(false)
 const busy = ref(false)
 const automaticPending = ref(false)
+const automaticFailure = ref('')
 const sent = ref(false)
 const cooldown = ref(0)
 let generation = 0
@@ -31,6 +32,7 @@ const reset = () => {
   verifying.value = false
   busy.value = false
   automaticPending.value = false
+  automaticFailure.value = ''
   sent.value = false
   cooldown.value = 0
   clearInterval(timer)
@@ -56,6 +58,7 @@ const start = async (manual = false) => {
   }
   const current = generation
   busy.value = true
+  automaticFailure.value = ''
   try {
     if (!sessionId.value) {
       const response = await api.createKuroSms(props.accountId, phone.value)
@@ -75,7 +78,7 @@ const start = async (manual = false) => {
     if (current !== generation) return
     if (automatic.sent) markSent()
     else {
-      message.info(automatic.message || t('standalone.humanVerification'))
+      automaticFailure.value = automatic.message || t('standalone.humanVerification')
       verifying.value = true
     }
   } catch (cause) {
@@ -172,6 +175,7 @@ const login = async () => {
       show-icon
       :message="t('standalone.captchaAutomaticPending')"
     />
+    <a-alert v-else-if="automaticFailure" type="warning" show-icon :message="automaticFailure" />
   </a-modal>
   <CaptchaModal
     :open="verifying"

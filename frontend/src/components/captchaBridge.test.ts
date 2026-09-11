@@ -97,7 +97,7 @@ describe('验证码隔离页的加载和消息桥接', () => {
     const app = bridge()
     vi.advanceTimersByTime(20000)
     expect(app.postMessage).toHaveBeenCalledWith(
-      { kind: 'community-captcha', nonce: 'fixture-nonce', error: true },
+      { kind: 'community-captcha', nonce: 'fixture-nonce', error: true, reason: 'timeout' },
       'https://community.test'
     )
     app.script.onload()
@@ -111,6 +111,23 @@ describe('验证码隔离页的加载和消息桥接', () => {
     app.listeners.pagehide!()
     expect(app.captcha.destroy).toHaveBeenCalledOnce()
     vi.advanceTimersByTime(25000)
-    expect(app.postMessage).toHaveBeenCalledTimes(1)
+    expect(app.postMessage.mock.calls.filter(([data]) => data.error)).toHaveLength(1)
+  })
+
+  it('旧后端阻断官方资源时立即给出策略错误，关闭挑战只取消验证', () => {
+    const blocked = bridge()
+    blocked.script.onload()
+    blocked.listeners.securitypolicyviolation!()
+    expect(blocked.postMessage).toHaveBeenLastCalledWith(
+      { kind: 'community-captcha', nonce: 'fixture-nonce', error: true, reason: 'policy' },
+      'https://community.test'
+    )
+    const closed = bridge()
+    closed.script.onload()
+    closed.events.close!()
+    expect(closed.postMessage).toHaveBeenLastCalledWith(
+      { kind: 'community-captcha', nonce: 'fixture-nonce', closed: true },
+      'https://community.test'
+    )
   })
 })

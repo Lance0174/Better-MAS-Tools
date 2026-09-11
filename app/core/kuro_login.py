@@ -11,6 +11,9 @@ from app.core.accounts import update_account
 from app.core.runtime import runtime
 from app.core.state import state
 from app.tools import kuro
+from app.utils.logger import get_logger
+
+logger = get_logger("库街区登录")
 
 SESSION_SECONDS = 600
 SMS_INTERVAL = 60
@@ -74,6 +77,7 @@ def clear_sessions() -> None:
 
 async def send_automatically(session_id: str) -> tuple[bool, str]:
     from app.tools._geetest import Geetest
+    from app.tools._geetest.errors import CaptchaError
 
     session = require_session(session_id)
     settings = state.data.settings
@@ -111,7 +115,11 @@ async def send_automatically(session_id: str) -> tuple[bool, str]:
         if session_id not in _sessions:
             raise ValueError("短信登录已取消或过期，请重新开始") from None
         raise
-    except Exception:
+    except CaptchaError as error:
+        logger.warning(str(error))
+        return False, str(error)
+    except Exception as error:
+        logger.warning(f"自动验证未完成：{type(error).__name__}")
         return False, "自动验证未完成，请使用人工验证"
     finally:
         session.busy = False

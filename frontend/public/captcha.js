@@ -9,14 +9,15 @@ function notify(data) {
     config.parentOrigin
   )
 }
-function fail() {
+function fail(reason = 'sdk') {
   if (failed) return
   failed = true
   clearTimeout(loadTimer)
   status.textContent = '验证服务加载失败，请点击重试。'
-  notify({ error: true })
+  notify({ error: true, reason })
 }
-const loadTimer = setTimeout(fail, 20000)
+const loadTimer = setTimeout(() => fail('timeout'), 20000)
+window.addEventListener('securitypolicyviolation', () => fail('policy'))
 window.addEventListener('pagehide', () => {
   clearTimeout(loadTimer)
   instance?.destroy()
@@ -26,7 +27,7 @@ script.src =
   config.version === 4
     ? 'https://static.geetest.com/v4/gt4.js'
     : 'https://static.geetest.com/static/tools/gt.js'
-script.onerror = fail
+script.onerror = () => fail('network')
 script.onload = () => {
   if (failed) return
   const initialize = config.version === 4 ? window.initGeetest4 : window.initGeetest
@@ -55,19 +56,20 @@ script.onload = () => {
         if (failed) return
         clearTimeout(loadTimer)
         status.textContent = '请完成下方验证'
-        notify({ ready: true })
         if (config.version === 4) captcha.showCaptcha()
+        notify({ ready: true })
       })
       captcha.onSuccess(() => {
         const solution = captcha.getValidate()
         if (!failed && solution) notify({ solution })
       })
-      captcha.onError(() => script.onerror())
-      if (config.version === 4) captcha.onClose(fail)
+      captcha.onError(() => fail('sdk'))
+      if (config.version === 4) captcha.onClose(() => notify({ closed: true }))
       else captcha.appendTo('#captcha')
     })
   } catch {
     fail()
   }
 }
+notify({ loading: true })
 document.head.append(script)

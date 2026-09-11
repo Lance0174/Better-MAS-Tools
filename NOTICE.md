@@ -12,7 +12,7 @@
 
 | 来源 | 核对版本 | 使用范围 |
 | --- | --- | --- |
-| [mxyooR/Kuro_login](https://github.com/mxyooR/Kuro_login) | `1ba2f995b831e32fcd9c7a03a976272765f4943f` | 库街区短信协议及极验4滑块适配，保留 MX 版权；MIT 全文见 [Kuro_login.txt](docs/licenses/Kuro_login.txt) |
+| [mxyooR/Kuro_login](https://github.com/mxyooR/Kuro_login) | `1ba2f995b831e32fcd9c7a03a976272765f4943f`；图标 Alpha 处理参考此前 `b69ef1a9c618325e4a4f0b4ad0372624ab0d847f` | 库街区短信协议及极验4滑块适配，保留 MX 版权；MIT 全文见 [Kuro_login.txt](docs/licenses/Kuro_login.txt) |
 | [Scighost/Starward](https://github.com/Scighost/Starward) | `3e2da5ffecde252211edb74b850ee13d6b93f6dd` | 米家抽卡协议和 UIGF 兼容参考；MIT 全文见 [Starward.txt](docs/licenses/Starward.txt) |
 | [Ljzd-PRO/nonebot-plugin-mystool](https://github.com/Ljzd-PRO/nonebot-plugin-mystool) | `ac2e1242764282079e2d393c1dbc3168c9a40f34` | 米游币状态与人工验证协议参考 |
 | [Marchen-orz/MiyoQian](https://github.com/Marchen-orz/MiyoQian) | `a46001d8840c331860aa02da7c7d6dcf356c2dff` | 过码流程调研，未复制无许可源码 |

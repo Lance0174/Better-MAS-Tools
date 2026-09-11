@@ -1,4 +1,4 @@
-/** 本地独立打包，不配置组织远端、自动更新或发布。 */
+/** 独立打包，不配置组织远端或自动更新；Release 上传由 GitHub Actions 负责。 */
 module.exports = {
   appId: 'independent.bettermas.community',
   productName: '更好的MAS游戏社区版',
@@ -22,7 +22,10 @@ module.exports = {
   asar: true,
   win: {
     icon: 'assets/community.ico',
-    target: [{ target: 'zip', arch: ['x64'] }],
+    target: [
+      { target: 'zip', arch: ['x64'] },
+      { target: 'portable', arch: ['x64'] },
+    ],
     requestedExecutionLevel: 'asInvoker',
   },
   artifactName: 'BetterMASCommunity-${version}-win-${arch}.${ext}',

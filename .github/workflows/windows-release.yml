@@ -1,0 +1,92 @@
+name: Windows Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+      - name: Check source tree and release version
+        run: |
+          $binaries = git ls-files -- '*.exe' '*.msi' '*.apk' '*.aab' '*.zip' '*.dll' '*.pyd'
+          if ($binaries) { throw 'Generated binaries must not be committed to the source repository.' }
+          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw 'The release tag must match the version in CHANGELOG.md and package.json.'
+          }
+      - name: Enable Yarn
+        run: corepack enable
+      - name: Build Windows packages
+        run: ./scripts/build-desktop.ps1 -Zip
+      - name: Check source and desktop runtime
+        run: |
+          & .venv/Scripts/python.exe -m ruff check app main.py scripts
+          if ($LASTEXITCODE -ne 0) { throw 'Python checks failed.' }
+          Push-Location frontend
+          try {
+            yarn lint
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend lint failed.' }
+            yarn test
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
+          } finally { Pop-Location }
+          & .venv/Scripts/python.exe scripts/verify-desktop.py frontend/out/win-unpacked
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged runtime checks failed.' }
+      - name: Write checksums
+        run: |
+          $packages = Get-ChildItem frontend/out -File | Where-Object { $_.Extension -in '.zip', '.exe' }
+          if ($packages.Count -ne 2) { throw 'Expected one ZIP and one portable EXE.' }
+          $packages | Sort-Object Name | ForEach-Object {
+            "{0}  {1}" -f (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
+          } | Set-Content frontend/out/SHA256SUMS.txt -Encoding utf8NoBOM
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Windows-x64
+          path: |
+            frontend/out/*.zip
+            frontend/out/*.exe
+            frontend/out/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Publish tagged release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $draft = gh release view $tag --json isDraft --jq .isDraft 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            if ($draft -ne 'true') { throw 'This version is already published. Use a new version tag.' }
+          } else {
+            gh release create $tag --draft --verify-tag --title "Better MAS Community $tag" --notes-file CHANGELOG.md
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft release.' }
+          }
+          $assets = Get-ChildItem frontend/out -File | Where-Object { $_.Extension -in '.zip', '.exe' -or $_.Name -eq 'SHA256SUMS.txt' }
+          gh release upload $tag @($assets.FullName) --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload failed; the release remains a draft.' }
+          gh release edit $tag --draft=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

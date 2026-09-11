@@ -6,6 +6,7 @@
 import base64
 
 from app.services.network import network
+from app.tools._geetest.errors import CaptchaError
 
 YUNMA_URL = "https://api.jfbym.com/api/YmServer/customApi"
 
@@ -14,8 +15,8 @@ async def recognize_icons(
     image: bytes, *, token: str, count: int, proxy: str | None
 ) -> list[tuple[int, int]]:
     if not token:
-        raise ValueError("请在设置中填写云码 API 密钥")
-    async with network.client(proxy=proxy, trust_env=False, timeout=45) as client:
+        raise CaptchaError("请在设置中填写云码 API 密钥")
+    async with network.client(proxy=proxy, trust_env=False, timeout=20) as client:
         response = await client.post(
             YUNMA_URL,
             json={
@@ -28,20 +29,30 @@ async def recognize_icons(
         )
         response.raise_for_status()
         data = response.json()
-    if not isinstance(data, dict) or data.get("code") != 10000:
-        if isinstance(data, dict) and data.get("code") == 10002:
-            raise ValueError("云码余额不足，请充值或改用人工验证")
-        raise ValueError("云码未能识别此次验证码，请使用人工验证")
+    if not isinstance(data, dict) or str(data.get("code")) != "10000":
+        reasons = {
+            "10001": "云码请求参数错误，请改用人工验证",
+            "10002": "云码余额不足，请充值或改用人工验证",
+            "10003": "云码密钥无效或没有访问权限，请检查设置",
+            "10004": "云码不支持当前识别类型，请改用人工验证",
+            "10007": "云码暂时无法识别此图片，请使用人工验证",
+        }
+        reason = reasons.get(str(data.get("code"))) if isinstance(data, dict) else None
+        raise CaptchaError(reason or "云码未能识别此次验证码，请使用人工验证")
     result = data.get("data")
-    if not isinstance(result, dict) or not isinstance(result.get("data"), str):
-        raise ValueError("云码返回了无效的坐标结果")
+    if (
+        not isinstance(result, dict)
+        or result.get("code") not in (None, 0, "0")
+        or not isinstance(result.get("data"), str)
+    ):
+        raise CaptchaError("云码返回了无效的坐标结果")
     try:
         pairs = [pair.split(",") for pair in result["data"].split("|")]
         if len(pairs) != count or any(len(pair) != 2 for pair in pairs):
             raise ValueError
         points = [(int(x.strip()), int(y.strip())) for x, y in pairs]
     except (ValueError, TypeError):
-        raise ValueError("云码返回的点击坐标不匹配") from None
+        raise CaptchaError("云码返回的点击坐标不匹配") from None
     if any(min(point) < 0 for point in points):
-        raise ValueError("云码返回的点击坐标不匹配")
+        raise CaptchaError("云码返回的点击坐标不匹配")
     return points

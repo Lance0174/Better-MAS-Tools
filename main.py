@@ -29,12 +29,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="更好的MAS游戏社区版")
     parser.add_argument("--port", type=int, default=37164)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--remote", action="store_true", help="启用远端访问认证，需配置公开来源与访问密码")
+    parser.add_argument(
+        "--remote",
+        action="store_true",
+        help="启用远端访问认证，需配置公开来源与访问密码",
+    )
     parser.add_argument("--desktop", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.remote:
         os.environ["COMMUNITY_REMOTE"] = "1"
-    if args.host not in {"127.0.0.1", "localhost", "::1"} and os.environ.get("COMMUNITY_REMOTE") != "1":
+    if (
+        args.host not in {"127.0.0.1", "localhost", "::1"}
+        and os.environ.get("COMMUNITY_REMOTE") != "1"
+    ):
         parser.error("非环回监听必须启用 --remote 并配置访问认证")
     if args.desktop and (args.remote or os.environ.get("COMMUNITY_REMOTE") == "1"):
         parser.error("桌面模式不能同时启用远端监听")
@@ -60,4 +67,9 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    if sys.argv[1:] == ["--captcha-slide-worker"]:
+        from app.tools._geetest.slide_worker import main as recognize_slide
+
+        recognize_slide()
+    else:
+        main()

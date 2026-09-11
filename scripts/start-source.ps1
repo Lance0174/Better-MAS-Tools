@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$SkipInstall,
     [switch]$NoRun,
     [switch]$SmokeTest
@@ -12,6 +12,20 @@ if ($SmokeTest) {
     $sourceSmokeDirectory = Join-Path $projectDirectory ('local/source-smoke-' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $sourceSmokeDirectory -Force | Out-Null
     $env:COMMUNITY_DATA_DIR = $sourceSmokeDirectory
+}
+
+# 更新依赖或源码前先检查同一数据目录的实例，避免构建完却被单实例锁带回旧后端。
+$sourceDataDirectory = $env:COMMUNITY_DATA_DIR
+if (-not $sourceDataDirectory) {
+    $sourceDataDirectory = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'BetterMASCommunity'
+}
+$sourceSessionFile = Join-Path $sourceDataDirectory 'desktop-session.json'
+if (Test-Path -LiteralPath $sourceSessionFile -PathType Leaf) {
+    $sourceSession = Get-Content -LiteralPath $sourceSessionFile -Raw | ConvertFrom-Json
+    $sourceRunningProcess = Get-Process -Id $sourceSession.pid -ErrorAction SilentlyContinue
+    if ($sourceRunningProcess -and $sourceRunningProcess.ProcessName -in @('electron', 'BetterMASCommunity')) {
+        throw 'The application is already running. Close it completely before rebuilding or restarting from source.'
+    }
 }
 
 # 源码入口只使用本项目依赖；不要求已有 exe，也不调用 MAS 的运行环境。

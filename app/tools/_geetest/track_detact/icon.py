@@ -23,8 +23,17 @@ def compose_icons(background: bytes, icons: list[bytes]) -> tuple[bytes, int, in
         canvas.paste(original.convert("RGB"), (0, 0))
     for index, raw in enumerate(icons):
         with Image.open(io.BytesIO(raw)) as icon:
+            if not 1 <= icon.width <= 512 or not 1 <= icon.height <= 512:
+                raise ValueError("验证码提示图片尺寸无效")
             icon.thumbnail((48, 48))
             rgba = icon.convert("RGBA")
+            # Kuro_login 的 pictureUtils 从 Alpha 提取轮廓；白色透明图标直接贴白底会消失。
+            alpha = rgba.getchannel("A")
+            if alpha.getextrema()[0] < 255 and all(
+                low == high for low, high in rgba.convert("RGB").getextrema()
+            ):
+                rgba = Image.new("RGBA", rgba.size, "black")
+                rgba.putalpha(alpha)
             canvas.paste(rgba, (12 + index * 56, height + 8), rgba)
     output = io.BytesIO()
     canvas.save(output, format="PNG")

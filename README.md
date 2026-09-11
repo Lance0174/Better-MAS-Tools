@@ -20,11 +20,13 @@
 
 库街区、塔吉多日常便笺未接入。本期按需求不包含通知模块。
 
-人工验证码在独立弹窗中显示，加载失败可重试；免费滑块总时限 15 秒，启用云码时总时限 30 秒，超时转人工。也可直接选“改用人工验证”。云码目前只用于库街区极验4图标识别，米游社极验3由用户人工完成。手机号与验证码不持久化；登录响应中的正式凭据自动提取，无需安装抓包证书。
+人工验证码在独立弹窗中显示，加载失败可重试；免费滑块总时限 15 秒，启用云码时总时限 30 秒，超时转人工。本地识别运行在独立进程中，单次计算最多 10 秒，超时或取消会回收进程，避免原生库加载卡住整个后端。也可直接选“改用人工验证”。云码目前只用于库街区极验4图标识别，米游社极验3由用户人工完成。手机号与验证码不持久化；登录响应中的正式凭据自动提取，无需安装抓包证书。
 
 ## 直接运行
 
-打开完整构建目录中的：
+从 [GitHub Releases](https://github.com/Lance0174/Better-MAS-Community/releases) 下载 Windows x64 便携 EXE 后直接打开，或下载 ZIP、完整解压后打开其中的 `BetterMASCommunity.exe`。`SHA256SUMS.txt` 用于核对下载文件完整性。源码仓库不包含生成的安装包或可执行程序。
+
+本地构建后，程序位于：
 
 ```text
 frontend\out\win-unpacked\BetterMASCommunity.exe
@@ -55,6 +57,16 @@ frontend\out\win-unpacked\BetterMASCommunity.exe
 ## 从源码开发
 
 需要 Windows、Python 3.12、[uv](https://docs.astral.sh/uv/)、Node.js 22 和 Yarn 4.9.1。依赖都安装在本仓的 `.venv` 和 `frontend/node_modules` 中。
+
+一条命令安装依赖、构建并启动：
+
+```powershell
+powershell -File scripts/start-source.ps1
+```
+
+更新源码前请完全关闭已有程序。启动脚本发现同一数据目录的实例仍在运行时，会提示退出，避免构建后又回到旧后端。若验证码页面提示“无响应”或“运行版本拦截资源”，关闭原程序后重新执行该命令；仅刷新页面不能替换已经加载的 Python 模块。
+
+也可分步执行：
 
 ```powershell
 uv sync --locked --dev --extra captcha --link-mode=copy
@@ -99,6 +111,10 @@ powershell -File scripts/build-desktop.ps1 -Zip
 ```
 
 脚本依次安装锁定依赖、检查类型、构建 Vue 与 Electron、打包 Python 后端，最后生成 `frontend/out/win-unpacked`。不需要管理员权限，不配置自动更新或远程发布。
+
+GitHub 的 **Actions → Windows Release → Run workflow** 可进行构建验证，产物保存在该次运行的 Artifacts 中。发布版本时，先更新 `CHANGELOG.md` 并同步版本，然后推送匹配版本的 `vX.Y.Z` 标签；工作流会在 Windows 环境构建 ZIP 和便携 EXE，实际检查包内滑块识别、空数据启动与退出，通过后发布到 Releases。已正式发布的版本不会被工作流覆盖。
+
+本轮提供 Windows 自动构建。APK 尚无对应工程，后续定位为连接云端后台的 MAS 远程控制客户端。
 
 ## 部署到远端与 Linux
 
