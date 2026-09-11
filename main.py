@@ -9,6 +9,8 @@ import threading
 
 import uvicorn
 
+from app.utils.logger import intercept_standard_logging
+
 
 async def serve_desktop(server: uvicorn.Server, listener: socket.socket) -> None:
     def watch_parent() -> None:
@@ -26,7 +28,8 @@ async def serve_desktop(server: uvicorn.Server, listener: socket.socket) -> None
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="更好的MAS游戏社区版")
+    intercept_standard_logging()
+    parser = argparse.ArgumentParser(description="更好的MAS工具包")
     parser.add_argument("--port", type=int, default=37164)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument(
@@ -54,6 +57,7 @@ def main() -> None:
         http="h11",
         ws="none",
         lifespan="on",
+        log_config=None,
         timeout_graceful_shutdown=8,
     )
     if not args.desktop:

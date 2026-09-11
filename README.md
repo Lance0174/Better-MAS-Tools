@@ -1,6 +1,6 @@
-# 更好的MAS游戏社区版
+# 更好的MAS工具包
 
-独立的游戏社区工具，暂名 Better MAS Community，提供 Windows 桌面、Linux Web 后端与 Cloudflare Workers 版本。由 AUTO-MAS 的游戏社区功能拆出，**独立于 AUTO-MAS 团队，不代表原团队发布**。原代码版权、AGPL-3.0-or-later 许可及第三方致谢保留在 [LICENSE](LICENSE)、[NOTICE.md](NOTICE.md) 和 [来源清单](docs/upstream-files.json) 中。
+Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社区功能的扩展，支持 Windows 桌面、Linux Web 后端与 Cloudflare Workers。项目由 AUTO-MAS 的游戏社区功能拆出，**独立于 AUTO-MAS 团队，不代表原团队发布**。原代码版权、AGPL-3.0-or-later 许可及第三方致谢保留在 [LICENSE](LICENSE)、[NOTICE.md](NOTICE.md) 和 [来源清单](docs/upstream-files.json) 中。
 
 ## 当前范围
 
@@ -17,6 +17,7 @@
 | 远端 | Docker Compose 部署、Cloudflare Tunnel 叠加、纯 Cloudflare Workers 版本，支持 Linux |
 | MAS 接入 | 保留本地 AUTO-MAS 接口入口，可在“MAS”页连接并控制本机 MAS |
 | 外观 | 浅色、深色、跟随系统和低性能模式；低性能模式不加载便笺背景 |
+| 诊断日志 | 程序内查询、级别筛选、日志编号关联和导出；终端与文件同步记录阶段、耗时和失败调用栈 |
 
 库街区、塔吉多日常便笺未接入。本期按需求不包含通知模块。
 
@@ -24,12 +25,12 @@
 
 ## 直接运行
 
-从 [GitHub Releases](https://github.com/Lance0174/Better-MAS-Community/releases) 下载 Windows x64 便携 EXE 后直接打开，或下载 ZIP、完整解压后打开其中的 `BetterMASCommunity.exe`。`SHA256SUMS.txt` 用于核对下载文件完整性。源码仓库不包含生成的安装包或可执行程序。
+从 [GitHub Releases](https://github.com/Lance0174/Better-MAS-Tools/releases) 下载 Windows x64 便携 EXE 后直接打开，或下载 ZIP、完整解压后打开其中的 `BetterMASTools.exe`。`SHA256SUMS.txt` 用于核对下载文件完整性。源码仓库不包含生成的安装包或可执行程序。
 
 本地构建后，程序位于：
 
 ```text
-frontend\out\win-unpacked\BetterMASCommunity.exe
+frontend\out\win-unpacked\BetterMASTools.exe
 ```
 
 也可以在项目根目录执行 `powershell -File scripts/start-desktop.ps1`。保持整个 `win-unpacked` 目录完整，不能只复制其中的 exe。桌面包带有自己的 Python 运行时，用户不需要安装 Python、Node.js 或原 MAS。
@@ -47,9 +48,12 @@ frontend\out\win-unpacked\BetterMASCommunity.exe
 
 ## 数据与日志
 
-- 桌面版：`%APPDATA%\BetterMASCommunity`。
+- 桌面版：`%APPDATA%\BetterMASCommunity`。更名后继续使用原数据目录与加密格式，已有账号配置无需搬迁。
 - `state.json`：Windows 当前用户 DPAPI 加密的账号、凭据、设置和结果；不是可以直接编辑的明文 JSON。
-- `logs\community.log`：脱敏后的社区日志；`desktop.log`：桌面进程启动与退出日志。
+- `logs\community.log`：包含请求阶段、耗时、HTTP/业务码、日志编号和异常调用位置；每 5 MB 滚动，历史分卷保留 7 天。`desktop.log` 包含桌面生命周期与已脱敏的前端日志。
+- 左下方“运行日志”显示本次运行最近 2000 条，可按级别、编号或文字筛选，并导出当前日志文件。纯 Workers 的页面保留当前实例日志，历史记录在 Cloudflare 控制台查看。
+- 源码启动的 PowerShell 同时显示后端日志；遇到失败可用错误提示中的日志编号定位请求。日志不保存 Cookie、Token、手机号、验证码、请求正文或局部变量。
+- 登录凭据默认使用密码框隐藏，关闭编辑窗口后重新打开会恢复隐藏状态；点击眼睛可临时查看。
 - 不读取原 MAS 的账号、配置、环境文件、缓存或日志；不接入 Sentry。
 - 配置不支持直接拷到其他 Windows 用户或另一台电脑解密。备份前退出程序，并保留完整数据目录；不要删除唯一的原配置。
 - 代理只在本工具“设置”中配置，不修改 Windows 或全局环境变量。
@@ -155,7 +159,7 @@ Workers 包含免费滑块、人工验证和库街区云码适配；云码需要
 
 后端代码检查使用 `.venv\Scripts\ruff.exe check app main.py scripts`；在 `frontend` 执行 `yarn lint`、`yarn typecheck`、`yarn test`。本次专用回归保留在本地 `local/tests`，不进入发布包。拆分结构与边界见 [架构说明](docs/ARCHITECTURE.md)。
 
-项目由个人仓库 [Lance0174/Better-MAS-Community](https://github.com/Lance0174/Better-MAS-Community) 托管，独立于 AUTO-MAS 组织。本期未使用真实用户账号访问上游签到、扫码和日常接口，第三方协议的实跑可用性仍取决于账号状态、网络和上游服务。Linux 镜像与 Tunnel 尚未在实际 Linux/Docker 主机验收。
+项目由个人仓库 [Lance0174/Better-MAS-Tools](https://github.com/Lance0174/Better-MAS-Tools) 托管，独立于 AUTO-MAS 组织。本期未使用真实用户账号访问上游签到、扫码和日常接口，第三方协议的实跑可用性仍取决于账号状态、网络和上游服务。Linux 镜像与 Tunnel 尚未在实际 Linux/Docker 主机验收。
 
 ### Linux 源码运行
 

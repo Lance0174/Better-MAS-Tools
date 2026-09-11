@@ -23,7 +23,7 @@ $sourceSessionFile = Join-Path $sourceDataDirectory 'desktop-session.json'
 if (Test-Path -LiteralPath $sourceSessionFile -PathType Leaf) {
     $sourceSession = Get-Content -LiteralPath $sourceSessionFile -Raw | ConvertFrom-Json
     $sourceRunningProcess = Get-Process -Id $sourceSession.pid -ErrorAction SilentlyContinue
-    if ($sourceRunningProcess -and $sourceRunningProcess.ProcessName -in @('electron', 'BetterMASCommunity')) {
+    if ($sourceRunningProcess -and $sourceRunningProcess.ProcessName -in @('electron', 'BetterMASCommunity', 'BetterMASTools')) {
         throw 'The application is already running. Close it completely before rebuilding or restarting from source.'
     }
 }

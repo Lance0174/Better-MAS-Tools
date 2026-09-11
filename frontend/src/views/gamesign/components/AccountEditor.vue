@@ -129,11 +129,18 @@ const passwordLogin = async () => {
     :open="open"
     :title="t('standalone.editAccount')"
     :width="620"
+    destroy-on-close
     :closable="!saving && !loggingIn"
     :mask-closable="!saving && !loggingIn"
     @close="close"
   >
-    <a-form layout="vertical" :model="draft" :disabled="saving || loggingIn">
+    <!-- 打开状态变化即重建输入控件，避免关闭动画中重开仍保留凭据的明文状态。 -->
+    <a-form
+      :key="`${account?.uid}-${open}`"
+      layout="vertical"
+      :model="draft"
+      :disabled="saving || loggingIn"
+    >
       <a-form-item name="Name" :label="t('standalone.accountName')" required
         ><a-input v-model:value="draft.Name" :maxlength="80"
       /></a-form-item>
@@ -158,11 +165,7 @@ const passwordLogin = async () => {
             :name="tab.key"
             :label="t('standalone.token')"
             :extra="t('standalone.tokenHint')"
-            ><a-textarea
-              v-model:value="draft[tab.key]"
-              :rows="4"
-              autocomplete="off"
-              spellcheck="false"
+            ><a-input-password v-model:value="draft[tab.key]" autocomplete="off" spellcheck="false"
           /></a-form-item>
           <a-button
             v-if="tab.key === 'MiyousheToken' || tab.key === 'SklandToken'"

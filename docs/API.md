@@ -1,4 +1,4 @@
-# BMASC 开发接口
+# Better-MAS-Tools 开发接口
 
 所有业务接口在`/api`下，用OpenAPI定义模型；前端通过生成客户端和composable调用。后端默认环回端口37164，桌面外壳使用自身随机端口。
 
@@ -9,6 +9,9 @@
 | `/api/accounts` | 账号列表与新增；更新、删除等契约以OpenAPI为准 |
 | `/api/settings` | 读取/保存设置，YunmaToken始终脱敏；null保留旧密钥，空字符串清除 |
 | `/api/status` | 运行状态、北京时间today和各平台结果 |
+| `/api/logs` | GET读取当前实例最近2000条脱敏日志；requestId关联一次请求 |
+| `/api/logs/export` | GET返回filename/content；本机导出当前日志文件，Workers导出实例内存日志 |
+| `/api/logs/frontend` | POST level、module、message写入前端诊断；仍经过后端统一脱敏 |
 | `/api/login/kuro/sms/create` | accountId＋phone创建10分钟会话 |
 | `/api/login/kuro/sms/automatic` | sessionId尝试自动验证和发短信；sent=false时按message转人工 |
 | `/api/login/kuro/sms/send` | sessionId＋完整极验4verification发送短信 |

@@ -100,6 +100,7 @@ async def send_automatically(session_id: str) -> tuple[bool, str]:
             return json.loads(await verification.fetch_sec_code())
 
     session.busy = True
+    logger.info(f"开始自动验证，方式={settings.CaptchaMode}")
     session.verification_task = asyncio.create_task(solve())
     try:
         # 覆盖加载、下载、识别和校验的总耗时，不能只限制单次 HTTP 请求。
@@ -110,8 +111,10 @@ async def send_automatically(session_id: str) -> tuple[bool, str]:
         )
         solution = await asyncio.wait_for(session.verification_task, timeout=timeout)
     except TimeoutError:
+        logger.warning(f"自动验证超过{timeout}秒，转人工验证")
         return False, "自动验证超时，请改用人工验证"
     except asyncio.CancelledError:
+        logger.info("自动验证已取消")
         if session_id not in _sessions:
             raise ValueError("短信登录已取消或过期，请重新开始") from None
         raise
@@ -119,7 +122,7 @@ async def send_automatically(session_id: str) -> tuple[bool, str]:
         logger.warning(str(error))
         return False, str(error)
     except Exception as error:
-        logger.warning(f"自动验证未完成：{type(error).__name__}")
+        logger.opt(exception=error).error("自动验证未完成")
         return False, "自动验证未完成，请使用人工验证"
     finally:
         session.busy = False
@@ -127,6 +130,7 @@ async def send_automatically(session_id: str) -> tuple[bool, str]:
     if not isinstance(solution, dict):
         return False, "自动验证未取得有效结果，请使用人工验证"
     await send_sms(session_id, solution)
+    logger.info("自动验证完成，短信请求已成功")
     return True, "短信已发送"
 
 
@@ -161,6 +165,7 @@ async def send_sms(session_id: str, verification: dict[str, str]) -> None:
     loop.call_later(SMS_INTERVAL, clear_cooldown)
     session.busy = True
     try:
+        logger.info("开始请求库街区短信验证码")
         await kuro.request_kuro_sms(
             phone=session.phone,
             verification=verification,
@@ -172,6 +177,7 @@ async def send_sms(session_id: str, verification: dict[str, str]) -> None:
         session.sent = True
         session.attempts = 0
         session.credential = ""
+        logger.info("库街区短信请求成功")
     finally:
         session.busy = False
 

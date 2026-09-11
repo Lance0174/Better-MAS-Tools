@@ -43,8 +43,8 @@ export class BackendService {
       },
     })
     const child = this.child
-    // 详细业务日志由后端统一脱敏落盘；桌面进程不复制原始请求输出。
-    child.stderr.resume()
+    // 后端已统一脱敏并落盘；源码启动同时向 PowerShell 输出完整阶段日志。
+    child.stderr.pipe(process.stderr, { end: false })
     child.stdin.on('error', () => undefined)
     const port = await new Promise<number>((resolve, reject) => {
       let buffer = ''

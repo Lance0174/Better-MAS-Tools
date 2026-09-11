@@ -6,6 +6,7 @@ import os
 import secrets
 from contextlib import asynccontextmanager
 from pathlib import Path
+from time import monotonic
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
@@ -15,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.community import router
+from app.api.diagnostics import router as diagnostics_router
 from app.api.gacha import router as gacha_router
 from app.api.kuro_login import router as kuro_login_router
 from app.api.mas import router as mas_router
@@ -25,8 +27,10 @@ from app.core.runtime import runtime
 from app.core.state import state
 from app.models.schema import SessionLoginIn, SessionOut
 from app.services.access import RemoteAccess, RemoteSessions
+from app.services.diagnostics import Diagnostics
 from app.tools.community_contract import CommunitySignInProgressError
 from app.utils.logger import configure_file_logging, get_logger
+from app.utils.security import sanitize_log_message
 from app.version import VERSION
 
 logger = get_logger("社区应用")
@@ -45,6 +49,12 @@ def create_app(
     directory = data_dir or Path(
         os.environ.get("COMMUNITY_DATA_DIR", PROJECT_ROOT / "data")
     )
+    diagnostics = Diagnostics(None if external_state else directory / "logs")
+    if external_state:
+        # 单用户 Durable Object 的日志跟随实例保留；控制台日志交由 Cloudflare 保存。
+        logger.add(
+            diagnostics.write, format="{message}", diagnose=False, backtrace=False
+        )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -52,22 +62,33 @@ def create_app(
             # Workers Durable Object 负责状态、定时触发与过期清理，不能每个 HTTP 请求重置。
             yield
             return
-        state.initialize(directory)
         log_sink = configure_file_logging(directory / "logs")
-        scheduler = (
-            asyncio.create_task(runtime.auto_loop()) if start_scheduler else None
+        capture_sink = logger.add(
+            diagnostics.write, format="{message}", diagnose=False, backtrace=False
         )
+        scheduler = None
         try:
+            state.initialize(directory)
+            logger.info(f"更好的MAS工具包 {VERSION} 启动，账号数={len(state.accounts)}")
+            scheduler = (
+                asyncio.create_task(runtime.auto_loop()) if start_scheduler else None
+            )
             yield
+        except Exception:
+            logger.exception("工具启动或生命周期异常")
+            raise
         finally:
             kuro_login.clear_sessions()
             miyoushe_missions.clear()
             if scheduler is not None:
                 scheduler.cancel()
                 await asyncio.gather(scheduler, return_exceptions=True)
+            logger.info("工具后端已关闭")
+            logger.remove(capture_sink)
             logger.remove(log_sink)
 
-    app = FastAPI(title="更好的MAS游戏社区版", version=VERSION, lifespan=lifespan)
+    app = FastAPI(title="更好的MAS工具包", version=VERSION, lifespan=lifespan)
+    app.state.diagnostics = diagnostics
     app.state.session_key = secrets.token_urlsafe(32)
     allowed_hosts = ["localhost", "127.0.0.1", "[::1]"]
     if remote:
@@ -120,6 +141,42 @@ def create_app(
             )
         return response
 
+    @app.middleware("http")
+    async def trace_request(request: Request, call_next):
+        request_id = secrets.token_hex(6)
+        request.state.request_id = request_id
+        path = request.url.path
+        tracked = (
+            path.startswith("/api/")
+            and not path.startswith("/api/logs")
+            and path != "/api/status"
+        )
+        started = monotonic()
+        with logger.contextualize(requestId=request_id):
+            if tracked:
+                logger.info(f"开始 {request.method} {path}")
+            try:
+                response = await call_next(request)
+            except Exception:
+                logger.exception(f"{request.method} {path} 未完成")
+                response = JSONResponse(
+                    {
+                        "code": 500,
+                        "status": "error",
+                        "message": f"操作未完成，请查看日志（编号 {request_id}）",
+                    },
+                    status_code=500,
+                    headers={"Cache-Control": "no-store"},
+                )
+            response.headers["X-Request-ID"] = request_id
+            if tracked or response.status_code >= 400:
+                elapsed = int((monotonic() - started) * 1000)
+                logger.log(
+                    "WARNING" if response.status_code >= 400 else "INFO",
+                    f"完成 {request.method} {path} HTTP={response.status_code} 耗时={elapsed}ms",
+                )
+            return response
+
     @app.get("/healthz", include_in_schema=False)
     async def health():
         return {
@@ -156,6 +213,12 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, _error: RequestValidationError):
+        # ValidationError 的 input 可能包含密码，仅读取字段位置与错误类型。
+        issues = [
+            {"field": list(item["loc"]), "type": item["type"]}
+            for item in _error.errors()
+        ]
+        logger.warning(f"请求字段校验失败：{issues}")
         return JSONResponse(
             {
                 "code": 422,
@@ -167,8 +230,15 @@ def create_app(
 
     @app.exception_handler(ValueError)
     async def value_error(_request: Request, error: ValueError):
+        reason = sanitize_log_message(str(error))
+        logger.warning(reason)
         return JSONResponse(
-            {"code": 400, "status": "error", "message": str(error)}, status_code=400
+            {
+                "code": 400,
+                "status": "error",
+                "message": f"{reason}（日志编号 {_request.state.request_id}）",
+            },
+            status_code=400,
         )
 
     async def conflict(_request: Request, error: RuntimeError):
@@ -181,13 +251,14 @@ def create_app(
 
     @app.exception_handler(Exception)
     async def unexpected(_request: Request, error: Exception):
-        logger.error(f"请求未完成：{type(error).__name__}")
+        logger.opt(exception=error).error("请求未完成")
         return JSONResponse(
             {"code": 500, "status": "error", "message": "操作未完成，请稍后重试"},
             status_code=500,
         )
 
     app.include_router(router)
+    app.include_router(diagnostics_router)
     app.include_router(gacha_router)
     app.include_router(mas_router)
     app.include_router(kuro_login_router)

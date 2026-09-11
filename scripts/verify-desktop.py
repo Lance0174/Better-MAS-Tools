@@ -17,7 +17,7 @@ from PIL import Image
 
 def verify(directory: Path) -> None:
     backend = directory / "resources/backend/community-backend.exe"
-    application = directory / "BetterMASCommunity.exe"
+    application = directory / "BetterMASTools.exe"
     for path in (
         backend,
         application,

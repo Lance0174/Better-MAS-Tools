@@ -1,8 +1,8 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "更好的MAS游戏社区版",
-    "version": "0.1.0"
+    "title": "更好的MAS工具包",
+    "version": "0.1.1"
   },
   "paths": {
     "/api/session": {
@@ -541,6 +541,89 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TaygedoLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs": {
+      "get": {
+        "tags": [
+          "Diagnostics"
+        ],
+        "summary": "Get Logs",
+        "operationId": "getLogs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/export": {
+      "get": {
+        "tags": [
+          "Diagnostics"
+        ],
+        "summary": "Export Logs",
+        "operationId": "exportLogs",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogExportOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/logs/frontend": {
+      "post": {
+        "tags": [
+          "Diagnostics"
+        ],
+        "summary": "Write Client Log",
+        "operationId": "writeClientLog",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientLogIn"
               }
             }
           },
@@ -1396,6 +1479,39 @@
         },
         "type": "object",
         "title": "ActivityQueryIn"
+      },
+      "ClientLogIn": {
+        "properties": {
+          "level": {
+            "type": "string",
+            "enum": [
+              "DEBUG",
+              "INFO",
+              "WARNING",
+              "ERROR"
+            ],
+            "title": "Level"
+          },
+          "module": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Module"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "module",
+          "message"
+        ],
+        "title": "ClientLogIn"
       },
       "CommunityActivityOut": {
         "properties": {
@@ -2339,6 +2455,121 @@
           "sessionId"
         ],
         "title": "KuroSmsSessionIn"
+      },
+      "LogEntryInfo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "time": {
+            "type": "string",
+            "title": "Time"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "module": {
+            "type": "string",
+            "title": "Module"
+          },
+          "requestId": {
+            "type": "string",
+            "title": "Requestid"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "time",
+          "level",
+          "module",
+          "requestId",
+          "message"
+        ],
+        "title": "LogEntryInfo"
+      },
+      "LogExportOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content"
+        ],
+        "title": "LogExportOut"
+      },
+      "LogsOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/LogEntryInfo"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "capacity": {
+            "type": "integer",
+            "title": "Capacity",
+            "default": 2000
+          },
+          "fileAvailable": {
+            "type": "boolean",
+            "title": "Fileavailable",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "LogsOut"
       },
       "MasQueueOut": {
         "properties": {

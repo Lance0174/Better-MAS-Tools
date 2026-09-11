@@ -3,8 +3,24 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/mas', name: 'Mas', component: () => import('@/views/mas/index.vue'), meta: { title: 'standalone.mas' } },
-    { path: '/gacha', name: 'Gacha', component: () => import('@/views/gacha/index.vue'), meta: { title: 'standalone.gacha' } },
+    {
+      path: '/logs',
+      name: 'Logs',
+      component: () => import('@/views/logs/index.vue'),
+      meta: { title: 'standalone.logs' },
+    },
+    {
+      path: '/mas',
+      name: 'Mas',
+      component: () => import('@/views/mas/index.vue'),
+      meta: { title: 'standalone.mas' },
+    },
+    {
+      path: '/gacha',
+      name: 'Gacha',
+      component: () => import('@/views/gacha/index.vue'),
+      meta: { title: 'standalone.gacha' },
+    },
     { path: '/', redirect: '/sign' },
     {
       path: '/sign',

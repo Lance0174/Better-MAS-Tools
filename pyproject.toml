@@ -1,7 +1,7 @@
 [project]
-name = "better-mas-community"
-version = "0.1.0"
-description = "独立的游戏社区账号、签到与日常便笺工具"
+name = "better-mas-tools"
+version = "0.1.1"
+description = "MAS 游戏社区扩展工具包"
 requires-python = ">=3.12,<3.13"
 license = { file = "LICENSE" }
 dependencies = [

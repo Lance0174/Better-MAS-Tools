@@ -34,8 +34,8 @@ wheels = [
 ]
 
 [[package]]
-name = "better-mas-community"
-version = "0.1.0"
+name = "better-mas-tools"
+version = "0.1.1"
 source = { virtual = "." }
 dependencies = [
     { name = "fastapi" },

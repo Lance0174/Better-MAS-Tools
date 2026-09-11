@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getLogger } from '@/utils/logger'
 
 const props = defineProps<{
   open: boolean
@@ -11,6 +12,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ close: []; solved: [solution: Record<string, string>] }>()
 const { t } = useI18n()
+const logger = getLogger('人工验证')
 const frame = ref<HTMLIFrameElement | null>(null)
 const nonce = ref('')
 const failed = ref(false)
@@ -31,6 +33,7 @@ const reload = () => {
       ? 'standalone.captchaNetworkFailed'
       : 'standalone.captchaBackendFailed'
     failed.value = true
+    logger.warn(t(failureReason.value))
   }, 25000)
 }
 const source = computed(
@@ -83,6 +86,7 @@ function receive(event: MessageEvent) {
   }
   if ('ready' in data) {
     ready.value = true
+    logger.info('官方验证码已加载')
     return
   }
   if ('error' in data) {
@@ -91,6 +95,7 @@ function receive(event: MessageEvent) {
         ? 'standalone.captchaPolicyFailed'
         : 'standalone.captchaNetworkFailed'
     failed.value = true
+    logger.warn(t(failureReason.value))
     return
   }
   if (!('solution' in data) || !data.solution || typeof data.solution !== 'object') return

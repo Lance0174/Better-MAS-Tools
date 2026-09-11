@@ -1,10 +1,11 @@
-/** 更好的MAS游戏社区版：独立窗口、独立数据、单实例及后端清理。 */
+/** 更好的MAS工具包：独立窗口、独立数据、单实例及后端清理。 */
 import { app, BrowserWindow, dialog, Menu, screen, shell } from 'electron'
 import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { BackendService } from './backend.cjs'
 
-const productName = '更好的MAS游戏社区版'
+const productName = '更好的MAS工具包'
+// 产品更名保留既有目录与应用 ID，保证原账号密文、单实例锁和快捷方式兼容。
 const dataDirectory = process.env.COMMUNITY_DATA_DIR
   ? resolve(process.env.COMMUNITY_DATA_DIR)
   : join(app.getPath('appData'), 'BetterMASCommunity')
@@ -70,6 +71,10 @@ async function start(): Promise<void> {
     callback(false)
   )
   window.webContents.session.setPermissionCheckHandler(() => false)
+  window.webContents.on('console-message', details => {
+    // 仅保存工具日志出口已脱敏的消息；第三方 SDK 的原始控制台输出不写入文件。
+    if (details.message.startsWith('[BMAT]')) log(details.message)
+  })
   window.webContents.setWindowOpenHandler(({ url }) => {
     openExternal(url)
     return { action: 'deny' }

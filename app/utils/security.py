@@ -45,7 +45,12 @@ def sanitize_log_message(message: str) -> str:
     sensitive_key = (
         r"(?:cdk|password|passwd|pwd|token|access[_-]?token|"
         r"refresh[_-]?token|authorization|cookies?[_-]?str|cookie|"
-        r"secret|api[_-]?key|username|phone|cellphone|useridentity)"
+        r"secret|api[_-]?key|username|phone|cellphone|useridentity|"
+        r"(?:s|l|cookie|game|pass)[_-]?token(?:_v2)?|(?:lt|st|account|bbs)_?uid(?:_v2)?|"
+        r"(?:lt|account)_?mid(?:_v2)?|mid|cred|oauth[_-]?token|authkey|"
+        r"ticket|scan[_-]?code|sms[_-]?code|captcha_output|lot_number|"
+        r"geetest_(?:challenge|validate|seccode)|x-community-session|"
+        r"(?:Miyoushe|Skland|Kuro|Taygedo|CloudGenshin|Yunma)Token)"
     )
     sensitive_patterns = [
         # JSON 字符串值，例如 "password": "..."
@@ -64,7 +69,18 @@ def sanitize_log_message(message: str) -> str:
             pattern, replacement, sanitized_message, flags=re.IGNORECASE
         )
 
-    return sanitized_message
+    # 请求 URL 仅保留协议、主机和路径；不将查询参数或代理账号写入诊断文件。
+    sanitized_message = re.sub(
+        r"(https?://)[^/\s@]+@", r"\1***@", sanitized_message, flags=re.IGNORECASE
+    )
+    sanitized_message = re.sub(
+        r"(https?://[^\s?#]+)[?#][^\s]*",
+        r"\1",
+        sanitized_message,
+        flags=re.IGNORECASE,
+    )
+    sanitized_message = re.sub(r"\b1[3-9]\d{9}\b", "***", sanitized_message)
+    return re.sub(r"\b[A-Za-z0-9_-]{32,}\b", "***", sanitized_message)
 
 
 def format_exception_reason(

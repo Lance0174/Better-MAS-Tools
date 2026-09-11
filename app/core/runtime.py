@@ -30,12 +30,26 @@ class CommunityRuntime:
         async with community_sign_flow():
             self.sign_running = True
             try:
+                logger.info(
+                    f"开始{'手动' if force else '自动'}签到，账号数={len(state.accounts)}"
+                )
                 results = await run_community_sign_in(force=force)
                 if results:
                     from app.core.miyoushe_missions import capture
 
                     capture(results)
                     await state.save_results(results)
+                completed = sum(
+                    item.get("status") in ("成功", "已签到")
+                    or bool(item.get("_completed"))
+                    for item in results
+                )
+                logger.info(
+                    f"签到执行结束：共{len(results)}项，完成{completed}项，其余{len(results) - completed}项"
+                )
+            except Exception:
+                logger.exception("签到执行异常")
+                raise
             finally:
                 self.sign_running = False
 
@@ -89,7 +103,8 @@ class CommunityRuntime:
                     pass
                 except Exception as error:
                     attempted_on = datetime.now(tz=UTC8).strftime("%Y-%m-%d")
-                    logger.warning(f"自动签到未完成：{type(error).__name__}")
+                    logger.opt(exception=error).error("自动签到未完成")
             await asyncio.sleep(30)
+
 
 runtime = CommunityRuntime()

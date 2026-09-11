@@ -8,11 +8,14 @@ from typing import Any
 import httpx
 
 from app.services.network import network
+from app.utils.logger import get_logger
 
 from .consts import DEFAULT_HEADERS
 from .errors import CaptchaError
 from .track_detact import slide
 from .utils import geetest_m, get_current_timestamp, get_guid
+
+logger = get_logger("极验验证")
 
 
 class Geetest:
@@ -177,16 +180,22 @@ class Geetest:
     async def fetch_sec_code(self) -> str:
         stage = "极验加载"
         try:
+            logger.info("开始加载极验挑战")
             await self._send_load()
+            logger.info(
+                f"极验挑战已加载，类型={self.geetest_info.get('captcha_type', 'unknown')}"
+            )
             pow_message, sign = self._get_pow()
             stage = "验证码图片识别"
             track = await self._fetch_track(pow_message, sign)
             stage = "极验校验"
             verify_result = await self._verify(geetest_m(track))
+            logger.info("极验校验通过")
             return json.dumps(verify_result["data"]["seccode"])
         except CaptchaError:
             raise
         except httpx.HTTPError:
             raise CaptchaError(f"{stage}网络请求失败，请重试或使用人工验证") from None
         except Exception:
+            logger.exception(f"{stage}异常")
             raise CaptchaError(f"{stage}未完成，请重试或使用人工验证") from None

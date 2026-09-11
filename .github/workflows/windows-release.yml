@@ -82,7 +82,7 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             if ($draft -ne 'true') { throw 'This version is already published. Use a new version tag.' }
           } else {
-            gh release create $tag --draft --verify-tag --title "Better MAS Community $tag" --notes-file CHANGELOG.md
+            gh release create $tag --draft --verify-tag --title "Better MAS Tools $tag" --notes-file CHANGELOG.md
             if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft release.' }
           }
           $assets = Get-ChildItem frontend/out -File | Where-Object { $_.Extension -in '.zip', '.exe' -or $_.Name -eq 'SHA256SUMS.txt' }

@@ -11,6 +11,7 @@ import {
   DashboardOutlined,
   GiftOutlined,
   LinkOutlined,
+  FileTextOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
@@ -84,6 +85,10 @@ onMounted(connect)
             class="navigation-footer"
             @click="navigate"
           >
+            <a-menu-item key="/logs"
+              ><template #icon><FileTextOutlined /></template
+              >{{ t('standalone.logs') }}</a-menu-item
+            >
             <a-menu-item key="/settings"
               ><template #icon><SettingOutlined /></template
               >{{ t('standalone.settings') }}</a-menu-item

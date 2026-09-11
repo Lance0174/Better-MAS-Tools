@@ -71,7 +71,7 @@ PASSPORT_COOKIE_URL = (
 )
 
 # DS 签名 Salt（对齐 MihoyoBBSTools）
-SALT_WEB = "DlOUwIupfU6YespEUWDJmXtutuXV6owG"  # web 端 salt（游戏社区 GET 请求）
+SALT_WEB = "d9200c846b10886e8c874fc33c8f308b"  # web 端 salt，与 2.109.0 配套
 SALT_DATA = "t0qEgfub6cvueAPgR5m9aQWWVciEer7v"  # 有 body/query 的请求（x6）
 
 # 验证码重试配置
@@ -219,11 +219,11 @@ GAME_CONFIG = {
 BASE_HEADERS = {
     "Accept": "application/json, text/plain, */*",
     "Origin": "https://webstatic.mihoyo.com",
-    "x-rpc-app_version": "2.99.1",
+    "x-rpc-app_version": "2.109.0",
     "User-Agent": "Mozilla/5.0 (Linux; Android 12; Unspecified Device) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Version/4.0 Chrome/103.0.5060.129 Mobile Safari/537.36 "
-    "miHoYoBBS/2.99.1",
+    "miHoYoBBS/2.109.0",
     "x-rpc-client_type": "5",
     "Referer": "https://act.mihoyo.com/",
     "Accept-Encoding": "gzip, deflate",
@@ -272,7 +272,7 @@ def _log_miyoushe_exception(stage: str, error: Exception) -> str:
 def _safe_json_parse(response: httpx.Response) -> dict[str, object]:
     """安全解析 API 响应 JSON
 
-    当响应为空或非 JSON 时（通常是风控拦截），抛出 _RiskControlError。
+    区分 HTTP 失败、空响应及 JSON 格式错误，不把所有异常都当成账号风控。
 
     Args:
         response: httpx 响应对象
@@ -281,19 +281,19 @@ def _safe_json_parse(response: httpx.Response) -> dict[str, object]:
         解析后的 JSON 字典
 
     Raises:
-        _RiskControlError: 响应为空或非 JSON（疑似风控）
+        httpx.HTTPStatusError: 上游 HTTP 请求失败
+        ValueError: 上游未返回有效的 JSON 对象
     """
+    response.raise_for_status()
     text = response.text.strip()
     if not text:
-        raise _RiskControlError("API 返回空响应，疑似被风控")
+        raise ValueError("米游社接口返回空响应（HTTP 200），请查看请求日志")
     try:
         data = response.json()
-    except ValueError as exc:
-        raise _RiskControlError(
-            f"API 返回非 JSON 内容，疑似被风控: {text[:100]}"
-        ) from exc
+    except ValueError:
+        raise ValueError("米游社接口未返回 JSON，请查看请求日志中的 HTTP 状态") from None
     if not isinstance(data, dict):
-        raise _RiskControlError("API 返回异常 JSON 格式，疑似被风控")
+        raise ValueError("米游社接口返回的 JSON 结构无效")
     return data
 
 
@@ -332,8 +332,8 @@ def merge_miyoushe_cookie_update(cookie: str, updated_cookie: str) -> str:
 def _generate_ds(body: str = "", query: str = "") -> str:
     """生成 DS (Dynamic Secret) 签名
 
-    对齐 MihoyoBBSTools：游戏社区 GET 请求使用 SALT_WEB，
-    POST 请求（有 body）使用 SALT_DATA。
+    对齐 MihoyoBBSTools：网页端游戏签到统一使用不带参数的 DS，
+    与 x-rpc-client_type=5 配套；带 body/query 的 DS2 保留给需要它的调用方。
 
     Args:
         body: 请求体 JSON 字符串
@@ -343,7 +343,11 @@ def _generate_ds(body: str = "", query: str = "") -> str:
         DS 签名字符串，格式 "t,r,md5hash"
     """
     t = str(int(time.time()))
-    r = "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    r = (
+        str(random.randint(100001, 200000))
+        if body or query
+        else "".join(random.choices(string.ascii_lowercase + string.digits, k=6))
+    )
 
     if body or query:
         salt = SALT_DATA
@@ -863,7 +867,7 @@ async def _get_game_roles(
         rsp = _safe_json_parse(response)
 
     if rsp.get("retcode") != 0:
-        raise ValueError(f"获取角色列表失败: {rsp.get('message')}")
+        raise ValueError(f"获取角色列表失败（retcode={rsp.get('retcode')}）: {rsp.get('message')}")
 
     data_list = rsp.get("data", {}).get("list", [])
     roles = []
@@ -910,7 +914,7 @@ async def _fetch_miyoushe_sign_info(
 
     headers = BASE_HEADERS.copy()
     query = f"lang=zh-cn&act_id={game_cfg['act_id']}&region={region}&uid={uid}"
-    headers["DS"] = _generate_ds(query=query)
+    headers["DS"] = _generate_ds()
     headers["x-rpc-device_id"] = device_id or _generate_device_id(cookie)
     headers.update(game_cfg.get("extra_headers", {}))
 
@@ -927,6 +931,7 @@ async def _fetch_miyoushe_sign_info(
         rsp = _safe_json_parse(response)
 
     if rsp.get("retcode") != 0:
+        logger.warning(f"{game_cfg['name']} 签到状态查询未完成 retcode={rsp.get('retcode')}")
         return None
 
     sign_info = rsp.get("data")
@@ -972,7 +977,7 @@ async def _fetch_miyoushe_sign_reward(
 
     query = f"lang=zh-cn&act_id={game_cfg['act_id']}"
     headers = BASE_HEADERS.copy()
-    headers["DS"] = _generate_ds(query=query)
+    headers["DS"] = _generate_ds()
     headers["x-rpc-device_id"] = device_id or _generate_device_id(cookie)
     headers.update(game_cfg.get("extra_headers", {}))
 
@@ -1056,7 +1061,7 @@ async def _do_sign(
 
     for attempt in range(CAPTCHA_MAX_RETRIES + 1):
         headers = BASE_HEADERS.copy()
-        headers["DS"] = _generate_ds(body=body)
+        headers["DS"] = _generate_ds()
         headers["x-rpc-device_id"] = device_id or _generate_device_id(cookie)
         headers.update(game_cfg.get("extra_headers", {}))
         if verification:
@@ -1075,11 +1080,15 @@ async def _do_sign(
             rsp = _safe_json_parse(response)
 
         retcode = rsp.get("retcode")
-        data = rsp.get("data") or {}
+        data = rsp.get("data")
+        if not isinstance(data, dict):
+            data = {}
+        logger.info(f"{game_cfg['name']} 签到响应 retcode={retcode} 尝试={attempt + 1}")
 
         # ---- 需要验证码（极验风控） ----
         # 部分游戏 retcode=0 仍会携带挑战；必须先判断，不能误报签到成功。
         if data.get("gt") and data.get("challenge"):
+            logger.warning(f"{game_cfg['name']} 签到需要人工验证 retcode={retcode}")
             return _SignOutcome(
                 {
                     "account": account, "game": game_cfg["name"], "platform": "米游社",
@@ -1211,7 +1220,7 @@ async def _do_sign(
                 )
 
         # ---- 其他失败 ----
-        message = rsp.get("message", "未知错误")
+        message = f"{rsp.get('message') or '未知错误'}（retcode={retcode}）"
         logger.warning(f"{account} {game_cfg['name']} 签到失败: {message}")
         return _SignOutcome(
             {

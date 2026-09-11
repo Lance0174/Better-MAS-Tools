@@ -33,5 +33,5 @@ try {
         if ($Zip) { Invoke-Checked 'yarn' @('package:desktop') }
         else { Invoke-Checked 'yarn' @('package:desktop', '--dir') }
     } finally { Pop-Location }
-    Write-Output (Join-Path $projectDirectory 'frontend/out/win-unpacked/BetterMASCommunity.exe')
+    Write-Output (Join-Path $projectDirectory 'frontend/out/win-unpacked/BetterMASTools.exe')
 } finally { Pop-Location }

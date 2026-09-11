@@ -142,7 +142,9 @@ class AccountReorderIn(BaseModel):
 class SettingsOut(OutBase):
     data: SettingsData
     yunmaConfigured: bool = False
-    localConnections: bool = Field(default=True, description="是否能连接后端主机的 MAS 与代理；纯 Workers 为 false")
+    localConnections: bool = Field(
+        default=True, description="是否能连接后端主机的 MAS 与代理；纯 Workers 为 false"
+    )
 
 
 class ActivityQueryIn(BaseModel):
@@ -336,3 +338,29 @@ class SessionLoginIn(BaseModel):
 class SessionOut(OutBase):
     key: str = Field(default="", repr=False)
     loginRequired: bool = False
+
+
+class LogEntryInfo(BaseModel):
+    id: int
+    time: str
+    level: str
+    module: str
+    requestId: str
+    message: str
+
+
+class LogsOut(OutBase):
+    data: list[LogEntryInfo] = Field(default_factory=list)
+    capacity: int = 2000
+    fileAvailable: bool = False
+
+
+class LogExportOut(OutBase):
+    filename: str
+    content: str
+
+
+class ClientLogIn(BaseModel):
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
+    module: str = Field(min_length=1, max_length=80)
+    message: str = Field(min_length=1, max_length=12000, repr=False)

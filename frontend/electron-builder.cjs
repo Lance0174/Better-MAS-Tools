@@ -1,8 +1,8 @@
 /** 独立打包，不配置组织远端或自动更新；Release 上传由 GitHub Actions 负责。 */
 module.exports = {
   appId: 'independent.bettermas.community',
-  productName: '更好的MAS游戏社区版',
-  executableName: 'BetterMASCommunity',
+  productName: '更好的MAS工具包',
+  executableName: 'BetterMASTools',
   directories: { output: 'out' },
   files: ['dist-electron/**/*', 'package.json', '!node_modules/**/*'],
   extraResources: [
@@ -28,6 +28,6 @@ module.exports = {
     ],
     requestedExecutionLevel: 'asInvoker',
   },
-  artifactName: 'BetterMASCommunity-${version}-win-${arch}.${ext}',
+  artifactName: 'BetterMASTools-${version}-win-${arch}.${ext}',
   publish: null,
 }

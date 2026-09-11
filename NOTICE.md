@@ -1,6 +1,6 @@
 # 来源与项目归属
 
-“更好的MAS游戏社区版”（Better MAS Community）是独立衍生项目，独立于 AUTO-MAS 团队，不代表 AUTO-MAS 团队或任何游戏公司。
+“更好的MAS工具包”（Better-MAS-Tools）是独立衍生项目，独立于 AUTO-MAS 团队，不代表 AUTO-MAS 团队或任何游戏公司。
 
 社区协议、签到编排、日常便笺和部分前端组件来自 [AUTO-MAS](https://github.com/AUTO-MAS-Project/AUTO-MAS)，来源版本为 `78bc197e5c37ca4ece98f5b4f07f90fe631b814a`。迁移记录见 [来源清单](docs/upstream-files.json)。原始版权头、有效注释及第三方协议参考致谢予以保留；独立适配在本项目中进行，不反向修改源仓库。
 
@@ -12,6 +12,7 @@
 
 | 来源 | 核对版本 | 使用范围 |
 | --- | --- | --- |
+| [Womsxd/MihoyoBBSTools](https://github.com/Womsxd/MihoyoBBSTools) | `f062d1fda8fab88fd312a5ca3a89537f6351943b` | 米游社游戏签到网页 DS 与版本/Salt 配套核对，保留原平台模块中的版权与致谢 |
 | [mxyooR/Kuro_login](https://github.com/mxyooR/Kuro_login) | `1ba2f995b831e32fcd9c7a03a976272765f4943f`；图标 Alpha 处理参考此前 `b69ef1a9c618325e4a4f0b4ad0372624ab0d847f` | 库街区短信协议及极验4滑块适配，保留 MX 版权；MIT 全文见 [Kuro_login.txt](docs/licenses/Kuro_login.txt) |
 | [Scighost/Starward](https://github.com/Scighost/Starward) | `3e2da5ffecde252211edb74b850ee13d6b93f6dd` | 米家抽卡协议和 UIGF 兼容参考；MIT 全文见 [Starward.txt](docs/licenses/Starward.txt) |
 | [Ljzd-PRO/nonebot-plugin-mystool](https://github.com/Ljzd-PRO/nonebot-plugin-mystool) | `ac2e1242764282079e2d393c1dbc3168c9a40f34` | 米游币状态与人工验证协议参考 |

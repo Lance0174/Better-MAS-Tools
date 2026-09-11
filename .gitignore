@@ -8,6 +8,7 @@ __pycache__/
 **/.dev.vars
 data/
 logs/
+!frontend/src/views/logs/
 local/
 frontend/node_modules/
 frontend/dist/
