@@ -1,0 +1,41 @@
+[project]
+name = "better-mas-community"
+version = "0.1.0"
+description = "独立的游戏社区账号、签到与日常便笺工具"
+requires-python = ">=3.12,<3.13"
+license = { file = "LICENSE" }
+dependencies = [
+  "fastapi==0.116.1",
+  "pydantic==2.11.7",
+  "uvicorn==0.35.0",
+  "httpx[socks]==0.28.1",
+  "loguru==0.7.3",
+  "pycryptodome==3.23.0",
+  "pywin32==310; sys_platform == 'win32'",
+]
+
+[dependency-groups]
+dev = [
+    "pillow==12.1.1",
+    "pyinstaller>=6.16,<7",
+    "pytest>=8,<10",
+    "ruff>=0.12,<1",
+]
+
+[project.optional-dependencies]
+captcha = [
+    "opencv-python-headless>=4.12,<5",
+    "numpy>=2.2,<3",
+    "pillow>=12.1,<13",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+extend-exclude = ["frontend", "local"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

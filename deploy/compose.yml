@@ -1,0 +1,20 @@
+services:
+  community:
+    build:
+      context: ..
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:37164:37164"
+    environment:
+      COMMUNITY_REMOTE: "1"
+      COMMUNITY_PUBLIC_ORIGIN: ${COMMUNITY_PUBLIC_ORIGIN:?Set the HTTPS public origin}
+      COMMUNITY_ACCESS_PASSWORD: ${COMMUNITY_ACCESS_PASSWORD:?Set an access password of at least 12 characters}
+    volumes:
+      - community-data:/data
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:37164/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  community-data:

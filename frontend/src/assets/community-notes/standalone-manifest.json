@@ -1,0 +1,37 @@
+[
+  {
+    "source": "arknights.png",
+    "file": "arknights.webp",
+    "source_sha256": "d199206eb791ae9aafcf577edd4154caf272b95f3cf6a2b7d3be77c8c49be945",
+    "sha256": "5e96588f4b9040407d286c1e9ccbc349abb81eef03270dc8aa00f5334ad6e1ab",
+    "bytes": 28582
+  },
+  {
+    "source": "endfield.jpg",
+    "file": "endfield.webp",
+    "source_sha256": "a102e1be9d342e354a69e0b0f70d398a0d9660703eb57522a67c0450d88e82f5",
+    "sha256": "d0f78f8c982f293bba4ec6073cef4fb4ec70a976149b4dee79823f63b23e9368",
+    "bytes": 12520
+  },
+  {
+    "source": "genshin.jpg",
+    "file": "genshin.webp",
+    "source_sha256": "97fd3456fd760d47e3d446c1adfa2bb55d5743229ebb687c9b02240d711f7141",
+    "sha256": "dd62fbde70ddc527c2905f7b67f414876e2e3d7710277a9cdc17d7366dc50b7c",
+    "bytes": 11540
+  },
+  {
+    "source": "star-rail.jpg",
+    "file": "star-rail.webp",
+    "source_sha256": "6f46bee741c79600dcdaaa037973743a87a65dee85dd538d6c68c07f6641bd5b",
+    "sha256": "6f16103d22a2e0fcdcc3be662590f4401aa1272c073138e5dde3ea6b15e1e0e1",
+    "bytes": 15498
+  },
+  {
+    "source": "zenless.jpg",
+    "file": "zenless.webp",
+    "source_sha256": "defadbbcb2ac073cedb7e3cd5e7dd849722e9feb34db3f0cae82b75b11b9168b",
+    "sha256": "62b1523b29b9e2d3158b742f0873ad083d73b37ef425bf4e5465d3585320bc62",
+    "bytes": 12660
+  }
+]

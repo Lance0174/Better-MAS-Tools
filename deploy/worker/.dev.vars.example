@@ -1,0 +1,4 @@
+# 只用于本地测试；生产环境用 wrangler secret put，不把密钥写入 wrangler 配置。
+COMMUNITY_PUBLIC_ORIGIN=https://your-worker.example.com
+COMMUNITY_ACCESS_PASSWORD=
+COMMUNITY_ENCRYPTION_KEY=

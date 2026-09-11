@@ -1,0 +1,3074 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "更好的MAS游戏社区版",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/session": {
+      "get": {
+        "tags": [
+          "Session"
+        ],
+        "summary": "Session",
+        "operationId": "getSession",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Session"
+        ],
+        "summary": "Login Session",
+        "operationId": "loginSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "List Accounts",
+        "operationId": "listAccounts",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountsOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Create Account",
+        "operationId": "createAccount",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountCreateOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/update": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Update Account",
+        "operationId": "updateAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/delete": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Delete Account",
+        "operationId": "deleteAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountIdIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/reorder": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Reorder Accounts",
+        "operationId": "reorderAccounts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountReorderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Get Settings",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Update Settings",
+        "operationId": "updateSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status": {
+      "get": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Get Status",
+        "operationId": "getStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sign": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Manual Sign",
+        "operationId": "manualSign",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Query Activity",
+        "operationId": "queryActivity",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActivityQueryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommunityActivityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/{provider}/qr/create": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Create Qr",
+        "operationId": "createQr",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "miyoushe",
+                "skland"
+              ],
+              "type": "string",
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrCreateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/{provider}/qr/check": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Check Qr",
+        "operationId": "checkQr",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "miyoushe",
+                "skland"
+              ],
+              "type": "string",
+              "title": "Provider"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrCheckIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QrCheckOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/{provider}/qr/save": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Save Qr",
+        "operationId": "saveQr",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "miyoushe",
+                "skland"
+              ],
+              "type": "string",
+              "title": "Provider"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QrSaveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/taygedo": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "Login Taygedo",
+        "operationId": "loginTaygedo",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaygedoLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gacha": {
+      "get": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "List Records",
+        "operationId": "listGachaRecords",
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "genshin",
+                "starrail",
+                "zzz",
+                "wuthering",
+                "arknights",
+                "endfield"
+              ],
+              "type": "string",
+              "title": "Game"
+            }
+          },
+          {
+            "name": "playerUid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Playeruid"
+            }
+          },
+          {
+            "name": "pool",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Pool"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Pagesize"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaRecordsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gacha/fetch": {
+      "post": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Fetch Records",
+        "operationId": "fetchGachaRecords",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GachaFetchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaUpdateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gacha/import": {
+      "post": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Import Records",
+        "operationId": "importGachaRecords",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GachaImportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaUpdateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gacha/export": {
+      "get": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Export Records",
+        "operationId": "exportGachaRecords",
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "genshin",
+                "starrail",
+                "zzz",
+                "wuthering",
+                "arknights",
+                "endfield"
+              ],
+              "type": "string",
+              "title": "Game"
+            }
+          },
+          {
+            "name": "playerUid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Playeruid"
+            }
+          },
+          {
+            "name": "fileFormat",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "bmasc",
+                "uigf"
+              ],
+              "type": "string",
+              "default": "bmasc",
+              "title": "Fileformat"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaExportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mas/snapshot": {
+      "get": {
+        "tags": [
+          "Mas"
+        ],
+        "summary": "Snapshot",
+        "operationId": "getMasSnapshot",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MasSnapshotOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mas/start": {
+      "post": {
+        "tags": [
+          "Mas"
+        ],
+        "summary": "Start",
+        "operationId": "startMasTask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MasStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MasStartOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mas/stop": {
+      "post": {
+        "tags": [
+          "Mas"
+        ],
+        "summary": "Stop",
+        "operationId": "stopMasTask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MasStopIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/kuro/sms/automatic": {
+      "post": {
+        "tags": [
+          "KuroLogin"
+        ],
+        "summary": "Automatic Sms",
+        "operationId": "automaticKuroSms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KuroSmsSessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KuroSmsAutomaticOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/kuro/sms/create": {
+      "post": {
+        "tags": [
+          "KuroLogin"
+        ],
+        "summary": "Create Sms",
+        "operationId": "createKuroSms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KuroSmsCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KuroSmsCreateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/kuro/sms/send": {
+      "post": {
+        "tags": [
+          "KuroLogin"
+        ],
+        "summary": "Send Sms",
+        "operationId": "sendKuroSms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KuroSmsSendIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/kuro/sms/login": {
+      "post": {
+        "tags": [
+          "KuroLogin"
+        ],
+        "summary": "Login Sms",
+        "operationId": "loginKuroSms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KuroSmsLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login/kuro/sms/cancel": {
+      "post": {
+        "tags": [
+          "KuroLogin"
+        ],
+        "summary": "Cancel Sms",
+        "operationId": "cancelKuroSms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KuroSmsSessionIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/miyoushe/verification": {
+      "get": {
+        "tags": [
+          "MiyousheMissions"
+        ],
+        "summary": "List Verifications",
+        "operationId": "listMiyousheVerifications",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MiyousheVerificationsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/miyoushe/verification/submit": {
+      "post": {
+        "tags": [
+          "MiyousheMissions"
+        ],
+        "summary": "Submit",
+        "operationId": "submitMiyousheVerification",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MiyousheVerificationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountCreateOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AccountOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AccountCreateOut"
+      },
+      "AccountData": {
+        "properties": {
+          "Name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name",
+            "default": "新账号"
+          },
+          "Enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "MiyousheToken": {
+            "type": "string",
+            "title": "Miyoushetoken",
+            "default": ""
+          },
+          "MiyousheDeviceId": {
+            "type": "string",
+            "title": "Miyoushedeviceid",
+            "default": ""
+          },
+          "MiyousheDeviceFp": {
+            "type": "string",
+            "title": "Miyoushedevicefp",
+            "default": ""
+          },
+          "CloudGenshinToken": {
+            "type": "string",
+            "title": "Cloudgenshintoken",
+            "default": ""
+          },
+          "KuroToken": {
+            "type": "string",
+            "title": "Kurotoken",
+            "default": ""
+          },
+          "SklandToken": {
+            "type": "string",
+            "title": "Sklandtoken",
+            "default": ""
+          },
+          "TaygedoToken": {
+            "type": "string",
+            "title": "Taygedotoken",
+            "default": ""
+          },
+          "LastSignDate": {
+            "type": "string",
+            "title": "Lastsigndate",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AccountData"
+      },
+      "AccountIdIn": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId"
+        ],
+        "title": "AccountIdIn"
+      },
+      "AccountOut": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "title": "Uid"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AccountData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uid",
+          "data"
+        ],
+        "title": "AccountOut"
+      },
+      "AccountReorderIn": {
+        "properties": {
+          "order": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Order"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order"
+        ],
+        "title": "AccountReorderIn"
+      },
+      "AccountUpdateIn": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GameSignAccountGroupConfig"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId",
+          "data"
+        ],
+        "title": "AccountUpdateIn"
+      },
+      "AccountsOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AccountOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "AccountsOut"
+      },
+      "ActivityQueryIn": {
+        "properties": {
+          "accountIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountids"
+          }
+        },
+        "type": "object",
+        "title": "ActivityQueryIn"
+      },
+      "CommunityActivityOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityActivitySnapshotOut"
+            },
+            "type": "array",
+            "title": "Data",
+            "description": "按账号和游戏拆分的活动快照"
+          }
+        },
+        "type": "object",
+        "title": "CommunityActivityOut",
+        "description": "游戏社区日常活动查询响应。"
+      },
+      "CommunityActivityResourceOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "资源名称"
+          },
+          "current": {
+            "type": "integer",
+            "title": "Current",
+            "description": "当前数量"
+          },
+          "target": {
+            "type": "integer",
+            "title": "Target",
+            "description": "容量上限"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "资源状态"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "current",
+          "target",
+          "status"
+        ],
+        "title": "CommunityActivityResourceOut",
+        "description": "日常活动中的可用资源。"
+      },
+      "CommunityActivitySnapshotOut": {
+        "properties": {
+          "account": {
+            "type": "string",
+            "title": "Account",
+            "description": "账号组名称"
+          },
+          "accountUid": {
+            "type": "string",
+            "title": "Accountuid",
+            "description": "账号组 UUID"
+          },
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "description": "游戏名称"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform",
+            "description": "社区平台名称"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "empty",
+              "limited",
+              "unavailable",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "活动查询状态"
+          },
+          "completed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed",
+            "description": "已完成数量"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target",
+            "description": "目标数量"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityActivityTaskOut"
+            },
+            "type": "array",
+            "title": "Tasks",
+            "description": "每日任务"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/CommunityActivityResourceOut"
+            },
+            "type": "array",
+            "title": "Resources",
+            "description": "可用资源"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "失败或受限原因",
+            "default": ""
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat",
+            "description": "查询时间",
+            "default": ""
+          },
+          "roleName": {
+            "type": "string",
+            "title": "Rolename",
+            "description": "角色名称",
+            "default": ""
+          },
+          "roleUid": {
+            "type": "string",
+            "title": "Roleuid",
+            "description": "角色 UID",
+            "default": ""
+          },
+          "server": {
+            "type": "string",
+            "title": "Server",
+            "description": "角色区服",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "已确认的数据来源路径",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "account",
+          "accountUid",
+          "game",
+          "platform",
+          "status"
+        ],
+        "title": "CommunityActivitySnapshotOut",
+        "description": "单个游戏角色的日常活动快照。"
+      },
+      "CommunityActivityTaskOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "任务名称"
+          },
+          "completed": {
+            "type": "integer",
+            "title": "Completed",
+            "description": "已完成数量"
+          },
+          "target": {
+            "type": "integer",
+            "title": "Target",
+            "description": "目标数量"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "任务状态"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period",
+            "description": "任务周期",
+            "default": "daily"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "completed",
+          "target",
+          "status"
+        ],
+        "title": "CommunityActivityTaskOut",
+        "description": "日常活动中的单项任务。"
+      },
+      "GachaExportOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "content"
+        ],
+        "title": "GachaExportOut"
+      },
+      "GachaFetchIn": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "genshin",
+              "starrail",
+              "zzz",
+              "wuthering",
+              "arknights",
+              "endfield"
+            ],
+            "title": "Game"
+          },
+          "source": {
+            "type": "string",
+            "maxLength": 16000,
+            "format": "password",
+            "title": "Source",
+            "default": "",
+            "writeOnly": true
+          },
+          "accountId": {
+            "type": "string",
+            "title": "Accountid",
+            "default": ""
+          },
+          "playerUid": {
+            "type": "string",
+            "maxLength": 120,
+            "title": "Playeruid",
+            "default": ""
+          },
+          "timezone": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": -12.0,
+            "title": "Timezone",
+            "default": 8
+          },
+          "maxPages": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Maxpages",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "game"
+        ],
+        "title": "GachaFetchIn"
+      },
+      "GachaImportIn": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "genshin",
+              "starrail",
+              "zzz",
+              "wuthering",
+              "arknights",
+              "endfield"
+            ],
+            "title": "Game"
+          },
+          "payload": {
+            "type": "string",
+            "maxLength": 20000000,
+            "minLength": 2,
+            "format": "password",
+            "title": "Payload",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "payload"
+        ],
+        "title": "GachaImportIn"
+      },
+      "GachaPoolOut": {
+        "properties": {
+          "poolType": {
+            "type": "string",
+            "title": "Pooltype"
+          },
+          "poolName": {
+            "type": "string",
+            "title": "Poolname"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "topRarity": {
+            "type": "integer",
+            "title": "Toprarity"
+          },
+          "topCount": {
+            "type": "integer",
+            "title": "Topcount"
+          },
+          "sinceTop": {
+            "type": "integer",
+            "title": "Sincetop"
+          }
+        },
+        "type": "object",
+        "required": [
+          "poolType",
+          "poolName",
+          "total",
+          "topRarity",
+          "topCount",
+          "sinceTop"
+        ],
+        "title": "GachaPoolOut"
+      },
+      "GachaRecord": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "genshin",
+              "starrail",
+              "zzz",
+              "wuthering",
+              "arknights",
+              "endfield"
+            ],
+            "title": "Game"
+          },
+          "playerUid": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Playeruid"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "poolType": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Pooltype"
+          },
+          "poolName": {
+            "type": "string",
+            "maxLength": 180,
+            "title": "Poolname",
+            "default": ""
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 180,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "itemId": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Itemid",
+            "default": ""
+          },
+          "itemType": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Itemtype",
+            "default": ""
+          },
+          "rarity": {
+            "type": "integer",
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Rarity"
+          },
+          "time": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}[ T]\\d{2}:\\d{2}:\\d{2}$",
+            "title": "Time"
+          },
+          "timezone": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": -12.0,
+            "title": "Timezone",
+            "default": 8
+          },
+          "lang": {
+            "type": "string",
+            "maxLength": 20,
+            "title": "Lang",
+            "default": "zh-cn"
+          },
+          "isFree": {
+            "type": "boolean",
+            "title": "Isfree",
+            "default": false
+          },
+          "kind": {
+            "type": "string",
+            "maxLength": 60,
+            "title": "Kind",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "game",
+          "playerUid",
+          "id",
+          "poolType",
+          "name",
+          "rarity",
+          "time"
+        ],
+        "title": "GachaRecord"
+      },
+      "GachaRecordsOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/GachaRecord"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "players": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Players"
+          },
+          "pools": {
+            "items": {
+              "$ref": "#/components/schemas/GachaPoolOut"
+            },
+            "type": "array",
+            "title": "Pools"
+          }
+        },
+        "type": "object",
+        "title": "GachaRecordsOut"
+      },
+      "GachaUpdateOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added",
+            "default": 0
+          },
+          "fetched": {
+            "type": "integer",
+            "title": "Fetched",
+            "default": 0
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "title": "GachaUpdateOut"
+      },
+      "GameSignAccountGroupConfig": {
+        "properties": {
+          "Name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "账号组名称"
+          },
+          "Enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled",
+            "description": "是否启用"
+          },
+          "MiyousheToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Miyoushetoken",
+            "description": "米游社登录凭证"
+          },
+          "MiyousheDeviceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Miyoushedeviceid",
+            "description": "米游社安卓设备 ID，仅用于绝区零便笺"
+          },
+          "MiyousheDeviceFp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Miyoushedevicefp",
+            "description": "米游社安卓设备指纹，仅用于绝区零便笺"
+          },
+          "CloudGenshinToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloudgenshintoken",
+            "description": "云原神 combo token"
+          },
+          "KuroToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kurotoken",
+            "description": "库街区登录凭证"
+          },
+          "SklandToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sklandtoken",
+            "description": "森空岛登录凭证"
+          },
+          "TaygedoToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Taygedotoken",
+            "description": "塔吉多及云异环登录凭证"
+          },
+          "LastSignDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastsigndate",
+            "description": "账号组上次签到日期"
+          }
+        },
+        "type": "object",
+        "title": "GameSignAccountGroupConfig",
+        "description": "游戏社区账号组配置"
+      },
+      "GeetestV3Data": {
+        "properties": {
+          "geetest_challenge": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Geetest Challenge"
+          },
+          "geetest_validate": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Geetest Validate"
+          },
+          "geetest_seccode": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Geetest Seccode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "geetest_challenge",
+          "geetest_validate",
+          "geetest_seccode"
+        ],
+        "title": "GeetestV3Data"
+      },
+      "GeetestV4Data": {
+        "properties": {
+          "captcha_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Captcha Id"
+          },
+          "lot_number": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Lot Number"
+          },
+          "pass_token": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Pass Token"
+          },
+          "gen_time": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Gen Time"
+          },
+          "captcha_output": {
+            "type": "string",
+            "maxLength": 8192,
+            "minLength": 1,
+            "title": "Captcha Output"
+          }
+        },
+        "type": "object",
+        "required": [
+          "captcha_id",
+          "lot_number",
+          "pass_token",
+          "gen_time",
+          "captcha_output"
+        ],
+        "title": "GeetestV4Data"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "KuroSmsAutomaticOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "sent": {
+            "type": "boolean",
+            "title": "Sent",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "KuroSmsAutomaticOut"
+      },
+      "KuroSmsCreateIn": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 11,
+            "minLength": 11,
+            "format": "password",
+            "title": "Phone",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId",
+          "phone"
+        ],
+        "title": "KuroSmsCreateIn"
+      },
+      "KuroSmsCreateOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "captchaId": {
+            "type": "string",
+            "title": "Captchaid"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "title": "Expiresin",
+            "default": 600
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "captchaId"
+        ],
+        "title": "KuroSmsCreateOut"
+      },
+      "KuroSmsLoginIn": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sessionid"
+          },
+          "smsCode": {
+            "type": "string",
+            "maxLength": 6,
+            "minLength": 6,
+            "format": "password",
+            "title": "Smscode",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "smsCode"
+        ],
+        "title": "KuroSmsLoginIn"
+      },
+      "KuroSmsSendIn": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sessionid"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/GeetestV4Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "verification"
+        ],
+        "title": "KuroSmsSendIn"
+      },
+      "KuroSmsSessionIn": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sessionid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId"
+        ],
+        "title": "KuroSmsSessionIn"
+      },
+      "MasQueueOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MasQueueOut"
+      },
+      "MasSnapshotOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "baseUrl": {
+            "type": "string",
+            "title": "Baseurl"
+          },
+          "queues": {
+            "items": {
+              "$ref": "#/components/schemas/MasQueueOut"
+            },
+            "type": "array",
+            "title": "Queues"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/MasTaskOut"
+            },
+            "type": "array",
+            "title": "Tasks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "baseUrl"
+        ],
+        "title": "MasSnapshotOut"
+      },
+      "MasStartIn": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Taskid"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "AutoProxy",
+              "CycleRun"
+            ],
+            "title": "Mode",
+            "default": "AutoProxy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId"
+        ],
+        "title": "MasStartIn"
+      },
+      "MasStartOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "taskId": {
+            "type": "string",
+            "title": "Taskid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId"
+        ],
+        "title": "MasStartOut"
+      },
+      "MasStopIn": {
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Taskid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "taskId"
+        ],
+        "title": "MasStopIn"
+      },
+      "MasTaskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "stopping": {
+            "type": "boolean",
+            "title": "Stopping",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "mode"
+        ],
+        "title": "MasTaskOut"
+      },
+      "MiyousheVerificationIn": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Sessionid"
+          },
+          "verification": {
+            "$ref": "#/components/schemas/GeetestV3Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "verification"
+        ],
+        "title": "MiyousheVerificationIn"
+      },
+      "MiyousheVerificationOut": {
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "title": "Sessionid"
+          },
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "gt": {
+            "type": "string",
+            "title": "Gt"
+          },
+          "challenge": {
+            "type": "string",
+            "title": "Challenge"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessionId",
+          "accountId",
+          "label",
+          "gt",
+          "challenge"
+        ],
+        "title": "MiyousheVerificationOut"
+      },
+      "MiyousheVerificationsOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/MiyousheVerificationOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "MiyousheVerificationsOut"
+      },
+      "OutBase": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          }
+        },
+        "type": "object",
+        "title": "OutBase"
+      },
+      "QrCheckIn": {
+        "properties": {
+          "ticket": {
+            "type": "string",
+            "title": "Ticket"
+          },
+          "device": {
+            "type": "string",
+            "title": "Device"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket",
+          "device"
+        ],
+        "title": "QrCheckIn"
+      },
+      "QrCheckOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "cookies_str": {
+            "type": "string",
+            "title": "Cookies Str",
+            "default": ""
+          },
+          "scan_code": {
+            "type": "string",
+            "title": "Scan Code",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "QrCheckOut"
+      },
+      "QrCreateOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "ticket": {
+            "type": "string",
+            "title": "Ticket",
+            "default": ""
+          },
+          "qr_url": {
+            "type": "string",
+            "title": "Qr Url",
+            "default": ""
+          },
+          "device": {
+            "type": "string",
+            "title": "Device",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "QrCreateOut"
+      },
+      "QrSaveIn": {
+        "properties": {
+          "account_uid": {
+            "type": "string",
+            "title": "Account Uid"
+          },
+          "cookie": {
+            "type": "string",
+            "title": "Cookie",
+            "default": ""
+          },
+          "scan_code": {
+            "type": "string",
+            "title": "Scan Code",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_uid"
+        ],
+        "title": "QrSaveIn"
+      },
+      "SessionLoginIn": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "format": "password",
+            "title": "Password",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "SessionLoginIn"
+      },
+      "SessionOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "default": ""
+          },
+          "loginRequired": {
+            "type": "boolean",
+            "title": "Loginrequired",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "SessionOut"
+      },
+      "SettingsData": {
+        "properties": {
+          "Enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "ActivityEnabled": {
+            "type": "boolean",
+            "title": "Activityenabled",
+            "default": true
+          },
+          "MiyousheBbsEnabled": {
+            "type": "boolean",
+            "title": "Miyoushebbsenabled",
+            "default": true
+          },
+          "RunOnStartup": {
+            "type": "boolean",
+            "title": "Runonstartup",
+            "default": false
+          },
+          "ScheduledRun": {
+            "type": "boolean",
+            "title": "Scheduledrun",
+            "default": false
+          },
+          "ScheduledTime": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "title": "Scheduledtime",
+            "default": "08:00"
+          },
+          "LowPerformanceMode": {
+            "type": "boolean",
+            "title": "Lowperformancemode",
+            "default": false
+          },
+          "Theme": {
+            "type": "string",
+            "enum": [
+              "light",
+              "dark",
+              "system"
+            ],
+            "title": "Theme",
+            "default": "system"
+          },
+          "Proxy": {
+            "type": "string",
+            "title": "Proxy",
+            "default": ""
+          },
+          "CaptchaMode": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "local",
+              "local_yunma"
+            ],
+            "title": "Captchamode",
+            "default": "local"
+          },
+          "YunmaToken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Yunmatoken"
+          },
+          "MasBaseUrl": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Masbaseurl",
+            "default": "http://127.0.0.1:36163"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SettingsData"
+      },
+      "SettingsOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SettingsData"
+          },
+          "yunmaConfigured": {
+            "type": "boolean",
+            "title": "Yunmaconfigured",
+            "default": false
+          },
+          "localConnections": {
+            "type": "boolean",
+            "title": "Localconnections",
+            "description": "是否能连接后端主机的 MAS 与代理；纯 Workers 为 false",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SettingsOut"
+      },
+      "SignAccountOut": {
+        "properties": {
+          "account_alias": {
+            "type": "string",
+            "title": "Account Alias",
+            "default": ""
+          },
+          "account_uid": {
+            "type": "string",
+            "title": "Account Uid",
+            "default": ""
+          },
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/SignGameOut"
+            },
+            "type": "array",
+            "title": "Games"
+          }
+        },
+        "type": "object",
+        "title": "SignAccountOut"
+      },
+      "SignGameOut": {
+        "properties": {
+          "account": {
+            "type": "string",
+            "title": "Account",
+            "default": ""
+          },
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "reward": {
+            "type": "string",
+            "title": "Reward",
+            "default": ""
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "signedAt": {
+            "type": "string",
+            "title": "Signedat",
+            "description": "实际执行时间，ISO 8601 北京时间",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "SignGameOut"
+      },
+      "StatusOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "default": false
+          },
+          "activityRunning": {
+            "type": "boolean",
+            "title": "Activityrunning",
+            "default": false
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision",
+            "default": 0
+          },
+          "today": {
+            "type": "string",
+            "title": "Today",
+            "description": "服务端北京时间日期",
+            "default": ""
+          },
+          "results": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/SignAccountOut"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "title": "StatusOut"
+      },
+      "TaygedoLoginIn": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Phone"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "format": "password",
+            "title": "Password",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId",
+          "phone",
+          "password"
+        ],
+        "title": "TaygedoLoginIn"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[project]
+name = "bmasc-cloudflare"
+version = "0.1.0"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.116.1",
+  "pydantic==2.10.6",
+  "httpx==0.28.1",
+  "loguru==0.7.3",
+  "pycryptodome==3.21.0",
+  "pillow==11.3.0",
+  "numpy==2.2.5",
+  "workers-runtime-sdk==1.8.4",
+]
+
+[dependency-groups]
+dev = ["workers-py==1.17.2", "workers-runtime-sdk==1.8.4", "uv>=0.12.3"]

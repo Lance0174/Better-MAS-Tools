@@ -1,0 +1,17 @@
+body {
+  margin: 0;
+  font:
+    14px 'Microsoft YaHei',
+    sans-serif;
+  background: #fff;
+  color: #1f2937;
+}
+#status {
+  text-align: center;
+  margin: 16px 12px;
+}
+#captcha {
+  width: min(320px, 100%);
+  margin: 0 auto;
+  min-height: 300px;
+}

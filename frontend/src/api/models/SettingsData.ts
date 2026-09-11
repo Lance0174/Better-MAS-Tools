@@ -1,0 +1,19 @@
+/* generated using openapi-typescript-codegen -- do not edit */
+/* istanbul ignore file */
+/* tslint:disable */
+/* eslint-disable */
+export type SettingsData = {
+    Enabled?: boolean;
+    ActivityEnabled?: boolean;
+    MiyousheBbsEnabled?: boolean;
+    RunOnStartup?: boolean;
+    ScheduledRun?: boolean;
+    ScheduledTime?: string;
+    LowPerformanceMode?: boolean;
+    Theme?: 'light' | 'dark' | 'system';
+    Proxy?: string;
+    CaptchaMode?: 'manual' | 'local' | 'local_yunma';
+    YunmaToken?: (string | null);
+    MasBaseUrl?: string;
+};
+

@@ -1,0 +1,11 @@
+{
+  "name": "bmasc-community",
+  "main": "src/entry.py",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["python_workers"],
+  "assets": { "directory": "./web", "binding": "ASSETS", "html_handling": "none", "not_found_handling": "single-page-application", "run_worker_first": ["/api/*", "/healthz"] },
+  "durable_objects": { "bindings": [{ "name": "COMMUNITY", "class_name": "Community" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Community"] }],
+  "triggers": { "crons": ["*/5 * * * *"] },
+  "observability": { "enabled": false }
+}

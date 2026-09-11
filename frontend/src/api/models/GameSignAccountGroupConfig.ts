@@ -1,0 +1,50 @@
+/* generated using openapi-typescript-codegen -- do not edit */
+/* istanbul ignore file */
+/* tslint:disable */
+/* eslint-disable */
+/**
+ * 游戏社区账号组配置
+ */
+export type GameSignAccountGroupConfig = {
+    /**
+     * 账号组名称
+     */
+    Name?: (string | null);
+    /**
+     * 是否启用
+     */
+    Enabled?: (boolean | null);
+    /**
+     * 米游社登录凭证
+     */
+    MiyousheToken?: (string | null);
+    /**
+     * 米游社安卓设备 ID，仅用于绝区零便笺
+     */
+    MiyousheDeviceId?: (string | null);
+    /**
+     * 米游社安卓设备指纹，仅用于绝区零便笺
+     */
+    MiyousheDeviceFp?: (string | null);
+    /**
+     * 云原神 combo token
+     */
+    CloudGenshinToken?: (string | null);
+    /**
+     * 库街区登录凭证
+     */
+    KuroToken?: (string | null);
+    /**
+     * 森空岛登录凭证
+     */
+    SklandToken?: (string | null);
+    /**
+     * 塔吉多及云异环登录凭证
+     */
+    TaygedoToken?: (string | null);
+    /**
+     * 账号组上次签到日期
+     */
+    LastSignDate?: (string | null);
+};
+

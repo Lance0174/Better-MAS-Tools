@@ -1,0 +1,293 @@
+{
+  "repository": "https://github.com/AUTO-MAS-Project/AUTO-MAS",
+  "commit": "78bc197e5c37ca4ece98f5b4f07f90fe631b814a",
+  "files": [
+    {
+      "path": "LICENSE",
+      "source": "LICENSE",
+      "source_sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e",
+      "standalone_sha256": "e0eedba615d5cd1b986afb6c5b3a4b1ae33713e7e9dc74d19daec5e3221f9d2e"
+    },
+    {
+      "path": "app/tools/cloud_genshin.py",
+      "source": "app/tools/cloud_genshin.py",
+      "source_sha256": "f3b6a0b11dabb92a776ff173f6abcdbf15e6cee451d9395c87907361c29aa43e",
+      "standalone_sha256": "2392af86340bb41c590b16d7588e592e07e7608b5189086aae83740ec449fdaa"
+    },
+    {
+      "path": "app/tools/community_activity_parser.py",
+      "source": "app/tools/community_activity_parser.py",
+      "source_sha256": "7c971fe72800a7e16991bfba996a697af4674fc86a6d47822eeb9c1feb63b667",
+      "standalone_sha256": "7c971fe72800a7e16991bfba996a697af4674fc86a6d47822eeb9c1feb63b667"
+    },
+    {
+      "path": "app/tools/community_activity_provider.py",
+      "source": "app/tools/community_activity_provider.py",
+      "source_sha256": "40bd765b943d1c9c0e9fb0383f882b2c2d0da7535145fb593140e061fb75eaf8",
+      "standalone_sha256": "40bd765b943d1c9c0e9fb0383f882b2c2d0da7535145fb593140e061fb75eaf8"
+    },
+    {
+      "path": "app/tools/community_activity_roles.py",
+      "source": "app/tools/community_activity_roles.py",
+      "source_sha256": "e73de2a783bc40e2e085890d9abd041432d52b62c9728a42db94f45d6297b0e0",
+      "standalone_sha256": "e73de2a783bc40e2e085890d9abd041432d52b62c9728a42db94f45d6297b0e0"
+    },
+    {
+      "path": "app/tools/community_activity_transport.py",
+      "source": "app/tools/community_activity_transport.py",
+      "source_sha256": "52c87d8caa4520be0f19b23e237f8a13ec3727a314036bd8c9a0acd93b0499ba",
+      "standalone_sha256": "52c87d8caa4520be0f19b23e237f8a13ec3727a314036bd8c9a0acd93b0499ba"
+    },
+    {
+      "path": "app/tools/community_contract.py",
+      "source": "app/tools/community_contract.py",
+      "source_sha256": "9c7a8fee473663a9127a6ed34ccb78b3b8cdc3537d08f410b9c7821ecce3dde8",
+      "standalone_sha256": "9c7a8fee473663a9127a6ed34ccb78b3b8cdc3537d08f410b9c7821ecce3dde8"
+    },
+    {
+      "path": "app/tools/community_credentials.py",
+      "source": "app/tools/community_credentials.py",
+      "source_sha256": "47e03f1dd7b20ec0f43c352d7eda6faf3ab9aa0a1cff6d92314b27226fdd6c5a",
+      "standalone_sha256": "47e03f1dd7b20ec0f43c352d7eda6faf3ab9aa0a1cff6d92314b27226fdd6c5a"
+    },
+    {
+      "path": "app/tools/community_sign_provider.py",
+      "source": "app/tools/community_sign_provider.py",
+      "source_sha256": "69dc9b8ee24ec7470c7573bc48f5933d740d97d8f19ba5abe5c36c0a09657f72",
+      "standalone_sha256": "eb6cfa4fada35c01c82ab33b0ab83b3261980b58fda3e72343820c9303ff87ca"
+    },
+    {
+      "path": "app/tools/game_sign_result.py",
+      "source": "app/tools/game_sign_result.py",
+      "source_sha256": "e2c0bdaf5d29b2914c57ef2900cfc78869819f26b35650f4b94ebe9e605bbb89",
+      "standalone_sha256": "e2c0bdaf5d29b2914c57ef2900cfc78869819f26b35650f4b94ebe9e605bbb89"
+    },
+    {
+      "path": "app/tools/kuro.py",
+      "source": "app/tools/kuro.py",
+      "source_sha256": "332b582bc269fde4d60a987ea16ddfb1ef6b5386e301c09e260566eecf4970fc",
+      "standalone_sha256": "36008203d327b0126e33cf9840fbb1488ce8ba38685b2a9c39729a4321d065b6"
+    },
+    {
+      "path": "app/tools/miyoushe.py",
+      "source": "app/tools/miyoushe.py",
+      "source_sha256": "79a75e488aadf8d5d5bc1f486b8cfa627470099abba921d3e35f603b631d8955",
+      "standalone_sha256": "6d70020f586f707e6d12d186f625dba9d236d67c6da7cc85b2ca2e17334f57af"
+    },
+    {
+      "path": "app/tools/miyoushe_qr.py",
+      "source": "app/tools/miyoushe_qr.py",
+      "source_sha256": "0cb281f2dee79625793bf05f99468bed3730e0ed0f31c1fb2c0330bfe15c6a9d",
+      "standalone_sha256": "3bccb411561040bf4a954a0bade86a8868fa73930e6b51c29027984a9d14201f"
+    },
+    {
+      "path": "app/tools/skland.py",
+      "source": "app/tools/skland.py",
+      "source_sha256": "9a6400579134a1247fe6b690dcaeab5251519d43103d02411e3a0ffb0a0fe137",
+      "standalone_sha256": "9a6400579134a1247fe6b690dcaeab5251519d43103d02411e3a0ffb0a0fe137"
+    },
+    {
+      "path": "app/tools/taygedo.py",
+      "source": "app/tools/taygedo.py",
+      "source_sha256": "c031dd3100ac85e0139f16c19d5a3dd8ac4046e4973c7cd353afa9e4dee40f48",
+      "standalone_sha256": "c031dd3100ac85e0139f16c19d5a3dd8ac4046e4973c7cd353afa9e4dee40f48"
+    },
+    {
+      "path": "app/core/community_sign.py",
+      "source": "app/core/community_sign.py",
+      "source_sha256": "85ec89e3c2be3d454bea1f31bc40c7b39f99776fb1e63d5953ac8e4ced777f21",
+      "standalone_sha256": "db367eb9db9ad024e75cabbe8451c8086509e2a40b30a5d2f9d18d4e0caca517"
+    },
+    {
+      "path": "app/core/community_activity.py",
+      "source": "app/core/community_activity.py",
+      "source_sha256": "d64ee2ae1a4f007a444bdc20fec4e943304be5279a61aa8b93ae64d8462459d8",
+      "standalone_sha256": "4e138b317af6544b733589bcbae89a7d83a49904755f8cbdf9d334b2623d8d1b"
+    },
+    {
+      "path": "app/core/community_scheduler.py",
+      "source": "app/core/community_scheduler.py",
+      "source_sha256": "a9ec91f7af1d0dd5b5ae3a70f048e36cff87ad2d59176c5bb2e64957dd752dcc",
+      "standalone_sha256": "67f19df0bc48e2a3c624c223e924a81ab7b83d2c4218c5b6166db3eefa95bf2f"
+    },
+    {
+      "path": "app/utils/security.py",
+      "source": "app/utils/security.py",
+      "source_sha256": "8d58cefe67e744c915adca28e03fdf1a7c87fc618d39f84214a63082f23075a8",
+      "standalone_sha256": "dc73d804ff824bcc63a8795627df5c821d8fc6d46ce4c7d1132336d7edbbe2e1"
+    },
+    {
+      "path": "frontend/src/views/gamesign/CommunityActivityView.vue",
+      "source": "frontend/src/views/gamesign/CommunityActivityView.vue",
+      "source_sha256": "4b22b898d7cd09a40751029d559180c92f956c24e8c750420531dabfb095d3a9",
+      "standalone_sha256": "4b22b898d7cd09a40751029d559180c92f956c24e8c750420531dabfb095d3a9"
+    },
+    {
+      "path": "frontend/src/views/gamesign/communityActivityPresentation.ts",
+      "source": "frontend/src/views/gamesign/communityActivityPresentation.ts",
+      "source_sha256": "6c6f428970c5090d78be50cdab2ad8877597d34e4dc5b6433461ed3694fd09ef",
+      "standalone_sha256": "6c6f428970c5090d78be50cdab2ad8877597d34e4dc5b6433461ed3694fd09ef"
+    },
+    {
+      "path": "frontend/src/views/gamesign/gameSignDisplay.ts",
+      "source": "frontend/src/views/gamesign/gameSignDisplay.ts",
+      "source_sha256": "c1288c364249001736076ff4bc572d1ce28ee4da1d4adbf4362493f57aae7c4c",
+      "standalone_sha256": "c1288c364249001736076ff4bc572d1ce28ee4da1d4adbf4362493f57aae7c4c"
+    },
+    {
+      "path": "frontend/src/views/gamesign/QrLoginModal.vue",
+      "source": "frontend/src/views/gamesign/QrLoginModal.vue",
+      "source_sha256": "13fc18e018b6a9dad63af36a75bb1b98c10b2f1a0ef88cb75e2685b02f675b69",
+      "standalone_sha256": "295b98a9640f053ae9dc6a2b4daa6cb3383d1b549ec0d22c73a0851cf8084556"
+    },
+    {
+      "path": "frontend/src/views/gamesign/useQrLogin.ts",
+      "source": "frontend/src/views/gamesign/useQrLogin.ts",
+      "source_sha256": "66d587c4e193e45378df1ee46986daeca61074d07ed1ebc988fbffcc74035409",
+      "standalone_sha256": "7271f73290cabada1fb3902f17aaa9e633873df82d98f475f514e7c5d6883409"
+    },
+    {
+      "path": "frontend/src/views/gamesign/components/CommunityActivityCard.vue",
+      "source": "frontend/src/views/gamesign/components/CommunityActivityCard.vue",
+      "source_sha256": "720a79a2259b87513c4048b4cb5874a8eb709b8853c224edbb56097494e9c918",
+      "standalone_sha256": "a7a18bc9aca830c113c29be7abcee7625af8f964969378049d5697294aa424bc"
+    },
+    {
+      "path": "frontend/src/views/gamesign/components/CommunityActivityMetric.vue",
+      "source": "frontend/src/views/gamesign/components/CommunityActivityMetric.vue",
+      "source_sha256": "55d60d47c416847ec22555e07fe05908db51d6b4d9bb3f01c75c22b0ad0c0b42",
+      "standalone_sha256": "55d60d47c416847ec22555e07fe05908db51d6b4d9bb3f01c75c22b0ad0c0b42"
+    },
+    {
+      "path": "frontend/src/views/gamesign/gameSignDisplay.test.ts",
+      "source": "frontend/src/views/gamesign/gameSignDisplay.test.ts",
+      "source_sha256": "0bc9817ca72ae17584384fc57a1ebc9955d6c2b76bbf488ce0aad34ed981a8e2",
+      "standalone_sha256": "0bc9817ca72ae17584384fc57a1ebc9955d6c2b76bbf488ce0aad34ed981a8e2"
+    },
+    {
+      "path": "frontend/src/views/gamesign/useQrLogin.test.ts",
+      "source": "frontend/src/views/gamesign/useQrLogin.test.ts",
+      "source_sha256": "0849147a7e613633ce8c355c7caf2254e6efd87b7d6ecdb28a8c0cf5cc623359",
+      "standalone_sha256": "0849147a7e613633ce8c355c7caf2254e6efd87b7d6ecdb28a8c0cf5cc623359"
+    },
+    {
+      "path": "frontend/tsconfig.app.json",
+      "source": "frontend/tsconfig.app.json",
+      "source_sha256": "f5092fa818a65e338f0435d93108ef1ef1b0c936930f45a0c94f4e93531896a5",
+      "standalone_sha256": "f5092fa818a65e338f0435d93108ef1ef1b0c936930f45a0c94f4e93531896a5"
+    },
+    {
+      "path": "frontend/.yarnrc.yml",
+      "source": "frontend/.yarnrc.yml",
+      "source_sha256": "473e6def86fc03638120e0c01d0c8bbab095677256460fa4ea763e5d4697f270",
+      "standalone_sha256": "473e6def86fc03638120e0c01d0c8bbab095677256460fa4ea763e5d4697f270"
+    },
+    {
+      "path": "app/utils/constants.py",
+      "source": "app/utils/constants.py",
+      "extraction": "copyright header and UTC8 / Skland constants",
+      "source_sha256": "96e1fab20f5d015a594ff50db7f144300dc056c7ef0c999a0d17aea2d30d192a",
+      "standalone_sha256": "524d7b483ee5ff2253acfd66ccc8179f180c21bcf8677a85e2491f14d7a29ca4"
+    },
+    {
+      "path": "app/models/schema.py",
+      "source": "app/models/schema.py",
+      "extraction": "copyright header and community-only schema definitions, then independent contracts",
+      "source_sha256": "b1f460335976f4fed7488b8e069a74b0e64405e051ccf604f363dd56140c8f70",
+      "standalone_sha256": "ed82e8f1d5e59330a210b23f900cbc380c9c779dbbce536ca6db5a8bcaadb988"
+    },
+    {
+      "path": "frontend/src/i18n/locales/zh-CN.ts",
+      "source": "frontend/src/i18n/locales/zh-CN.ts",
+      "extraction": "common and game community messages",
+      "source_sha256": "6d799e444d5b2a017e9ac576b8e3e178dbe9f0b5f09d752b4282dc8cf3694272",
+      "standalone_sha256": "24808fdc0731b8760214cc510403f379506e169e603e93cfd48eea561616c2c3"
+    },
+    {
+      "path": "frontend/src/views/gamesign/components/community-activity-card.css",
+      "source": "frontend/src/views/gamesign/components/CommunityActivityCard.vue",
+      "extraction": "preserved component CSS with local accent default",
+      "source_sha256": "720a79a2259b87513c4048b4cb5874a8eb709b8853c224edbb56097494e9c918",
+      "standalone_sha256": "5df1f448f893d4b996481c6410cabc35477b0df7217c3404933a10f4893f664b"
+    },
+    {
+      "path": "frontend/.oxfmtrc.json",
+      "source": "frontend/.oxfmtrc.json",
+      "extraction": "format conventions adapted for standalone generated files",
+      "source_sha256": "fb2ddc0000736630e0c8f2164259bb23995e287cbce91b008f434fa23a05196b",
+      "standalone_sha256": "7de396ce0c34b76a89bd14e5d11dc26c3d8bd4f2a9a8f8d486f79b8cf9386c07"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/arknights.png",
+      "source": "frontend/src/assets/community-notes/arknights.png",
+      "source_sha256": "d199206eb791ae9aafcf577edd4154caf272b95f3cf6a2b7d3be77c8c49be945",
+      "standalone_sha256": "d199206eb791ae9aafcf577edd4154caf272b95f3cf6a2b7d3be77c8c49be945"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/arknights.webp",
+      "source": "frontend/src/assets/community-notes/arknights.png",
+      "extraction": "resized WebP derivative, source asset retained",
+      "source_sha256": "d199206eb791ae9aafcf577edd4154caf272b95f3cf6a2b7d3be77c8c49be945",
+      "standalone_sha256": "5e96588f4b9040407d286c1e9ccbc349abb81eef03270dc8aa00f5334ad6e1ab"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/ATTRIBUTION.md",
+      "source": "frontend/src/assets/community-notes/ATTRIBUTION.md",
+      "source_sha256": "172c778a631edb36c8c4a8da19f3237979429f9441840fd39b0530e8932e81fc",
+      "standalone_sha256": "172c778a631edb36c8c4a8da19f3237979429f9441840fd39b0530e8932e81fc"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/endfield.jpg",
+      "source": "frontend/src/assets/community-notes/endfield.jpg",
+      "source_sha256": "a102e1be9d342e354a69e0b0f70d398a0d9660703eb57522a67c0450d88e82f5",
+      "standalone_sha256": "a102e1be9d342e354a69e0b0f70d398a0d9660703eb57522a67c0450d88e82f5"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/endfield.webp",
+      "source": "frontend/src/assets/community-notes/endfield.jpg",
+      "extraction": "resized WebP derivative, source asset retained",
+      "source_sha256": "a102e1be9d342e354a69e0b0f70d398a0d9660703eb57522a67c0450d88e82f5",
+      "standalone_sha256": "d0f78f8c982f293bba4ec6073cef4fb4ec70a976149b4dee79823f63b23e9368"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/genshin.jpg",
+      "source": "frontend/src/assets/community-notes/genshin.jpg",
+      "source_sha256": "97fd3456fd760d47e3d446c1adfa2bb55d5743229ebb687c9b02240d711f7141",
+      "standalone_sha256": "97fd3456fd760d47e3d446c1adfa2bb55d5743229ebb687c9b02240d711f7141"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/genshin.webp",
+      "source": "frontend/src/assets/community-notes/genshin.jpg",
+      "extraction": "resized WebP derivative, source asset retained",
+      "source_sha256": "97fd3456fd760d47e3d446c1adfa2bb55d5743229ebb687c9b02240d711f7141",
+      "standalone_sha256": "dd62fbde70ddc527c2905f7b67f414876e2e3d7710277a9cdc17d7366dc50b7c"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/star-rail.jpg",
+      "source": "frontend/src/assets/community-notes/star-rail.jpg",
+      "source_sha256": "6f46bee741c79600dcdaaa037973743a87a65dee85dd538d6c68c07f6641bd5b",
+      "standalone_sha256": "6f46bee741c79600dcdaaa037973743a87a65dee85dd538d6c68c07f6641bd5b"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/star-rail.webp",
+      "source": "frontend/src/assets/community-notes/star-rail.jpg",
+      "extraction": "resized WebP derivative, source asset retained",
+      "source_sha256": "6f46bee741c79600dcdaaa037973743a87a65dee85dd538d6c68c07f6641bd5b",
+      "standalone_sha256": "6f16103d22a2e0fcdcc3be662590f4401aa1272c073138e5dde3ea6b15e1e0e1"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/zenless.jpg",
+      "source": "frontend/src/assets/community-notes/zenless.jpg",
+      "source_sha256": "defadbbcb2ac073cedb7e3cd5e7dd849722e9feb34db3f0cae82b75b11b9168b",
+      "standalone_sha256": "defadbbcb2ac073cedb7e3cd5e7dd849722e9feb34db3f0cae82b75b11b9168b"
+    },
+    {
+      "path": "frontend/src/assets/community-notes/zenless.webp",
+      "source": "frontend/src/assets/community-notes/zenless.jpg",
+      "extraction": "resized WebP derivative, source asset retained",
+      "source_sha256": "defadbbcb2ac073cedb7e3cd5e7dd849722e9feb34db3f0cae82b75b11b9168b",
+      "standalone_sha256": "62b1523b29b9e2d3158b742f0873ad083d73b37ef425bf4e5465d3585320bc62"
+    }
+  ],
+  "scope": "Community accounts, login, sign-in, daily notes. Notification excluded by user decision."
+}
