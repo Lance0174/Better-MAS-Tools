@@ -286,12 +286,13 @@ def hg_record(
     )
 
 
-async def fetch_arknights(
-    client: httpx.AsyncClient, credential: str, uid: str, *, max_pages: int
-) -> tuple[list[GachaRecord], list[str]]:
+async def skland_role_token(
+    client: httpx.AsyncClient, credential: str, uid: str
+) -> tuple[str, str]:
+    """用通行证 OAuth Token 换取指定游戏角色的临时授权。"""
     token = parse_skland_credential(credential)["oauthToken"]
     if not token or not uid:
-        raise ValueError("明日方舟需要含 OAuth Token 的森空岛账号及游戏 UID")
+        raise ValueError("需要含 OAuth Token 的森空岛账号及游戏 UID")
     grant = await api_data(
         client,
         "https://as.hypergryph.com/user/oauth2/v2/grant",
@@ -304,13 +305,22 @@ async def fetch_arknights(
         payload={"uid": uid, "token": grant["token"]},
         code_key="status",
     )
+    if not isinstance(role.get("token"), str) or not role["token"]:
+        raise ValueError("角色授权响应无效")
+    return token, role["token"]
+
+
+async def fetch_arknights(
+    client: httpx.AsyncClient, credential: str, uid: str, *, max_pages: int
+) -> tuple[list[GachaRecord], list[str]]:
+    token, role_token = await skland_role_token(client, credential, uid)
     await api_data(
         client,
         "https://ak.hypergryph.com/user/api/role/login",
-        payload={"token": role["token"]},
+        payload={"token": role_token},
         require_data=False,
     )
-    headers = {"X-Account-Token": token, "X-Role-Token": role["token"]}
+    headers = {"X-Account-Token": token, "X-Role-Token": role_token}
     categories = await api_data(
         client,
         "https://ak.hypergryph.com/user/api/inquiry/gacha/cate",
@@ -352,11 +362,24 @@ async def fetch_arknights(
 
 
 async def fetch_endfield(
-    client: httpx.AsyncClient, source: str, uid: str, *, max_pages: int
+    client: httpx.AsyncClient,
+    source: str,
+    uid: str,
+    *,
+    max_pages: int,
+    credential: str = "",
 ) -> tuple[list[GachaRecord], list[str]]:
-    host, query = parse_official_url(
-        source, {"ef-webview.hypergryph.com", "ef-webview.gryphline.com"}
-    )
+    if source.strip():
+        host, query = parse_official_url(
+            source, {"ef-webview.hypergryph.com", "ef-webview.gryphline.com"}
+        )
+    else:
+        # 森空岛通行证属于国服，国际服继续使用原有授权链接。
+        _, role_token = await skland_role_token(client, credential, uid)
+        host, query = (
+            "ef-webview.hypergryph.com",
+            {"u8_token": role_token, "server": "1"},
+        )
     token = query.get("u8_token") or query.get("token")
     if not token or not uid:
         raise ValueError("终末地需要含 u8_token 的官方记录链接及角色 UID")

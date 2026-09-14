@@ -4,6 +4,7 @@
 - 保留 LICENSE、NOTICE.md、上游文件的版权头、第三方致谢及有效注释。
 - 开发前使用 `E:\GitHub\AUTO-MAS\.agents\skills\mas-skills\SKILL.md` 及任务需要的子 Skill；源仓路径只用于开发规范和溯源，不能成为运行依赖。
 - `app/tools` 保留平台协议与纯转换；`app/core` 负责账号及执行编排；`app/services` 负责本机存储与外部通知；`app/api` 只做 HTTP 契约转换。
+- 安卓本地运行的文件位置约定：`app/core/android_runtime.py` 是手机前台编排入口；`app/services/android.py` 是安卓存储/网络原生适配；`frontend/src/services/android.ts` 是前端安卓桥；`frontend/src/utils/download.ts` 是保存/分享工具；安卓工程在 `android/`（Gradle + WebView + Pyodide 运行时）；构建/校验脚本在 `scripts/prepare-android.py`、`scripts/verify-android.cjs`。新安卓代码按此分层落位，不散落到 `app/` 或 `frontend/src/` 根目录。
 - 前端使用 Vue 3、TypeScript、Ant Design Vue。API 从 OpenAPI 生成，禁止手改 `frontend/src/api`。
 - 账号、密码、凭据和日志不得提交。开发环境从空账号开始，不读取原 MAS 账号。
 - 开发报告追加到 `E:\GitHub\doc\游戏社区模块全量完善\16_独立游戏社区工具拆分.md`，报错必须记录；历史报告不能删除。

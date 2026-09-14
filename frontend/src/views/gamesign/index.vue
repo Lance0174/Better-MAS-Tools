@@ -159,7 +159,7 @@ const sign = async () => {
       >
         <template #item="{ element: account }"
           ><div
-            class="account-row"
+            class="account-row industrial-panel"
             :class="{
               selected: editorOpen && selected?.uid === account.uid,
               'reduced-motion': performance.isLowPower,

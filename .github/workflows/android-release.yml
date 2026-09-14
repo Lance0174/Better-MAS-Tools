@@ -1,0 +1,108 @@
+name: Android Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+
+      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
+
+      - uses: actions/setup-java@99b8673ff64fbf99cc8a4b6e046a69e2b5d7e0c8 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@7c567ae5e7072d60b8b8a3a6d5f7c8b3f8d2e4a6 # v3
+        with:
+          cmdline-tools-version: 'latest'
+          packages: 'platforms;android-35 build-tools;35.0.0'
+
+      - name: Enable Yarn
+        run: corepack enable
+
+      - name: Check release version matches tag
+        run: |
+          version="$(node -p "require('./frontend/package.json').version")"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version v$version"
+            exit 1
+          fi
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          yarn install --immutable
+          yarn build
+
+      - name: Prepare Android assets
+        run: |
+          uv run --no-project --python 3.13 python scripts/prepare-android.py --skip-frontend
+
+      - name: Build debug APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon
+
+      - name: Write checksum
+        working-directory: android/app/build/outputs/apk/debug
+        run: |
+          sha256sum app-debug.apk > SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Android-debug
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Publish tagged release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
+          if [ -n "$draft" ]; then
+            if [ "$draft" != "true" ]; then
+              echo "::error::This version is already published. Use a new version tag."
+              exit 1
+            fi
+          else
+            gh release create "$tag" --draft --verify-tag --title "Better MAS Tools $tag" --notes-file CHANGELOG.md
+          fi
+          gh release upload "$tag" \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt \
+            --clobber
+          gh release edit "$tag" --draft=false

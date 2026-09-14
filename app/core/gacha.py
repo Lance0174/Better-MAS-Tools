@@ -69,7 +69,13 @@ async def fetch(
                 )
             else:
                 records, warnings = await protocol.fetch_endfield(
-                    client, source, player_uid, max_pages=max_pages
+                    client,
+                    source,
+                    player_uid,
+                    max_pages=max_pages,
+                    credential=state.require_account(account_id).SklandToken
+                    if not source.strip()
+                    else "",
                 )
         added = await merge(records) if records else 0
         if not records and warnings:

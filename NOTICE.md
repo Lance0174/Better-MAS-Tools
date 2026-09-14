@@ -24,3 +24,9 @@
 云码按 [官方317文档](https://www.jfbym.com/test/317.html) 的30332图片坐标接口独立适配；返回坐标不等于完整极验票据。本项目不隶属于上述项目、极验或云码。
 
 Cloudflare 集成使用官方 workers-py/runtime SDK；实现核对 workers-py `940847dbbc250f982ccb03a5ba667aa5d70d81cb` 与 cloudflare-docs `72c81248ba0863139348650dd24be5d390d40681`，未复制其运行器源码。相关依赖继续适用各自许可证。
+
+## Android 本地运行时
+
+Android 本地版使用 [Pyodide 0.28.3](https://github.com/pyodide/pyodide/tree/0.28.3)（MPL-2.0）在 Web Worker 中运行本项目 Python 源码，许可全文见 [LICENSE-Pyodide.txt](android/runtime/LICENSE-Pyodide.txt)。依赖版本和摘要固定于 `android/runtime/manifest.json`；Python 包的许可证随其 wheel 和源码包保留，前端生产依赖的许可随 APK 的 `licenses/frontend` 目录附带。
+
+本地受限网络构建可复用经逐文件 RECORD 校验的公共包缓存。pydantic-core 的一个历史缓存重打包摘要单独登记为 `repackedSha256`；APK 的 `licenses/android-runtime.json` 记录实际采用的摘要，默认联网构建使用原始官方 wheel。重打包未修改依赖源码或二进制内容。

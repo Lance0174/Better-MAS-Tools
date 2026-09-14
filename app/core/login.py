@@ -2,13 +2,16 @@
 
 from app.core.accounts import update_account
 from app.core.state import state
-from app.tools import miyoushe_qr, skland, taygedo
 
 
 async def create_qr(provider: str) -> dict[str, object]:
     if provider == "skland":
+        from app.tools import skland
+
         result = await skland.create_skland_qr_login(proxy=state.proxy)
     else:
+        from app.tools import miyoushe_qr
+
         result = await miyoushe_qr.create_qr_login(proxy=state.proxy)
     if not isinstance(result, dict) or result.get("error"):
         raise ValueError("二维码创建失败，请稍后重试")
@@ -22,8 +25,12 @@ async def create_qr(provider: str) -> dict[str, object]:
 
 async def check_qr(provider: str, ticket: str, device: str) -> dict[str, object]:
     if provider == "skland":
+        from app.tools import skland
+
         result = await skland.check_skland_qr_status(ticket, device, proxy=state.proxy)
     else:
+        from app.tools import miyoushe_qr
+
         result = await miyoushe_qr.check_qr_status(ticket, device, proxy=state.proxy)
     if not isinstance(result, dict):
         raise ValueError("二维码状态响应格式无效")
@@ -35,6 +42,8 @@ async def check_qr(provider: str, ticket: str, device: str) -> dict[str, object]
 async def save_qr(provider: str, uid: str, *, cookie: str, scan_code: str) -> None:
     state.require_account(uid)
     if provider == "skland":
+        from app.tools import skland
+
         serialized = await skland.finalize_skland_qr_login(scan_code, proxy=state.proxy)
         credential = skland.validate_skland_credential(serialized)
         if any(not credential.get(field) for field in ("oauthToken", "token", "cred")):
@@ -48,6 +57,8 @@ async def save_qr(provider: str, uid: str, *, cookie: str, scan_code: str) -> No
 
 
 async def login_taygedo(uid: str, phone: str, password: str) -> None:
+    from app.tools import taygedo
+
     account = state.require_account(uid)
     credential = await taygedo.login_taygedo_with_password(
         phone.strip(), password, existing_raw=account.TaygedoToken, proxy=state.proxy

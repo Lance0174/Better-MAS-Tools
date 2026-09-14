@@ -353,6 +353,40 @@ class SessionOut(OutBase):
     loginRequired: bool = False
 
 
+class CloudAccountIn(BaseModel):
+    """本地账号上传到云端执行；token 只用于本次请求，云端不持久化。"""
+
+    uid: str = Field(min_length=1, max_length=120)
+    name: str = Field(default="", max_length=80)
+    tokens: dict[str, str] = Field(default_factory=dict)
+    enabled: bool = True
+
+
+class CloudSyncIn(BaseModel):
+    """云端签到同步请求：本地把账号 token 与执行开关交给云端。"""
+
+    accounts: list[CloudAccountIn] = Field(default_factory=list)
+    miyoushe_bbs: bool = True
+
+
+class CloudSyncResult(BaseModel):
+    """云端签到单个结果。"""
+
+    account_uid: str = ""
+    account: str = ""
+    game: str = ""
+    platform: str = ""
+    status: str = ""
+    reward: str = ""
+    reason: str = ""
+    signedAt: str = ""
+
+
+class CloudSyncOut(OutBase):
+    data: list[CloudSyncResult] = Field(default_factory=list)
+    message: str = Field(default="操作成功")
+
+
 class LogEntryInfo(BaseModel):
     id: int
     time: str

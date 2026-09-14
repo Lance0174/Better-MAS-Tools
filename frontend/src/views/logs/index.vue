@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Table as ATable, message } from 'ant-design-vue'
+import { Table as ATable, Pagination as APagination, message } from 'ant-design-vue'
 import type { CancelablePromise, LogEntryInfo, LogsOut } from '@/api'
 import { assertSuccess, errorMessage } from '@/composables/useCommunityApi'
 import { useDiagnosticsApi } from '@/composables/useDiagnosticsApi'
+import { androidCall, isAndroidLocal } from '@/services/android'
+import { saveTextFile } from '@/utils/download'
 
 const { t } = useI18n()
 const api = useDiagnosticsApi()
@@ -17,6 +19,10 @@ const exporting = ref(false)
 const failure = ref('')
 const capacity = ref(2000)
 const fileAvailable = ref(false)
+const logPage = ref(1)
+watch([level, search], () => {
+  logPage.value = 1
+})
 let disposed = false
 let pending: CancelablePromise<LogsOut> | undefined
 let timer: ReturnType<typeof setInterval> | undefined
@@ -54,7 +60,7 @@ async function refresh() {
     if (disposed) return
     entries.value = result.data ?? []
     capacity.value = result.capacity ?? 2000
-    fileAvailable.value = result.fileAvailable ?? false
+    fileAvailable.value = isAndroidLocal || (result.fileAvailable ?? false)
     failure.value = ''
   } catch (error) {
     if (!disposed) failure.value = errorMessage(error, t('standalone.logLoadFailed'))
@@ -66,15 +72,13 @@ async function refresh() {
 async function download() {
   exporting.value = true
   try {
-    const result = assertSuccess(await api.export())
-    const url = URL.createObjectURL(
-      new Blob([result.content], { type: 'text/plain;charset=utf-8' })
-    )
-    const link = document.createElement('a')
-    link.href = url
-    link.download = result.filename
-    link.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    if (isAndroidLocal) {
+      const result = await androidCall('log.read')
+      await saveTextFile('Better-MAS-Tools-logs.txt', String(result.content ?? ''), 'text/plain')
+    } else {
+      const result = assertSuccess(await api.export())
+      await saveTextFile(result.filename, result.content, 'text/plain;charset=utf-8')
+    }
   } catch (error) {
     message.error(errorMessage(error, t('standalone.logExportFailed')))
   } finally {
@@ -115,10 +119,48 @@ onBeforeUnmount(() => {
       type="info"
       show-icon
       :message="
-        t(fileAvailable ? 'standalone.logFileHint' : 'standalone.logCloudHint', { capacity })
+        t(
+          isAndroidLocal
+            ? 'standalone.androidLogHint'
+            : fileAvailable
+              ? 'standalone.logFileHint'
+              : 'standalone.logCloudHint',
+          { capacity }
+        )
       "
     />
+    <div v-if="isAndroidLocal" class="mobile-logs">
+      <a-empty v-if="!filtered.length" />
+      <article
+        v-for="entry in filtered.slice((logPage - 1) * 50, logPage * 50)"
+        :key="entry.id"
+        class="mobile-log"
+      >
+        <div>
+          <a-tag
+            :color="
+              ['ERROR', 'CRITICAL'].includes(entry.level)
+                ? 'error'
+                : entry.level === 'WARNING'
+                  ? 'warning'
+                  : 'processing'
+            "
+            >{{ entry.level }}</a-tag
+          >{{ entry.module }}
+        </div>
+        <small>{{ new Date(entry.time).toLocaleString() }} · {{ entry.requestId }}</small>
+        <pre class="log-message">{{ entry.message }}</pre>
+      </article>
+      <a-pagination
+        v-if="filtered.length"
+        v-model:current="logPage"
+        :page-size="50"
+        :total="filtered.length"
+        simple
+      />
+    </div>
     <a-table
+      v-else
       :columns="columns"
       :data-source="filtered"
       row-key="id"
@@ -152,6 +194,20 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+.mobile-log {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  overflow-wrap: anywhere;
+}
+.mobile-log small {
+  color: var(--ant-color-text-secondary);
+}
+.mobile-log .log-message {
+  margin: 8px 0 0;
+}
+.mobile-logs :deep(.ant-pagination) {
+  margin-top: 16px;
 }
 .log-search {
   width: 280px;

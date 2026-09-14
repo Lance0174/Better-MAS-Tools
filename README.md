@@ -17,6 +17,7 @@ Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社�
 | 远端 | Docker Compose 部署、Cloudflare Tunnel 叠加、纯 Cloudflare Workers 版本，支持 Linux |
 | MAS 接入 | 保留本地 AUTO-MAS 接口入口，可在“MAS”页连接并控制本机 MAS |
 | 外观 | 浅色、深色、跟随系统和低性能模式；低性能模式不加载便笺背景 |
+| 内置教程 | 首次启动自动弹出分步引导，可在“设置 → 重新查看引导”再次打开 |
 | 诊断日志 | 程序内查询、级别筛选、日志编号关联和导出；终端与文件同步记录阶段、耗时和失败调用栈 |
 
 库街区、塔吉多日常便笺未接入。本期按需求不包含通知模块。
@@ -43,6 +44,8 @@ frontend\out\win-unpacked\BetterMASTools.exe
 4. 返回列表点击“立即签到”，在下方查看各社区的游戏、奖励与失败原因。
 5. 打开“日常便笺”查询绑定角色。外部 Cookie 可能只有签到字段，缺少便笺需要的 stoken、mid 等信息；内置扫码会沿用原 MAS 的完整补全链路。上游风控、凭据失效或未绑定角色会按实际状态显示。
 6. 在“设置 → 自动签到”中开启需要的触发方式，保存后生效。**自动签到需要程序保持运行**，关闭窗口会结束本工具及其后端。
+
+首次启动会自动弹出分步引导（添加账号 → 登录社区 → 开始签到 → 更多功能），可随时在“设置 → 外观与查询 → 重新查看引导”再次打开。
 
 便笺背景继续从 `https://doc.auto-mas.top/community-notes/` 加载，资源来源说明随图标保留。网络不可用时显示底色和本地图标；低性能模式直接省略背景。
 
@@ -118,7 +121,28 @@ powershell -File scripts/build-desktop.ps1 -Zip
 
 GitHub 的 **Actions → Windows Release → Run workflow** 可进行构建验证，产物保存在该次运行的 Artifacts 中。发布版本时，先更新 `CHANGELOG.md` 并同步版本，然后推送匹配版本的 `vX.Y.Z` 标签；工作流会在 Windows 环境构建 ZIP 和便携 EXE，实际检查包内滑块识别、空数据启动与退出，通过后发布到 Releases。已正式发布的版本不会被工作流覆盖。
 
-本轮提供 Windows 自动构建。APK 尚无对应工程，后续定位为连接云端后台的 MAS 远程控制客户端。
+本轮提供 Windows 自动构建。Android 本地客户端（WebView + Pyodide 引擎）位于 `android/` 工程，见下方"构建安卓 APK"。
+
+## 构建安卓 APK
+
+安卓端将前端构建产物、Python 后端源码与 Pyodide 运行时打进 APK，在手机 WebView 内本地运行，网络与持久化经原生桥转交系统。产物为 debug 签名，直接安装测试：
+
+```powershell
+# 1. 构建前端（frontend 目录）
+yarn build
+# 2. 项目根目录：同步前端与后端离线资源到 android/app/src/main/assets
+.venv\Scripts\python.exe -X utf8 scripts/prepare-android.py --offline --skip-frontend --python-cache .venv/Lib/site-packages
+# 3. android 目录：用隔离工具链构建（JDK 17 + SDK 35 + Gradle 8.9，环境变量只作用于构建进程）
+cd android
+$env:JAVA_HOME="E:\GitHub\Alle-android-toolchain-20260822\jdk\jdk-17.0.20+8"
+$env:ANDROID_HOME="E:\GitHub\Alle-android-toolchain-20260822\sdk"
+$env:GRADLE_USER_HOME="E:\GitHub\Better-MAS-Community\local\ag"
+E:\GitHub\Alle-android-toolchain-20260822\gradle\gradle-8.9\bin\gradle.bat assembleDebug --offline
+```
+
+APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。首次构建需先运行 `scripts/install-worker-deps.py` 准备 Pyodide 依赖，离线缓存缺失时按 `scripts/prepare-android.py` 的提示从 `local/android-engine-probe/runtime` 恢复。工程结构、文件职责与约束见 [android/README.md](android/README.md) 与 [部署说明](docs/DEPLOYMENT.md)。
+
+安卓端深色跟随系统、启动优化与验证码放行已内置；真机行为（锁屏后台限制、触控验证码）以安装实测为准。
 
 ## 部署到远端与 Linux
 
@@ -154,6 +178,15 @@ npm run dev
 ```
 
 Workers 包含免费滑块、人工验证和库街区云码适配；云码需要用户填写密钥并承担识别费用。单实例整份状态限制 8 MB，不能连接访问者电脑上的 MAS 或 Clash。完整配置、密钥、发布与备份步骤见 [部署说明](docs/DEPLOYMENT.md)，开发接口见 [API 说明](docs/API.md)。本文不承诺适用 Cloudflare 免费套餐，部署前应核对当时的 Python Workers 资源限制。
+
+### GitHub Actions 一键部署
+
+仓库提供 `.github/workflows/deploy-cf.yml`：推送到 `main` 且改动相关源码，或在 Actions 页手动触发 `Deploy Cloudflare Workers`，会自动完成构建并发布到 Workers。首次使用前在 GitHub 仓库配置：
+
+- Secrets：`CLOUDFLARE_API_TOKEN`（Workers Scripts: Edit 权限）、`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_ACCESS_PASSWORD`（至少 12 字符）、`CLOUDFLARE_ENCRYPTION_KEY`（32 字节随机密钥的 Base64）。
+- Variable：`CLOUDFLARE_PUBLIC_ORIGIN`（HTTPS 公开来源，如 `https://community.example.com`）。
+
+工作流执行与 [部署说明](docs/DEPLOYMENT.md) 相同的命令链：构建前端 → 安装 Pyodide 依赖 → 同步 Worker 资源 → 注入公开来源 → dry-run 校验 → 写入密钥 → `wrangler deploy`。密钥只存在 GitHub Secrets 与 Cloudflare，不落仓库。
 
 ## 验证与后续开发
 

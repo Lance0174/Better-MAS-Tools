@@ -16,11 +16,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.community import router
-from app.api.diagnostics import router as diagnostics_router
-from app.api.gacha import router as gacha_router
-from app.api.kuro_login import router as kuro_login_router
-from app.api.mas import router as mas_router
-from app.api.miyoushe_missions import router as miyoushe_missions_router
 from app.core import kuro_login, miyoushe_missions
 from app.core.community_scheduler import CommunityActivityInProgressError
 from app.core.runtime import runtime
@@ -134,7 +129,7 @@ def create_app(
         )
         if request.url.path == "/captcha.html":
             response.headers["Content-Security-Policy"] = (
-                "default-src 'none'; script-src 'self' 'unsafe-eval' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; "
+                "default-src 'none'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; "
                 "style-src 'self' 'unsafe-inline' https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com; img-src data: blob: https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; "
                 "connect-src https://*.geetest.com https://*.geevisit.com https://*.gsensebot.com http://*.geetest.com http://*.geevisit.com http://*.gsensebot.com; frame-src https://*.geetest.com; "
                 "base-uri 'none'; form-action 'none'; frame-ancestors 'self'"
@@ -257,7 +252,16 @@ def create_app(
             status_code=500,
         )
 
+    # 非首屏路由延迟 import，避免 WASM 引擎启动时全量加载平台协议模块。
+    from app.api.cloud import router as cloud_router
+    from app.api.diagnostics import router as diagnostics_router
+    from app.api.gacha import router as gacha_router
+    from app.api.kuro_login import router as kuro_login_router
+    from app.api.mas import router as mas_router
+    from app.api.miyoushe_missions import router as miyoushe_missions_router
+
     app.include_router(router)
+    app.include_router(cloud_router)
     app.include_router(diagnostics_router)
     app.include_router(gacha_router)
     app.include_router(mas_router)

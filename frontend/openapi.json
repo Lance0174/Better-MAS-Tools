@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.1.2"
+    "version": "0.1.3"
   },
   "paths": {
     "/api/session": {
@@ -553,6 +553,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cloud/sync": {
+      "post": {
+        "tags": [
+          "Cloud"
+        ],
+        "summary": "Cloud Sync",
+        "operationId": "cloudSync",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloudSyncIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CloudSyncOut"
                 }
               }
             }
@@ -1512,6 +1553,136 @@
           "message"
         ],
         "title": "ClientLogIn"
+      },
+      "CloudAccountIn": {
+        "properties": {
+          "uid": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Uid"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Name",
+            "default": ""
+          },
+          "tokens": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Tokens"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "uid"
+        ],
+        "title": "CloudAccountIn",
+        "description": "本地账号上传到云端执行；token 只用于本次请求，云端不持久化。"
+      },
+      "CloudSyncIn": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/CloudAccountIn"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "miyoushe_bbs": {
+            "type": "boolean",
+            "title": "Miyoushe Bbs",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CloudSyncIn",
+        "description": "云端签到同步请求：本地把账号 token 与执行开关交给云端。"
+      },
+      "CloudSyncOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/CloudSyncResult"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "CloudSyncOut"
+      },
+      "CloudSyncResult": {
+        "properties": {
+          "account_uid": {
+            "type": "string",
+            "title": "Account Uid",
+            "default": ""
+          },
+          "account": {
+            "type": "string",
+            "title": "Account",
+            "default": ""
+          },
+          "game": {
+            "type": "string",
+            "title": "Game",
+            "default": ""
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": ""
+          },
+          "reward": {
+            "type": "string",
+            "title": "Reward",
+            "default": ""
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "signedAt": {
+            "type": "string",
+            "title": "Signedat",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "CloudSyncResult",
+        "description": "云端签到单个结果。"
       },
       "CommunityActivityOut": {
         "properties": {
@@ -3078,6 +3249,23 @@
             "maxLength": 200,
             "title": "Masbaseurl",
             "default": "http://127.0.0.1:36163"
+          },
+          "CloudMode": {
+            "type": "boolean",
+            "title": "Cloudmode",
+            "default": false
+          },
+          "CloudBaseUrl": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Cloudbaseurl",
+            "default": ""
+          },
+          "CloudPassword": {
+            "type": "string",
+            "maxLength": 512,
+            "title": "Cloudpassword",
+            "default": ""
           }
         },
         "additionalProperties": false,

@@ -124,15 +124,21 @@ def all_enabled_community_platforms_signed(
     return True
 
 
-async def run_community_sign_in(force: bool = False) -> list[dict[str, object]]:
-    """协调执行游戏社区签到，避免重复签到和重复通知。"""
+async def run_community_sign_in(
+    force: bool = False, *, override_state=None,
+) -> list[dict[str, object]]:
+    """协调执行游戏社区签到，避免重复签到和重复通知。
+
+    override_state 用于云端模式：传入临时内存 state（含上传的账号与云端设置），
+    执行后即弃，不写全局状态；默认 None 使用全局 state。
+    """
 
     # 时间检查只提供告警，不应阻塞真实签到或占用签到锁。
     time_check_task = asyncio.create_task(check_community_system_time())
     acquired = False
     try:
         acquired = await _enter_community_sign_lock()
-        return await _run_configured_community_sign_in(force=force)
+        return await _run_configured_community_sign_in(force=force, override_state=override_state)
     finally:
         _exit_community_sign_lock(acquired)
         if not time_check_task.done():
@@ -141,19 +147,21 @@ async def run_community_sign_in(force: bool = False) -> list[dict[str, object]]:
 
 
 async def _run_configured_community_sign_in(
-    force: bool = False,
+    force: bool = False, *, override_state=None,
 ) -> list[dict[str, object]]:
     """执行所有已配置平台的签到。
 
     平台由凭据字段注册表驱动。同一账号的独立社区并发执行，适配器内部
     仍自行控制请求间隔和风控策略；凭据刷新结果优先即时回写，收尾阶段再统一兜底。
+    override_state 同 run_community_sign_in。
     """
 
     results: list[dict[str, object]] = []
     today = datetime.now(tz=UTC8).strftime("%Y-%m-%d")
 
+    scope_state = override_state if override_state is not None else state
     providers = get_community_sign_providers()
-    for uid, account in state.accounts.items():
+    for uid, account in scope_state.accounts.items():
         account_name = account.get("GameSignAccount", "Name") or "默认账号"
         account_enabled = account.get("GameSignAccount", "Enabled")
         account_uid = str(uid)
@@ -290,10 +298,10 @@ async def _run_configured_community_sign_in(
                 for platform in platforms
             )
 
-        if state.data.settings.MiyousheBbsEnabled and tokens.get("MiyousheToken"):
+        if scope_state.data.settings.MiyousheBbsEnabled and tokens.get("MiyousheToken"):
             from app.core.miyoushe_missions import run as run_missions
 
-            results.append(await run_missions(account_uid))
+            results.append(await run_missions(account_uid, override_state=scope_state))
 
         # 自动签到每天只尝试一次。失败也要记住当天的尝试，避免后续自动触发反复请求；
         # 手动签到使用 force=True，仍只在所有已配置平台完成后更新日期。

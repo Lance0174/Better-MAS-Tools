@@ -77,19 +77,21 @@ def capture(results: list[dict[str, object]]) -> None:
         _pending[key] = item
 
 
-def client_for(account_id: str, *, challenge: str = "") -> MiyousheBbsClient:
-    account = state.require_account(account_id)
+def client_for(account_id: str, *, challenge: str = "", override_state=None) -> MiyousheBbsClient:
+    scope_state = override_state if override_state is not None else state
+    account = scope_state.require_account(account_id)
     return MiyousheBbsClient(
         account.MiyousheToken,
-        proxy=state.proxy,
+        proxy=scope_state.proxy,
         device_id=account.MiyousheDeviceId,
         device_fp=account.MiyousheDeviceFp,
         challenge=challenge,
     )
 
 
-async def run(account_id: str, *, challenge: str = "") -> dict[str, object]:
-    account = state.require_account(account_id)
+async def run(account_id: str, *, challenge: str = "", override_state=None) -> dict[str, object]:
+    scope_state = override_state if override_state is not None else state
+    account = scope_state.require_account(account_id)
     result: dict[str, object] = {
         "account": account.Name,
         "account_uid": account_id,
@@ -100,7 +102,7 @@ async def run(account_id: str, *, challenge: str = "") -> dict[str, object]:
         "reason": "",
     }
     try:
-        async with client_for(account_id, challenge=challenge) as client:
+        async with client_for(account_id, challenge=challenge, override_state=scope_state) as client:
             completed, detail = await client.run()
         result["status"] = "成功" if completed else "失败"
         result["reward" if completed else "reason"] = detail

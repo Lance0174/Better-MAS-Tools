@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { connectSession, LoginRequiredError } from '@/services/session'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { useSettingsStore } from '@/stores/settings'
 import { useTheme } from '@/composables/useTheme'
+import { isAndroidLocal, markAndroidReady, retryAndroidEngine } from '@/services/android'
+import OnboardingWizard from '@/components/OnboardingWizard.vue'
 import {
   CalendarOutlined,
   DashboardOutlined,
@@ -16,6 +18,7 @@ import {
 } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 
+const ONBOARDING_KEY = 'bmat-onboarding-done'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -28,13 +31,45 @@ const loading = ref(false)
 const loginRequired = ref(false)
 const password = ref('')
 const loginError = ref('')
+const startupStage = ref('')
+const onboardingOpen = ref(false)
+const openOnboarding = () => {
+  onboardingOpen.value = true
+}
+// 设置页“重新查看引导”通过此事件重开首启向导。
+window.addEventListener('bmat-open-onboarding', openOnboarding)
+const markOnboardingDone = () => {
+  try {
+    localStorage.setItem(ONBOARDING_KEY, '1')
+  } catch {
+    /* 存储不可用时每次启动都显示，不影响使用 */
+  }
+}
+const maybeOpenOnboarding = () => {
+  let done = false
+  try {
+    done = localStorage.getItem(ONBOARDING_KEY) === '1'
+  } catch {
+    done = false
+  }
+  if (!done) openOnboarding()
+}
+// 底部导航只放系统工具页；功能页（签到/便笺/抽卡）走侧边菜单栏。
+const mobileItems = computed(() => [
+  { path: '/logs', label: t('standalone.logs'), icon: FileTextOutlined },
+  { path: '/settings', label: t('standalone.settings'), icon: SettingOutlined },
+])
 const connect = async () => {
+  if (loading.value) return
+  if (isAndroidLocal) retryAndroidEngine()
   loading.value = true
   failed.value = false
   try {
     await connectSession(password.value)
     await settings.load()
     ready.value = true
+    markAndroidReady()
+    maybeOpenOnboarding()
   } catch (cause) {
     if (cause instanceof LoginRequiredError) loginRequired.value = true
     else {
@@ -46,18 +81,41 @@ const connect = async () => {
     loading.value = false
   }
 }
-onMounted(connect)
+const resetEngine = (event: Event) => {
+  ready.value = false
+  failed.value = true
+  loginError.value = (event as CustomEvent<string>).detail || t('standalone.connectionFailed')
+}
+const updateStartupStage = (event: Event) => {
+  startupStage.value = (event as CustomEvent<string>).detail
+}
+onMounted(() => {
+  window.addEventListener('bmat-engine-reset', resetEngine)
+  window.addEventListener('bmat-engine-stage', updateStartupStage)
+  void connect()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('bmat-engine-reset', resetEngine)
+  window.removeEventListener('bmat-engine-stage', updateStartupStage)
+  window.removeEventListener('bmat-open-onboarding', openOnboarding)
+})
 </script>
 
 <template>
   <a-config-provider :theme="themeConfig" :locale="zhCN">
-    <a-layout class="app-layout">
+    <a-layout class="app-layout" :class="{ 'android-local': isAndroidLocal }">
       <a-layout class="app-body">
         <nav
           class="navigation"
           :class="{ 'reduced-motion': settings.data?.LowPerformanceMode }"
           :aria-label="t('standalone.navigation')"
         >
+          <div class="brand-block">
+            <span class="brand-hex" aria-hidden="true"><i /></span>
+            <span class="brand-name">{{ t('standalone.title') }}</span>
+            <span class="brand-coord">N31.23° E121.47°</span>
+          </div>
+          <div class="nav-tick" aria-hidden="true" />
           <a-menu
             mode="inline"
             :selected-keys="[route.path]"
@@ -75,7 +133,7 @@ onMounted(connect)
             <a-menu-item key="/gacha"
               ><template #icon><GiftOutlined /></template>{{ t('standalone.gacha') }}</a-menu-item
             >
-            <a-menu-item key="/mas"
+            <a-menu-item v-if="!isAndroidLocal" key="/mas"
               ><template #icon><LinkOutlined /></template>{{ t('standalone.mas') }}</a-menu-item
             >
           </a-menu>
@@ -123,21 +181,49 @@ onMounted(connect)
               }}</a-button>
             </a-form>
             <a-space v-else-if="failed" direction="vertical" align="center">
-              <a-alert type="error" :message="t('standalone.connectionFailed')" />
+              <a-alert type="error" :message="loginError || t('standalone.connectionFailed')" />
               <a-button :loading="loading" @click="connect">{{ t('standalone.retry') }}</a-button>
+              <small v-if="isAndroidLocal">{{ t('standalone.androidStartupHint') }}</small>
             </a-space>
-            <a-spin v-else :tip="t('standalone.connecting')" />
+            <a-space v-else direction="vertical" align="center">
+              <a-spin />
+              <span>{{ startupStage || t('standalone.connecting') }}</span>
+              <small v-if="isAndroidLocal">{{ t('standalone.androidStartupHint') }}</small>
+            </a-space>
           </div>
           <router-view v-else />
         </a-layout-content>
       </a-layout>
+      <nav
+        v-if="isAndroidLocal && ready"
+        class="mobile-navigation"
+        :aria-label="t('standalone.navigation')"
+      >
+        <button
+          v-for="item in mobileItems"
+          :key="item.path"
+          type="button"
+          :aria-current="route.path === item.path ? 'page' : undefined"
+          :class="{ selected: route.path === item.path }"
+          @click="router.push(item.path)"
+        >
+          <component :is="item.icon" /><span>{{ item.label }}</span>
+        </button>
+      </nav>
     </a-layout>
+    <OnboardingWizard
+      :open="onboardingOpen && ready"
+      @close="onboardingOpen = false"
+      @done="markOnboardingDone"
+    />
   </a-config-provider>
 </template>
 
 <style scoped>
 .app-layout {
   height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--ant-color-bg-container);
 }
 .remote-login {
@@ -146,23 +232,94 @@ onMounted(connect)
 }
 .app-body {
   min-height: 0;
+  flex: 1;
   flex-direction: row;
   background: var(--ant-color-bg-container);
 }
 .navigation {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 188px;
+  flex: 0 0 196px;
   min-height: 0;
   background: var(--ant-color-bg-container);
   border-right: 1px solid var(--ant-color-primary-border);
-  padding: 20px 8px 12px;
+  padding: 0 8px 12px;
+}
+/* 侧栏底部 HUD 角标：斜切三角 + 坐标刻度 */
+.navigation::after {
+  content: '';
+  position: absolute;
+  right: -1px;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  background: var(--app-corner);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  opacity: 0.6;
+}
+.brand-block {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 12px 14px;
+  border-bottom: 1px solid var(--app-panel-border);
+  /* 右上角斜切，营造工业面板切割感 */
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  background: linear-gradient(180deg, var(--app-panel), transparent);
+}
+.brand-hex {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 34px;
+  position: relative;
+  background: var(--ant-color-primary);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  display: grid;
+  place-items: center;
+}
+.brand-hex i {
+  width: 12px;
+  height: 12px;
+  background: var(--ant-color-bg-container);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.brand-name {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--ant-color-text);
+}
+.brand-coord {
+  position: absolute;
+  right: 14px;
+  top: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--app-corner);
+  opacity: 0.8;
+}
+/* 导航刻度条 */
+.nav-tick {
+  height: 4px;
+  margin: 0 12px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--app-tick) 0 1px,
+    transparent 1px 8px
+  );
+  opacity: 0.7;
 }
 .navigation :deep(.ant-menu) {
   border: 0;
+  background: transparent;
 }
 .navigation-main {
   overflow-y: auto;
+  padding-top: 6px;
 }
 .navigation .navigation-footer {
   flex-shrink: 0;
@@ -171,18 +328,126 @@ onMounted(connect)
   border-top: 1px solid var(--ant-color-border-secondary);
 }
 .navigation :deep(.ant-menu-item) {
+  margin: 2px 0;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 13px;
+  letter-spacing: 0.02em;
   transition: background-color 200ms ease;
 }
+/* 菜单选中：左侧六边形角标 + 斜切底 */
 .navigation :deep(.ant-menu-item-selected) {
-  font-weight: 600;
+  font-weight: 700;
+  color: var(--ant-color-primary);
+  background: var(--app-panel);
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+}
+.navigation :deep(.ant-menu-item-selected)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 9px;
+  background: var(--ant-color-primary);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 }
 .navigation.reduced-motion :deep(.ant-menu-item) {
   transition: none;
 }
 .app-content {
+  position: relative;
   padding: 28px 32px;
   overflow-y: auto;
   min-width: 0;
+}
+/* 内容区左上 HUD 角标 */
+.app-content::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 16px;
+  height: 16px;
+  border-top: 2px solid var(--app-corner);
+  border-left: 2px solid var(--app-corner);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.mobile-navigation {
+  display: none;
+}
+/* 安卓布局：侧边功能菜单 + 内容 + 底部工具导航 */
+.android-local .app-body {
+  flex-direction: row;
+}
+.android-local .navigation {
+  display: flex;
+  flex: 0 0 76px;
+  padding: 12px 4px;
+  border-right: 1px solid var(--ant-color-primary-border);
+}
+.android-local .brand-block,
+.android-local .nav-tick,
+.android-local .navigation .navigation-footer {
+  display: none;
+}
+.android-local .navigation-main {
+  width: 100%;
+  padding-top: 4px;
+}
+.android-local .navigation :deep(.ant-menu-item) {
+  height: auto;
+  min-height: 44px;
+  margin: 2px 0;
+  padding: 6px 4px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: center;
+}
+.android-local .navigation :deep(.ant-menu-item .anticon) {
+  font-size: 20px;
+}
+.android-local .app-content {
+  padding: 16px;
+  min-width: 0;
+}
+.android-local .mobile-navigation {
+  display: flex;
+  flex-shrink: 0;
+  padding: 6px 4px;
+  border-top: 1px solid var(--ant-color-primary-border);
+  background: var(--ant-color-bg-container);
+}
+.mobile-navigation button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  min-height: 48px;
+  padding: 8px 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 200ms ease;
+}
+.mobile-navigation button > :first-child {
+  font-size: 20px;
+}
+.mobile-navigation button.selected,
+.mobile-navigation button:hover {
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-primary);
 }
 @media (max-width: 700px) {
   .navigation {

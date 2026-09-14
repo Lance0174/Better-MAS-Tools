@@ -15,5 +15,8 @@ export type SettingsData = {
     CaptchaMode?: 'manual' | 'local' | 'local_yunma';
     YunmaToken?: (string | null);
     MasBaseUrl?: string;
+    CloudMode?: boolean;
+    CloudBaseUrl?: string;
+    CloudPassword?: string;
 };
 

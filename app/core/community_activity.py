@@ -24,6 +24,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -188,7 +189,11 @@ async def collect_configured_community_activity(
     proxy: str | None = None,
     max_concurrency: int = 4,
 ) -> tuple[CommunityActivitySnapshot, ...]:
-    """读取已配置账号组并查询已登记社区的日常活动。"""
+    """读取已配置账号组并查询已登记社区的日常活动。
+
+    discover 与查询按"账号 × 平台"并发调度（semaphore 限流），避免平台间
+    串行等待上游；顺序按账号 → 平台固定，保证前端展示稳定。
+    """
 
     from app.core.state import state
     from app.tools.community_sign_provider import (
@@ -198,43 +203,35 @@ async def collect_configured_community_activity(
 
     resolved_proxy = proxy if proxy is not None else state.proxy
     snapshots: list[CommunityActivitySnapshot] = []
+    semaphore = asyncio.Semaphore(max_concurrency)
 
-    for account_uid, account in _selected_accounts(account_ids):
-        account_name = str(_account_value(account, "Name", "用户") or "用户")
-        if not _account_value(account, "Enabled", False):
-            continue
+    async def query_one(
+        account_uid: str,
+        account: object,
+        account_name: str,
+        definition: CommunityActivityProviderDefinition,
+        miyoushe_device_id: str,
+        miyoushe_device_fp: str,
+    ) -> list[CommunityActivitySnapshot]:
+        token_field = get_community_token_field(definition.platform)
         try:
-            miyoushe_device_id = str(
-                _account_value(account, "MiyousheDeviceId", "") or ""
-            ).strip()
-            miyoushe_device_fp = str(
-                _account_value(account, "MiyousheDeviceFp", "") or ""
-            ).strip()
+            token = read_community_token(account, token_field)
         except Exception:
-            # 设备字段读取失败只限制绝区零便笺，不影响同账号的其他游戏。
-            miyoushe_device_id = ""
-            miyoushe_device_fp = ""
-
-        for definition in ACTIVITY_COMMUNITY_DEFINITIONS:
-            token_field = get_community_token_field(definition.platform)
-            try:
-                token = read_community_token(account, token_field)
-            except Exception:
-                snapshots.extend(
-                    _empty_game_snapshot(
-                        account_uid=account_uid,
-                        account_name=account_name,
-                        definition=definition,
-                        game=game,
-                        status="failed",
-                        reason="社区凭据无法读取",
-                    )
-                    for game in definition.games
+            return list(
+                _empty_game_snapshot(
+                    account_uid=account_uid,
+                    account_name=account_name,
+                    definition=definition,
+                    game=game,
+                    status="failed",
+                    reason="社区凭据无法读取",
                 )
-                continue
-            if not token:
-                continue
+                for game in definition.games
+            )
+        if not token:
+            return []
 
+        async with semaphore:
             provider = CommunityActivityProvider(
                 platform=definition.platform,
                 raw_credential=token,
@@ -248,7 +245,7 @@ async def collect_configured_community_activity(
             except Exception as error:
                 status, reason = _failure_state(error)
                 logger.warning(f"{account_name} {definition.platform}角色发现失败: {reason}")
-                snapshots.extend(
+                return list(
                     _empty_game_snapshot(
                         account_uid=account_uid,
                         account_name=account_name,
@@ -259,14 +256,14 @@ async def collect_configured_community_activity(
                     )
                     for game in definition.games
                 )
-                continue
 
             capability = discovered.activity_capability
             if capability.status == "limited":
+                limited: list[CommunityActivitySnapshot] = []
                 for game in definition.games:
                     game_roles = discovered.roles_for_game(game)
                     if game_roles:
-                        snapshots.extend(
+                        limited.extend(
                             _empty_game_snapshot(
                                 account_uid=account_uid,
                                 account_name=account_name,
@@ -279,7 +276,7 @@ async def collect_configured_community_activity(
                             for role in game_roles
                         )
                     else:
-                        snapshots.append(
+                        limited.append(
                             _empty_game_snapshot(
                                 account_uid=account_uid,
                                 account_name=account_name,
@@ -287,7 +284,7 @@ async def collect_configured_community_activity(
                                 game=game,
                             )
                         )
-                continue
+                return limited
 
             targets = _targets_for_roles(
                 roles=discovered.roles,
@@ -304,14 +301,15 @@ async def collect_configured_community_activity(
                     max_concurrency=max_concurrency,
                 )
 
+            game_snapshots: list[CommunityActivitySnapshot] = []
             for game in definition.games:
-                game_snapshots = tuple(
+                game_roles = tuple(
                     snapshot for snapshot in queried if snapshot.game == game
                 )
-                if game_snapshots:
-                    snapshots.extend(game_snapshots)
+                if game_roles:
+                    game_snapshots.extend(game_roles)
                 else:
-                    snapshots.append(
+                    game_snapshots.append(
                         _empty_game_snapshot(
                             account_uid=account_uid,
                             account_name=account_name,
@@ -319,5 +317,62 @@ async def collect_configured_community_activity(
                             game=game,
                         )
                     )
+            return game_snapshots
+
+    tasks: list[tuple[int, int, asyncio.Task[list[CommunityActivitySnapshot]]]] = []
+    order = 0
+    selected = _selected_accounts(account_ids)
+    for account_index, (account_uid, account) in enumerate(selected):
+        account_name = str(_account_value(account, "Name", "用户") or "用户")
+        if not _account_value(account, "Enabled", False):
+            continue
+        try:
+            miyoushe_device_id = str(
+                _account_value(account, "MiyousheDeviceId", "") or ""
+            ).strip()
+            miyoushe_device_fp = str(
+                _account_value(account, "MiyousheDeviceFp", "") or ""
+            ).strip()
+        except Exception:
+            # 设备字段读取失败只限制绝区零便笺，不影响同账号的其他游戏。
+            miyoushe_device_id = ""
+            miyoushe_device_fp = ""
+
+        for definition_index, definition in enumerate(ACTIVITY_COMMUNITY_DEFINITIONS):
+            order += 1
+            task = asyncio.create_task(
+                query_one(
+                    account_uid,
+                    account,
+                    account_name,
+                    definition,
+                    miyoushe_device_id,
+                    miyoushe_device_fp,
+                )
+            )
+            tasks.append((account_index, definition_index, task))
+
+    for account_index, definition_index, task in tasks:
+        try:
+            snapshots.extend(await task)
+        except Exception as error:
+            # 单个平台查询异常不应拖垮整个面板；补齐该平台的空结果。
+            definition = ACTIVITY_COMMUNITY_DEFINITIONS[definition_index]
+            account_uid, account = selected[account_index]
+            account_name = str(_account_value(account, "Name", "用户") or "用户")
+            _, reason = _failure_state(error)
+            logger.warning(f"{account_name} {definition.platform}活动查询失败: {reason}")
+            snapshots.extend(
+                _empty_game_snapshot(
+                    account_uid=account_uid,
+                    account_name=account_name,
+                    definition=definition,
+                    game=game,
+                    status="failed",
+                    reason=reason,
+                )
+                for game in definition.games
+            )
 
     return tuple(snapshots)
+

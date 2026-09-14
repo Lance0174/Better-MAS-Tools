@@ -10,6 +10,13 @@ body {
   background: var(--ant-color-bg-container);
   color: var(--ant-color-text);
 }
+/* 终末地工业风：页面衬底淡网格，强化"工程终端"质感；不覆盖卡片内容。 */
+body {
+  background-image:
+    linear-gradient(var(--app-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--app-grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
 * {
   box-sizing: border-box;
 }
@@ -42,15 +49,34 @@ body {
   border-bottom: 1px solid var(--ant-color-border-secondary);
 }
 .page-title {
+  position: relative;
+  display: inline-block;
   font-size: 20px;
   line-height: 1.5;
   margin: 0;
+  letter-spacing: 0.04em;
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 700;
+  padding-left: 14px;
+}
+/* 标题左侧斜切刻度条，强化工业仪表读数感 */
+.page-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 70%;
+  background: var(--ant-color-primary);
+  clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
 }
 .section-title {
   margin: 24px 0 12px;
   font-size: 14px;
   font-weight: 600;
   color: var(--ant-color-text-secondary);
+  letter-spacing: 0.02em;
 }
 .page-state {
   min-height: 240px;
@@ -63,4 +89,27 @@ body {
 .ant-modal-body {
   max-height: calc(100dvh - 220px);
   overflow-y: auto;
+}
+/* 终端风数据标签：账号名、数值等使用等宽字体，贴近工业仪表读数。 */
+.terminal-mono {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+}
+/* 工业斜切卡片：用于账号行、结果卡片等容器 */
+.industrial-panel {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+/* 全局扫描线：极细横线给轻微工业质感；pointer-events 保证不挡交互。 */
+#app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 3px,
+    var(--app-scanline) 3px 4px
+  );
+  opacity: 0.5;
+  z-index: 1;
 }

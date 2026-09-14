@@ -8,8 +8,9 @@
   height: 100%;
   border: 1px solid var(--ant-color-border-secondary);
   border-top: 3px solid var(--activity-accent);
-  border-radius: 8px;
   background: var(--ant-color-bg-container);
+  /* 终末地工业斜切：右上角切角，替换圆角 */
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
 .activity-card:hover {

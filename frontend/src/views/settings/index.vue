@@ -6,6 +6,7 @@ import { Modal, message } from 'ant-design-vue'
 import type { SettingsData } from '@/api'
 import { useSettingsStore } from '@/stores/settings'
 import { errorMessage } from '@/composables/useCommunityApi'
+import { isAndroidLocal } from '@/services/android'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
@@ -17,7 +18,9 @@ const dirty = computed(() => JSON.stringify(draft.value) !== original.value)
 const saving = ref(false)
 const yunmaToken = computed({
   get: () => draft.value.YunmaToken ?? '',
-  set: (value: string) => { draft.value.YunmaToken = value },
+  set: (value: string) => {
+    draft.value.YunmaToken = value
+  },
 })
 const captchaModes = computed(() => [
   { value: 'local', label: t('standalone.captchaLocal') },
@@ -27,6 +30,9 @@ const captchaModes = computed(() => [
 const themes = computed(() =>
   ['light', 'dark', 'system'].map(value => ({ value, label: t(`standalone.${value}`) }))
 )
+const reopenOnboarding = () => {
+  window.dispatchEvent(new CustomEvent('bmat-open-onboarding'))
+}
 const save = async () => {
   saving.value = true
   try {
@@ -65,22 +71,45 @@ onBeforeRouteLeave(() => {
     <a-form layout="vertical" :model="draft" :disabled="saving">
       <a-tabs>
         <a-tab-pane key="captcha" :tab="t('standalone.humanVerification')">
-          <a-alert type="info" show-icon :message="t('standalone.captchaScope')" class="settings-hint" />
+          <a-alert
+            type="info"
+            show-icon
+            :message="t('standalone.captchaScope')"
+            class="settings-hint"
+          />
           <a-form-item name="CaptchaMode" :label="t('standalone.captchaMode')">
             <a-select v-model:value="draft.CaptchaMode" :options="captchaModes" />
           </a-form-item>
-          <a-form-item name="YunmaToken" :label="t('standalone.yunmaToken')" :extra="t('standalone.yunmaKeyHint')">
+          <a-form-item
+            name="YunmaToken"
+            :label="t('standalone.yunmaToken')"
+            :extra="t('standalone.yunmaKeyHint')"
+          >
             <a-input-password v-model:value="yunmaToken" autocomplete="new-password" />
           </a-form-item>
-          <a-button danger @click="draft.YunmaToken = ''">{{ t('standalone.clearYunmaKey') }}</a-button>
+          <a-button danger @click="draft.YunmaToken = ''">{{
+            t('standalone.clearYunmaKey')
+          }}</a-button>
         </a-tab-pane>
         <a-tab-pane key="preferences" :tab="t('standalone.preferences')">
-          <a-form-item name="MasBaseUrl" :label="t('standalone.masAddress')" :extra="t('standalone.masHint')">
-            <a-input v-model:value="draft.MasBaseUrl" :disabled="!settings.localConnections" autocomplete="off" />
+          <a-form-item
+            v-if="!isAndroidLocal"
+            name="MasBaseUrl"
+            :label="t('standalone.masAddress')"
+            :extra="t('standalone.masHint')"
+          >
+            <a-input
+              v-model:value="draft.MasBaseUrl"
+              :disabled="!settings.localConnections"
+              autocomplete="off"
+            />
           </a-form-item>
           <a-form-item name="Theme" :label="t('standalone.theme')"
             ><a-select v-model:value="draft.Theme" :options="themes" class="short-field"
           /></a-form-item>
+          <a-form-item name="onboarding" :label="t('standalone.onboardingReopen')" :extra="t('standalone.onboardingReopenHint')">
+            <a-button @click="reopenOnboarding">{{ t('standalone.onboardingReopen') }}</a-button>
+          </a-form-item>
           <a-form-item
             name="LowPerformanceMode"
             :label="t('standalone.lowPower')"
@@ -92,37 +121,75 @@ onBeforeRouteLeave(() => {
           /></a-form-item>
           <a-form-item
             name="Proxy"
+            v-if="!isAndroidLocal"
             :label="t('standalone.proxy')"
             :extra="t('standalone.proxyHint')"
-            ><a-input v-model:value="draft.Proxy" :disabled="!settings.localConnections" autocomplete="off"
+            ><a-input
+              v-model:value="draft.Proxy"
+              :disabled="!settings.localConnections"
+              autocomplete="off"
           /></a-form-item>
         </a-tab-pane>
         <a-tab-pane key="automation" :tab="t('standalone.automation')">
-          <a-form-item name="MiyousheBbsEnabled" :label="t('standalone.miyousheBbs')" :extra="t('standalone.miyousheBbsHint')">
+          <a-form-item
+            name="MiyousheBbsEnabled"
+            :label="t('standalone.miyousheBbs')"
+            :extra="t('standalone.miyousheBbsHint')"
+          >
             <a-switch v-model:checked="draft.MiyousheBbsEnabled" />
           </a-form-item>
           <a-alert
             type="info"
             show-icon
-            :message="t('standalone.automationHint')"
+            :message="
+              t(isAndroidLocal ? 'standalone.androidAutomationHint' : 'standalone.automationHint')
+            "
             class="settings-hint"
           />
           <a-form-item name="Enabled" :label="t('standalone.autoEnabled')"
             ><a-switch v-model:checked="draft.Enabled"
           /></a-form-item>
-          <a-form-item name="RunOnStartup" :label="t('standalone.runOnStartup')"
+          <a-form-item
+            name="RunOnStartup"
+            :label="t(isAndroidLocal ? 'standalone.androidRunOnOpen' : 'standalone.runOnStartup')"
             ><a-switch v-model:checked="draft.RunOnStartup" :disabled="!draft.Enabled"
           /></a-form-item>
-          <a-form-item name="ScheduledRun" :label="t('standalone.scheduledRun')"
+          <a-form-item
+            v-if="!isAndroidLocal"
+            name="ScheduledRun"
+            :label="t('standalone.scheduledRun')"
             ><a-switch v-model:checked="draft.ScheduledRun" :disabled="!draft.Enabled"
           /></a-form-item>
-          <a-form-item name="ScheduledTime" :label="t('standalone.scheduledTime')"
+          <a-form-item
+            v-if="!isAndroidLocal"
+            name="ScheduledTime"
+            :label="t('standalone.scheduledTime')"
             ><a-input
               v-model:value="draft.ScheduledTime"
               type="time"
               :disabled="!draft.Enabled || !draft.ScheduledRun"
               class="short-field"
           /></a-form-item>
+        </a-tab-pane>
+        <a-tab-pane key="cloud" :tab="t('standalone.cloudMode')">
+          <a-alert type="info" show-icon :message="t('standalone.cloudModeHint')" class="settings-hint" />
+          <a-form-item name="CloudMode" :label="t('standalone.cloudModeEnabled')">
+            <a-switch v-model:checked="draft.CloudMode" />
+          </a-form-item>
+          <a-form-item
+            name="CloudBaseUrl"
+            :label="t('standalone.cloudBaseUrl')"
+            :extra="t('standalone.cloudBaseUrlHint')"
+          >
+            <a-input v-model:value="draft.CloudBaseUrl" :disabled="!draft.CloudMode" placeholder="https://community.example.workers.dev" autocomplete="off" />
+          </a-form-item>
+          <a-form-item
+            name="CloudPassword"
+            :label="t('standalone.cloudPassword')"
+            :extra="t('standalone.cloudPasswordHint')"
+          >
+            <a-input-password v-model:value="draft.CloudPassword" :disabled="!draft.CloudMode" autocomplete="new-password" />
+          </a-form-item>
         </a-tab-pane>
       </a-tabs>
     </a-form>

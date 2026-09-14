@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getLogger } from '@/utils/logger'
+import { isAndroidLocal } from '@/services/android'
 
 const props = defineProps<{
   open: boolean
@@ -60,7 +61,7 @@ watch(
 function receive(event: MessageEvent) {
   if (
     !props.open ||
-    event.origin !== window.location.origin ||
+    event.origin !== (isAndroidLocal ? 'null' : window.location.origin) ||
     event.source !== frame.value?.contentWindow
   )
     return
@@ -133,7 +134,7 @@ onBeforeUnmount(() => {
         :key="nonce"
         ref="frame"
         :src="source"
-        sandbox="allow-scripts allow-same-origin"
+        :sandbox="isAndroidLocal ? 'allow-scripts' : 'allow-scripts allow-same-origin'"
         class="captcha-frame"
         :title="t('standalone.humanVerification')"
       />
@@ -146,6 +147,7 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   height: 440px;
+  max-height: calc(100dvh - 160px);
   border: 0;
 }
 .captcha-error {

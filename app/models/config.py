@@ -37,6 +37,9 @@ class SettingsData(BaseModel):
     CaptchaMode: Literal["manual", "local", "local_yunma"] = "local"
     YunmaToken: str | None = Field(default=None, repr=False)
     MasBaseUrl: str = Field(default="http://127.0.0.1:36163", max_length=200)
+    CloudMode: bool = False
+    CloudBaseUrl: str = Field(default="", max_length=300)
+    CloudPassword: str = Field(default="", repr=False, max_length=512)
 
 
 class SavedState(BaseModel):

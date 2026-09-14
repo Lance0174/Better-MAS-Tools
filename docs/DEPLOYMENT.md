@@ -84,6 +84,24 @@ npm run deploy
 
 本轮开发未执行上述发布命令。上线前自行核对Cloudflare当时的Python Workers、Durable Object、CPU、内存、子请求与套餐限制，不保证免费套餐可运行全部任务。
 
+### GitHub Actions 一键部署
+
+仓库已提供 `.github/workflows/deploy-cf.yml`，推送到 `main` 且改动相关源码，或手动在 Actions 页触发 `Deploy Cloudflare Workers` 工作流，即可完成构建并发布到 Workers。工作流执行 DEPLOYMENT.md 的同一命令链：构建前端、`install-worker-deps.py` 安装 Pyodide 依赖、`prepare-worker.py` 同步资源、`npm ci` 安装 wrangler、注入公开来源、dry-run 校验，最后 `wrangler deploy`。
+
+首次使用前，在 GitHub 仓库配置以下内容：
+
+| 类型 | 名称 | 说明 |
+| --- | --- | --- |
+| Secret | `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌，需 `Workers Scripts: Edit` 权限 |
+| Secret | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账号 ID（可省略，wrangler 会尝试自动发现） |
+| Secret | `CLOUDFLARE_ACCESS_PASSWORD` | 远端访问密码，至少 12 字符 |
+| Secret | `CLOUDFLARE_ENCRYPTION_KEY` | 32 字节随机密钥的 Base64，可用 `python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"` 生成 |
+| Variable | `CLOUDFLARE_PUBLIC_ORIGIN` | HTTPS 公开来源，如 `https://community.example.com` |
+
+工作流会把 `CLOUDFLARE_PUBLIC_ORIGIN` 写入 `wrangler.jsonc` 的 `vars`，并把两个密钥用 `wrangler secret put` 设置为 Worker 加密 secret。`wrangler.jsonc` 中的 `name` 决定分配的 `*.workers.dev` 子域。密钥只存在于 GitHub Secrets 与 Cloudflare，不会写入仓库。
+
+注意：本仓库 main 分支尚无首个提交时，GitHub Actions 无法通过 `push` 触发；可先用 `workflow_dispatch` 手动运行验证，再按需创建提交。
+
 每个部署是一个固定名称的单用户实例，多名使用者应分开部署。数据在Durable Object的SQLite中压缩加密，整份未压缩状态上限8MB；大型抽卡档案建议用Linux完整后端。保留原加密密钥，并使用Cloudflare提供的持久存储恢复能力备份状态；抽卡页可另行导出JSON。更换密钥不会自动重加密已有数据。
 
 Cron每5分钟检查一次北京时间每日计划，不能提供桌面“启动时签到”语义。凭据保存在云端实例中，但不读取访问者电脑的账号；本机MAS和Clash入口禁用。

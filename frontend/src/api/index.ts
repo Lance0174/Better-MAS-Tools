@@ -16,6 +16,10 @@ export type { AccountsOut } from './models/AccountsOut';
 export type { AccountUpdateIn } from './models/AccountUpdateIn';
 export type { ActivityQueryIn } from './models/ActivityQueryIn';
 export type { ClientLogIn } from './models/ClientLogIn';
+export type { CloudAccountIn } from './models/CloudAccountIn';
+export type { CloudSyncIn } from './models/CloudSyncIn';
+export type { CloudSyncOut } from './models/CloudSyncOut';
+export type { CloudSyncResult } from './models/CloudSyncResult';
 export type { CommunityActivityOut } from './models/CommunityActivityOut';
 export type { CommunityActivityResourceOut } from './models/CommunityActivityResourceOut';
 export type { CommunityActivitySnapshotOut } from './models/CommunityActivitySnapshotOut';
@@ -65,6 +69,7 @@ export type { StatusOut } from './models/StatusOut';
 export type { TaygedoLoginIn } from './models/TaygedoLoginIn';
 export type { ValidationError } from './models/ValidationError';
 
+export { CloudService } from './services/CloudService';
 export { CommunityService } from './services/CommunityService';
 export { DiagnosticsService } from './services/DiagnosticsService';
 export { GachaService } from './services/GachaService';
