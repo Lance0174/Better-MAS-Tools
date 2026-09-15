@@ -65,7 +65,7 @@ jobs:
 
       - name: Prepare Android assets
         run: |
-          uv run --no-project --python 3.13 python scripts/prepare-android.py --skip-frontend
+          uv run --no-project --with httpx --python 3.13 python scripts/prepare-android.py --skip-frontend
 
       - name: Build debug APK
         working-directory: android
