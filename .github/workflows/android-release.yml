@@ -92,13 +92,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
-          draft="$(gh release view "$tag" --json isDraft --jq .isDraft 2>/dev/null || true)"
-          if [ -n "$draft" ]; then
-            if [ "$draft" != "true" ]; then
-              echo "::error::This version is already published. Use a new version tag."
-              exit 1
-            fi
-          else
+          exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
+          if [ -z "$exists" ]; then
+            # Windows 与 Android 可能先后触发同一 tag；不存在时创建草稿，存在时直接补资产。
             gh release create "$tag" --draft --verify-tag --title "Better MAS Tools $tag" --notes-file CHANGELOG.md
           fi
           gh release upload "$tag" \
