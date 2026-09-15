@@ -14,6 +14,7 @@ import {
   GiftOutlined,
   LinkOutlined,
   FileTextOutlined,
+  MenuOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
@@ -54,11 +55,29 @@ const maybeOpenOnboarding = () => {
   }
   if (!done) openOnboarding()
 }
-// 底部导航只放系统工具页；功能页（签到/便笺/抽卡）走侧边菜单栏。
+// 底部导航：游戏社区为主入口 + 系统工具；功能页在左侧可收起侧边栏。
 const mobileItems = computed(() => [
+  { path: '/sign', label: t('standalone.sign'), icon: CalendarOutlined },
   { path: '/logs', label: t('standalone.logs'), icon: FileTextOutlined },
   { path: '/settings', label: t('standalone.settings'), icon: SettingOutlined },
 ])
+// 左侧可收起侧边栏：社区功能页菜单。
+const sideOpen = ref(false)
+const sideItems = computed(() => [
+  { path: '/sign', label: t('standalone.sign'), icon: CalendarOutlined },
+  ...(settings.data?.ActivityEnabled !== false
+    ? [{ path: '/activity', label: t('standalone.activity'), icon: DashboardOutlined }]
+    : []),
+  { path: '/gacha', label: t('standalone.gacha'), icon: GiftOutlined },
+])
+const goSide = (item: { key: string | number }) => {
+  router.push(String(item.key))
+  sideOpen.value = false
+}
+const pageTitle = computed(() => {
+  const meta = route.meta.title as string | undefined
+  return meta ? t(meta) : t('standalone.sign')
+})
 const connect = async () => {
   if (loading.value) return
   if (isAndroidLocal) retryAndroidEngine()
@@ -106,6 +125,7 @@ onBeforeUnmount(() => {
     <a-layout class="app-layout" :class="{ 'android-local': isAndroidLocal }">
       <a-layout class="app-body">
         <nav
+          v-if="!isAndroidLocal"
           class="navigation"
           :class="{ 'reduced-motion': settings.data?.LowPerformanceMode }"
           :aria-label="t('standalone.navigation')"
@@ -154,6 +174,17 @@ onBeforeUnmount(() => {
           </a-menu>
         </nav>
         <a-layout-content class="app-content">
+          <div v-if="isAndroidLocal && ready" class="android-topbar">
+            <button
+              class="android-hamburger"
+              type="button"
+              :aria-label="t('standalone.navigation')"
+              @click="sideOpen = true"
+            >
+              <MenuOutlined />
+            </button>
+            <span class="android-page-title">{{ pageTitle }}</span>
+          </div>
           <div v-if="!ready" class="page-state">
             <a-form
               v-if="loginRequired"
@@ -211,6 +242,26 @@ onBeforeUnmount(() => {
         </button>
       </nav>
     </a-layout>
+    <a-drawer
+      v-if="isAndroidLocal"
+      :open="sideOpen"
+      placement="left"
+      :title="t('standalone.title')"
+      :width="240"
+      class="android-side-drawer"
+      @close="sideOpen = false"
+    >
+      <a-menu
+        mode="inline"
+        :selected-keys="[route.path]"
+        class="android-side-menu"
+        @click="goSide"
+      >
+        <a-menu-item v-for="item in sideItems" :key="item.path">
+          <template #icon><component :is="item.icon" /></template>{{ item.label }}
+        </a-menu-item>
+      </a-menu>
+    </a-drawer>
     <OnboardingWizard
       :open="onboardingOpen && ready"
       @close="onboardingOpen = false"
@@ -377,45 +428,59 @@ onBeforeUnmount(() => {
 .mobile-navigation {
   display: none;
 }
-/* 安卓布局：侧边功能菜单 + 内容 + 底部工具导航 */
+/* 安卓布局：顶部汉堡栏 + 内容 + 底部导航；功能页在左侧可收起 Drawer 侧边栏 */
 .android-local .app-body {
-  flex-direction: row;
-}
-.android-local .navigation {
-  display: flex;
-  flex: 0 0 76px;
-  padding: 12px 4px;
-  border-right: 1px solid var(--ant-color-primary-border);
-}
-.android-local .brand-block,
-.android-local .nav-tick,
-.android-local .navigation .navigation-footer {
-  display: none;
-}
-.android-local .navigation-main {
-  width: 100%;
-  padding-top: 4px;
-}
-.android-local .navigation :deep(.ant-menu-item) {
-  height: auto;
-  min-height: 44px;
-  margin: 2px 0;
-  padding: 6px 4px !important;
-  display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  font-size: 11px;
-  line-height: 1.2;
-  text-align: center;
-}
-.android-local .navigation :deep(.ant-menu-item .anticon) {
-  font-size: 20px;
 }
 .android-local .app-content {
-  padding: 16px;
+  padding: 12px 16px;
   min-width: 0;
+}
+/* 安卓顶栏：汉堡按钮 + 当前页标题 */
+.android-topbar {
+  display: none;
+}
+.android-local .android-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 12px;
+}
+.android-hamburger {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--ant-color-primary-border);
+  border-radius: 6px;
+  background: var(--app-panel);
+  color: var(--ant-color-primary);
+  font-size: 18px;
+  cursor: pointer;
+}
+.android-page-title {
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+/* 左侧可收起侧边栏菜单 */
+.android-local :deep(.android-side-drawer .ant-drawer-body) {
+  padding: 12px 8px;
+}
+.android-local :deep(.android-side-menu) {
+  border: 0;
+  background: transparent;
+}
+.android-local :deep(.android-side-menu .ant-menu-item) {
+  margin: 4px 0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.android-local :deep(.android-side-menu .ant-menu-item-selected) {
+  background: var(--app-panel);
+  color: var(--ant-color-primary);
+  font-weight: 600;
 }
 .android-local .mobile-navigation {
   display: flex;
