@@ -20,7 +20,7 @@ async def snapshot() -> MasSnapshotOut:
     try:
         return MasSnapshotOut(**await mas.snapshot(state.data.settings.MasBaseUrl))
     except Exception:
-        raise ValueError("无法连接本机 MAS，请确认地址和 MAS 已启动") from None
+        raise ValueError("无法连接本机 MAS，请确认地址是否正确和 MAS 是否已启动") from None
 
 
 @router.post("/start", response_model=MasStartOut, operation_id="startMasTask")

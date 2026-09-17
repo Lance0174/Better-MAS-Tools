@@ -8,7 +8,7 @@
         android:usesCleartextTraffic="false"
         android:label="Better MAS Tools"
         android:icon="@drawable/ic_launcher"
-        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
             android:exported="true"
