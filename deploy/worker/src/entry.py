@@ -23,11 +23,23 @@ class Community(DurableObject):
             from app.services.cloudflare import DurableStorage, FetchTransport
             from app.services.network import network
 
-            access = RemoteAccess(
-                self.env.COMMUNITY_PUBLIC_ORIGIN.rstrip("/"),
-                self.env.COMMUNITY_ACCESS_PASSWORD,
-            )
-            store = DurableStorage(self.ctx.storage, self.env.COMMUNITY_ENCRYPTION_KEY)
+            try:
+                origin = self.env.COMMUNITY_PUBLIC_ORIGIN
+                password = self.env.COMMUNITY_ACCESS_PASSWORD
+                encryption_key = self.env.COMMUNITY_ENCRYPTION_KEY
+            except AttributeError as error:
+                raise ValueError(
+                    "Workers 缺少必需环境变量，请在项目根目录 .env 或 Wrangler secrets 中配置"
+                ) from error
+            if not all(
+                isinstance(value, str) and value.strip()
+                for value in (origin, password, encryption_key)
+            ):
+                raise ValueError(
+                    "Workers 缺少必需环境变量，请在项目根目录 .env 或 Wrangler secrets 中配置"
+                )
+            access = RemoteAccess(origin.rstrip("/"), password)
+            store = DurableStorage(self.ctx.storage, encryption_key)
             state.data = store.load()
             state.storage = store
             network.transport_factory = FetchTransport

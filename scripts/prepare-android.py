@@ -22,7 +22,7 @@ def frontend_licenses(directory: Path) -> None:
     """附带生产依赖的许可与版本，保留其原始文本。"""
     modules = ROOT / "frontend/node_modules"
     pending = list(
-        json.loads((ROOT / "frontend/package.json").read_text())["dependencies"]
+        json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))["dependencies"]
     )
     seen = {}
     while pending:
@@ -67,7 +67,7 @@ def main() -> None:
     parser.add_argument("--skip-frontend", action="store_true")
     parser.add_argument("--proxy", help="只对本次资源下载生效")
     args = parser.parse_args()
-    manifest = json.loads((ANDROID / "runtime/manifest.json").read_text())
+    manifest = json.loads((ANDROID / "runtime/manifest.json").read_text(encoding="utf-8"))
     cache = args.runtime_cache.resolve()
     cache.mkdir(parents=True, exist_ok=True)
     base = f"https://cdn.jsdelivr.net/pyodide/v{manifest['pyodide']}/full/"
@@ -117,7 +117,7 @@ def main() -> None:
         shutil.copytree(ROOT / "frontend/dist", staging, dirs_exist_ok=True)
         runtime = staging / "runtime"
         runtime.mkdir()
-        lock = json.loads((ANDROID / "runtime/pyodide-lock.json").read_text())
+        lock = json.loads((ANDROID / "runtime/pyodide-lock.json").read_text(encoding="utf-8"))
         provenance = []
         for item in manifest["runtime"]:
             (runtime / item["file"]).write_bytes(obtain(item["file"], item["sha256"]))
@@ -156,7 +156,7 @@ def main() -> None:
                         / f"{item['name'].replace('-', '_')}-{item['version']}.dist-info/RECORD"
                     )
                     for name, checksum, _size in csv.reader(
-                        io.StringIO(record.read_text())
+                        io.StringIO(record.read_text(encoding="utf-8"))
                     ):
                         source = (module_cache / name).resolve()
                         if (

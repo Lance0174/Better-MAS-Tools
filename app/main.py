@@ -24,12 +24,14 @@ from app.models.schema import SessionLoginIn, SessionOut
 from app.services.access import RemoteAccess, RemoteSessions
 from app.services.diagnostics import Diagnostics
 from app.tools.community_contract import CommunitySignInProgressError
+from app.utils.environment import load_project_environment
 from app.utils.logger import configure_file_logging, get_logger
 from app.utils.security import sanitize_log_message
 from app.version import VERSION
 
 logger = get_logger("社区应用")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_project_environment(PROJECT_ROOT)
 
 
 def create_app(
