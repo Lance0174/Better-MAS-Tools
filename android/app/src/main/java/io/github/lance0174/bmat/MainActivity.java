@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -52,6 +53,15 @@ public final class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private String saveId;
     private String saveContent;
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (webView != null) {
+            webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('bmat-system-theme-change'))", null);
+        }
+    }
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")

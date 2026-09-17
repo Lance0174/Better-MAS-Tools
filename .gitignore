@@ -31,3 +31,5 @@ deploy/worker/node_modules/
 deploy/worker/python_modules/
 deploy/worker/.venv-workers/
 deploy/worker/.wrangler/
+
+.agents

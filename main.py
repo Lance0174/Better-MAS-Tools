@@ -9,7 +9,10 @@ import threading
 
 import uvicorn
 
+from app.utils.environment import load_project_environment
 from app.utils.logger import intercept_standard_logging
+
+load_project_environment()
 
 
 async def serve_desktop(server: uvicorn.Server, listener: socket.socket) -> None:

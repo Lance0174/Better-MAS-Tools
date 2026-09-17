@@ -38,7 +38,7 @@
 
 ## 构建
 
-见 `docs/ANDROID.md` 与根目录开发报告。要点：前端构建 → `prepare-android.py` → 隔离工具链 Gradle `assembleDebug`；APK 产物在 `android/app/build/outputs/apk/debug/`。
+见 `docs/ANDROID.md` 与由 `BETTER_MAS_DEV_REPORT` 指定的开发报告。要点：前端构建 → `prepare-android.py` → 仓库内 Gradle Wrapper `assembleDebug`；APK 产物在 `android/app/build/outputs/apk/debug/`。JDK、Android SDK 等外部工具链只通过 `JAVA_HOME`、`ANDROID_SDK_ROOT` 等环境变量提供，不在文档中写入开发机绝对路径。
 
 ## 约束
 

@@ -65,6 +65,12 @@ frontend\out\win-unpacked\BetterMASTools.exe
 
 需要 Windows、Python 3.12、[uv](https://docs.astral.sh/uv/)、Node.js 22 和 Yarn 4.9.1。依赖都安装在本仓的 `.venv` 和 `frontend/node_modules` 中。
 
+### 环境变量与 `.env`
+
+项目根目录提供 [`.env.example`](.env.example)。复制为 `.env` 后按需填写；模板中的变量均默认为空，空值不会覆盖系统环境变量。Python 后端入口启动时会先读取根目录 `.env`，再使用系统环境变量；同名且非空的 `.env` 值优先。两处都没有值时，环回模式使用内置默认值，远端模式等必需配置会立即报错，并提示在 `.env` 或系统环境变量中补齐。`.env`、密钥和令牌不得提交。
+
+根目录 `.env` 适用于本地 Python/桌面运行及开发工具变量；Docker Compose 使用 `deploy/.env`，Cloudflare Workers 本地调试使用 `deploy/worker/.dev.vars`，GitHub Actions 使用仓库 Secrets/Variables。三者不会自动读取根目录 `.env`。Android、Gradle 等 shell 命令不会由 Python 自动加载 `.env`，请在当前终端导出模板中的工具链变量后再构建。
+
 一条命令安装依赖、构建并启动：
 
 ```powershell
@@ -125,22 +131,29 @@ GitHub 的 **Actions → Windows Release → Run workflow** 可进行构建验�
 
 ## 构建安卓 APK
 
-安卓端将前端构建产物、Python 后端源码与 Pyodide 运行时打进 APK，在手机 WebView 内本地运行，网络与持久化经原生桥转交系统。产物为 debug 签名，直接安装测试：
+安卓端将前端构建产物、Python 后端源码与 Pyodide 运行时打进 APK，在手机 WebView 内本地运行，网络与持久化经原生桥转交系统。所有命令默认从仓库根目录执行；文档不依赖开发机目录。产物为 debug 签名，直接安装测试。
+
+准备 Python 3.12、Node.js 22、Yarn 4、JDK 17、Android SDK platform 35 和 build-tools 35.0.0。先在当前终端设置本机工具链环境变量：`JAVA_HOME` 指向 JDK 17，`ANDROID_SDK_ROOT` 指向 Android SDK；脚本会将 `ANDROID_HOME` 设为同一 SDK 路径。Gradle Wrapper 使用 8.14，首次运行允许联网下载发行包；已缓存发行包后可追加 `--offline`。
 
 ```powershell
-# 1. 构建前端（frontend 目录）
-yarn build
-# 2. 项目根目录：同步前端与后端离线资源到 android/app/src/main/assets
-.venv\Scripts\python.exe -X utf8 scripts/prepare-android.py --offline --skip-frontend --python-cache .venv/Lib/site-packages
-# 3. android 目录：用隔离工具链构建（JDK 17 + SDK 35 + Gradle 8.9，环境变量只作用于构建进程）
-cd android
-$env:JAVA_HOME="E:\GitHub\Alle-android-toolchain-20260822\jdk\jdk-17.0.20+8"
-$env:ANDROID_HOME="E:\GitHub\Alle-android-toolchain-20260822\sdk"
-$env:GRADLE_USER_HOME="E:\GitHub\Better-MAS-Community\local\ag"
-E:\GitHub\Alle-android-toolchain-20260822\gradle\gradle-8.9\bin\gradle.bat assembleDebug --offline
+# 项目根目录
+if (-not $env:JAVA_HOME -or -not $env:ANDROID_SDK_ROOT) {
+    throw 'Set JAVA_HOME (JDK 17) and ANDROID_SDK_ROOT (Android SDK) first.'
+}
+$env:ANDROID_HOME = $env:ANDROID_SDK_ROOT
+$env:GRADLE_USER_HOME = Join-Path (Get-Location) 'local/gradle'
+
+uv sync --locked --dev --extra captcha --link-mode=copy
+Push-Location frontend
+try { yarn install --immutable; yarn build } finally { Pop-Location }
+.venv\Scripts\python.exe scripts/prepare-android.py --skip-frontend
+Push-Location android
+try { .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug } finally { Pop-Location }
 ```
 
-APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。首次构建需先运行 `scripts/install-worker-deps.py` 准备 Pyodide 依赖，离线缓存缺失时按 `scripts/prepare-android.py` 的提示从 `local/android-engine-probe/runtime` 恢复。工程结构、文件职责与约束见 [android/README.md](android/README.md) 与 [部署说明](docs/DEPLOYMENT.md)。
+离线重复构建时，将最后一条 Gradle 命令改为 `.\gradlew.bat --no-daemon --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`，并为资源准备脚本增加 `--offline`；前提是本地缓存已包含清单中的 Pyodide 资源。构建工具链的实际目录只应存在于环境变量或本机配置中，不要写入仓库文档。
+
+APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。`scripts/prepare-android.py` 会按 `android/runtime/manifest.json` 下载并校验 Pyodide 资源；离线缓存缺失时按脚本提示准备缓存。`scripts/install-worker-deps.py` 仅用于 Cloudflare Workers，不是 Android 构建前置步骤。工程结构、文件职责与约束见 [android/README.md](android/README.md) 与 [部署说明](docs/DEPLOYMENT.md)。
 
 安卓端深色跟随系统、启动优化与验证码放行已内置；真机行为（锁屏后台限制、触控验证码）以安装实测为准。
 

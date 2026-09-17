@@ -10,8 +10,18 @@ export function useTheme() {
   const onSystemTheme = () => {
     systemDark.value = media.matches
   }
-  media.addEventListener('change', onSystemTheme)
-  onScopeDispose(() => media.removeEventListener('change', onSystemTheme))
+  const mediaChange = media.addEventListener
+    ? () => media.addEventListener('change', onSystemTheme)
+    : () => media.addListener(onSystemTheme)
+  const removeMediaChange = media.removeEventListener
+    ? () => media.removeEventListener('change', onSystemTheme)
+    : () => media.removeListener(onSystemTheme)
+  mediaChange()
+  window.addEventListener('bmat-system-theme-change', onSystemTheme)
+  onScopeDispose(() => {
+    removeMediaChange()
+    window.removeEventListener('bmat-system-theme-change', onSystemTheme)
+  })
   const isDark = computed(
     () =>
       settings.data?.Theme === 'dark' ||

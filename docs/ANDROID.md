@@ -22,22 +22,29 @@
 
 ## 源码构建
 
-准备 Python 3.12、Node.js 22、Yarn 4、JDK 17、Gradle 8.9、Android SDK platform 35 和 build-tools 35.0.0。Android Gradle Plugin 固定为 8.7.3。在当前终端设置 `JAVA_HOME`、`ANDROID_HOME` 后运行；不要把本机代理或密钥提交到仓库。
+准备 Python 3.12、Node.js 22、Yarn 4、JDK 17、Android SDK platform 35 和 build-tools 35.0.0。Android Gradle Plugin 固定为 8.7.3，仓库内 Gradle Wrapper 固定为 8.14。在当前终端设置 `JAVA_HOME`（JDK 17）和 `ANDROID_SDK_ROOT`（Android SDK）后运行，并将 `ANDROID_HOME` 设为同一 SDK 路径；不要把本机代理或密钥提交到仓库。所有命令均从仓库根目录执行，工具链目录只通过环境变量提供。
+
+根目录 [`.env.example`](../.env.example) 列出了 Android 构建变量。`.env` 的非空值由 Python 入口优先加载，但 PowerShell/Gradle 命令不会自动读取它；请在当前终端导出 `JAVA_HOME`、`ANDROID_SDK_ROOT`、`ANDROID_HOME` 和 `GRADLE_USER_HOME` 后再执行以下命令。变量为空时跳过，随后使用系统环境变量；仍缺失时按工具链自身错误提示处理。
 
 ```powershell
-# 仓库根目录，使用已有项目虚拟环境；httpx 是项目已有依赖
+if (-not $env:JAVA_HOME -or -not $env:ANDROID_SDK_ROOT) {
+    throw 'Set JAVA_HOME (JDK 17) and ANDROID_SDK_ROOT (Android SDK) first.'
+}
+$env:ANDROID_HOME = $env:ANDROID_SDK_ROOT
+$env:GRADLE_USER_HOME = Join-Path (Get-Location) 'local/gradle'
+
+# 仓库根目录，使用项目虚拟环境
+uv sync --locked --dev --extra captcha --link-mode=copy
 Push-Location frontend
-yarn install --immutable
-Pop-Location
-.venv\Scripts\python.exe scripts/prepare-android.py
+try { yarn install --immutable; yarn build } finally { Pop-Location }
+.venv\Scripts\python.exe scripts/prepare-android.py --skip-frontend
 Push-Location android
-gradle --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
-Pop-Location
+try { .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug } finally { Pop-Location }
 ```
 
 输出：`android/app/build/outputs/apk/debug/app-debug.apk`。此 APK 使用 Android 调试签名，适合本轮安装验收；正式发布需要维护者自己的持久签名密钥。更新时需保持签名一致，卸载应用会移除本地加密数据，请先导出记录。
 
-资源准备脚本校验 SHA-256，可用 `--runtime-cache <目录>` 指定缓存、`--offline` 禁止下载。`--python-cache <已安装包目录>` 仅供受限网络构建复用公共依赖，逐文件校验 RECORD；普通构建直接从锁定的官方 wheel 获取纯 Python 包。`--proxy <地址>` 只对本次下载有效。运行时不依赖其他仓库、开发机路径或 Python 安装。
+资源准备脚本校验 SHA-256，可用 `--runtime-cache <目录>` 指定缓存、`--offline` 禁止下载。`--python-cache <已安装包目录>` 仅供受限网络构建复用公共依赖，逐文件校验 RECORD；普通构建直接从锁定的官方 wheel 获取纯 Python 包。`--proxy <地址>` 只对本次下载有效。首次 Gradle 构建需要下载 Wrapper 发行包，缓存齐全后可为 Gradle 命令追加 `--offline`。运行时不依赖其他仓库、开发机路径或 Python 安装。
 
 提交源码时排除 `android/app/src/main/assets`、APK、Gradle 缓存、`local.properties` 和签名文件，规则已写入 `android/.gitignore`。资源及依赖随 APK 打包，首次启动无需下载 Python 引擎；签到、登录和在线抽卡查询仍需要网络。
 

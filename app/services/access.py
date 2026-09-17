@@ -25,10 +25,12 @@ class RemoteAccess:
             or url.password
         ):
             raise ValueError(
-                "远端模式需要 HTTPS 的 COMMUNITY_PUBLIC_ORIGIN（不含路径）"
+                "远端模式需要 HTTPS 的 COMMUNITY_PUBLIC_ORIGIN（不含路径）；请在项目根目录 .env 或系统环境变量中配置"
             )
         if len(self.password) < 12:
-            raise ValueError("远端模式需要至少 12 字符的 COMMUNITY_ACCESS_PASSWORD")
+            raise ValueError(
+                "远端模式需要至少 12 字符的 COMMUNITY_ACCESS_PASSWORD；请在项目根目录 .env 或系统环境变量中配置"
+            )
 
     @classmethod
     def from_environment(cls):
