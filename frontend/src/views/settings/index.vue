@@ -1,21 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Modal, message } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import type { SettingsData } from '@/api'
 import { useSettingsStore } from '@/stores/settings'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { isAndroidLocal } from '@/services/android'
+import { createSettingsAutoSave } from './settingsAutoSave'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
 const draft = ref<SettingsData>({
   ...settings.data,
 })
-const original = ref(JSON.stringify(draft.value))
-const dirty = computed(() => JSON.stringify(draft.value) !== original.value)
-const saving = ref(false)
 const yunmaToken = computed({
   get: () => draft.value.YunmaToken ?? '',
   set: (value: string) => {
@@ -33,42 +30,21 @@ const themes = computed(() =>
 const reopenOnboarding = () => {
   window.dispatchEvent(new CustomEvent('bmat-open-onboarding'))
 }
-const save = async () => {
-  saving.value = true
-  try {
-    const next: SettingsData = JSON.parse(JSON.stringify(draft.value))
-    await settings.save(next)
-    draft.value = { ...settings.data }
-    original.value = JSON.stringify(draft.value)
-    message.success(t('standalone.saved'))
-  } catch (cause) {
-    message.error(errorMessage(cause, t('standalone.saveFailed')))
-  } finally {
-    saving.value = false
-  }
-}
-onBeforeRouteLeave(() => {
-  if (!dirty.value) return true
-  return new Promise<boolean>(resolve =>
-    Modal.confirm({
-      title: t('standalone.discardTitle'),
-      content: t('standalone.discardHint'),
-      onOk: () => resolve(true),
-      onCancel: () => resolve(false),
-    })
-  )
+const autoSave = createSettingsAutoSave({
+  getSnapshot: () => draft.value,
+  save: next => settings.save(next),
+  onFailure: cause => message.error(errorMessage(cause, t('standalone.saveFailed'))),
 })
+const changed = () => autoSave.changed()
+const textChanged = () => autoSave.textChanged()
+const textBlurred = () => autoSave.textBlurred()
+onBeforeUnmount(autoSave.dispose)
 </script>
 
 <template>
   <section class="settings-page">
-    <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.settings') }}</h1>
-      <a-button type="primary" :loading="saving" :disabled="!dirty" @click="save">{{
-        t('standalone.save')
-      }}</a-button>
-    </header>
-    <a-form layout="vertical" :model="draft" :disabled="saving">
+    <header class="page-toolbar"><h1 class="page-title">{{ t('standalone.settings') }}</h1></header>
+    <a-form layout="vertical" :model="draft">
       <a-tabs>
         <a-tab-pane key="captcha" :tab="t('standalone.humanVerification')">
           <a-alert
@@ -78,16 +54,16 @@ onBeforeRouteLeave(() => {
             class="settings-hint"
           />
           <a-form-item name="CaptchaMode" :label="t('standalone.captchaMode')">
-            <a-select v-model:value="draft.CaptchaMode" :options="captchaModes" />
+            <a-select v-model:value="draft.CaptchaMode" :options="captchaModes" @change="changed" />
           </a-form-item>
           <a-form-item
             name="YunmaToken"
             :label="t('standalone.yunmaToken')"
             :extra="t('standalone.yunmaKeyHint')"
           >
-            <a-input-password v-model:value="yunmaToken" autocomplete="new-password" />
+            <a-input-password v-model:value="yunmaToken" autocomplete="new-password" @update:value="textChanged" @blur="textBlurred" />
           </a-form-item>
-          <a-button danger @click="draft.YunmaToken = ''">{{
+          <a-button danger @click="draft.YunmaToken = ''; changed()">{{
             t('standalone.clearYunmaKey')
           }}</a-button>
         </a-tab-pane>
@@ -102,10 +78,12 @@ onBeforeRouteLeave(() => {
               v-model:value="draft.MasBaseUrl"
               :disabled="!settings.localConnections"
               autocomplete="off"
+              @update:value="textChanged"
+              @blur="textBlurred"
             />
           </a-form-item>
           <a-form-item name="Theme" :label="t('standalone.theme')"
-            ><a-select v-model:value="draft.Theme" :options="themes" class="short-field"
+            ><a-select v-model:value="draft.Theme" :options="themes" class="short-field" @change="changed"
           /></a-form-item>
           <a-form-item name="onboarding" :label="t('standalone.onboardingReopen')" :extra="t('standalone.onboardingReopenHint')">
             <a-button @click="reopenOnboarding">{{ t('standalone.onboardingReopen') }}</a-button>
@@ -114,10 +92,10 @@ onBeforeRouteLeave(() => {
             name="LowPerformanceMode"
             :label="t('standalone.lowPower')"
             :extra="t('standalone.lowPowerHint')"
-            ><a-switch v-model:checked="draft.LowPerformanceMode"
+            ><a-switch v-model:checked="draft.LowPerformanceMode" @change="changed"
           /></a-form-item>
           <a-form-item name="ActivityEnabled" :label="t('standalone.activityEnabled')"
-            ><a-switch v-model:checked="draft.ActivityEnabled"
+            ><a-switch v-model:checked="draft.ActivityEnabled" @change="changed"
           /></a-form-item>
           <a-form-item
             name="Proxy"
@@ -128,6 +106,8 @@ onBeforeRouteLeave(() => {
               v-model:value="draft.Proxy"
               :disabled="!settings.localConnections"
               autocomplete="off"
+              @update:value="textChanged"
+              @blur="textBlurred"
           /></a-form-item>
         </a-tab-pane>
         <a-tab-pane key="automation" :tab="t('standalone.automation')">
@@ -136,7 +116,7 @@ onBeforeRouteLeave(() => {
             :label="t('standalone.miyousheBbs')"
             :extra="t('standalone.miyousheBbsHint')"
           >
-            <a-switch v-model:checked="draft.MiyousheBbsEnabled" />
+            <a-switch v-model:checked="draft.MiyousheBbsEnabled" @change="changed" />
           </a-form-item>
           <a-alert
             type="info"
@@ -147,18 +127,18 @@ onBeforeRouteLeave(() => {
             class="settings-hint"
           />
           <a-form-item name="Enabled" :label="t('standalone.autoEnabled')"
-            ><a-switch v-model:checked="draft.Enabled"
+            ><a-switch v-model:checked="draft.Enabled" @change="changed"
           /></a-form-item>
           <a-form-item
             name="RunOnStartup"
             :label="t(isAndroidLocal ? 'standalone.androidRunOnOpen' : 'standalone.runOnStartup')"
-            ><a-switch v-model:checked="draft.RunOnStartup" :disabled="!draft.Enabled"
+            ><a-switch v-model:checked="draft.RunOnStartup" :disabled="!draft.Enabled" @change="changed"
           /></a-form-item>
           <a-form-item
             v-if="!isAndroidLocal"
             name="ScheduledRun"
             :label="t('standalone.scheduledRun')"
-            ><a-switch v-model:checked="draft.ScheduledRun" :disabled="!draft.Enabled"
+            ><a-switch v-model:checked="draft.ScheduledRun" :disabled="!draft.Enabled" @change="changed"
           /></a-form-item>
           <a-form-item
             v-if="!isAndroidLocal"
@@ -169,26 +149,28 @@ onBeforeRouteLeave(() => {
               type="time"
               :disabled="!draft.Enabled || !draft.ScheduledRun"
               class="short-field"
+              @update:value="textChanged"
+              @blur="textBlurred"
           /></a-form-item>
         </a-tab-pane>
         <a-tab-pane key="cloud" :tab="t('standalone.cloudMode')">
           <a-alert type="info" show-icon :message="t('standalone.cloudModeHint')" class="settings-hint" />
           <a-form-item name="CloudMode" :label="t('standalone.cloudModeEnabled')">
-            <a-switch v-model:checked="draft.CloudMode" />
+            <a-switch v-model:checked="draft.CloudMode" @change="changed" />
           </a-form-item>
           <a-form-item
             name="CloudBaseUrl"
             :label="t('standalone.cloudBaseUrl')"
             :extra="t('standalone.cloudBaseUrlHint')"
           >
-            <a-input v-model:value="draft.CloudBaseUrl" :disabled="!draft.CloudMode" placeholder="https://community.example.workers.dev" autocomplete="off" />
+            <a-input v-model:value="draft.CloudBaseUrl" :disabled="!draft.CloudMode" placeholder="https://community.example.workers.dev" autocomplete="off" @update:value="textChanged" @blur="textBlurred" />
           </a-form-item>
           <a-form-item
             name="CloudPassword"
             :label="t('standalone.cloudPassword')"
             :extra="t('standalone.cloudPasswordHint')"
           >
-            <a-input-password v-model:value="draft.CloudPassword" :disabled="!draft.CloudMode" autocomplete="new-password" />
+            <a-input-password v-model:value="draft.CloudPassword" :disabled="!draft.CloudMode" autocomplete="new-password" @update:value="textChanged" @blur="textBlurred" />
           </a-form-item>
         </a-tab-pane>
       </a-tabs>
