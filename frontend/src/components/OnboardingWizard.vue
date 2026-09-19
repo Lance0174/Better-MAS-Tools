@@ -84,6 +84,9 @@ const finish = () => {
           <li>{{ t('onboarding.step3Item1') }}</li>
           <li>{{ t('onboarding.step3Item2') }}</li>
           <li>{{ t('onboarding.step3Item3') }}</li>
+          <li>{{ t('onboarding.step3Item4') }}</li>
+          <li>{{ t('onboarding.step3Item5') }}</li>
+          <li>{{ t('onboarding.step3Item6') }}</li>
         </ul>
         <a-alert type="info" show-icon :message="t('onboarding.step4Hint')" />
       </template>

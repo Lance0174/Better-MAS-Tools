@@ -6,7 +6,8 @@ export const i18n = createI18n({
   legacy: false,
   locale: 'zh-CN',
   fallbackLocale: 'zh-CN',
-  messages: { 'zh-CN': { ...zhCN, standalone } },
+  // OnboardingWizard 组件以顶层 onboarding.* 取文案，需在此显式挂载
+  messages: { 'zh-CN': { ...zhCN, standalone, onboarding: standalone.onboarding } },
 })
 export const translate = (key: string, values: Record<string, string | number> = {}) =>
   i18n.global.t(key, values)
