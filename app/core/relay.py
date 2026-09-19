@@ -13,7 +13,6 @@ from app.core.state import state
 from app.models.schema import MasStartIn, MasStopIn
 from app.services import mas
 from app.services.network import network
-from app.services.relay import POLL_HOLD_SECONDS
 from app.tools.community_contract import CommunitySignInProgressError
 from app.utils.logger import get_logger
 
