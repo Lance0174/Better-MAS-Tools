@@ -82,7 +82,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not render the release note.' }
           $draft = gh release view $tag --json isDraft --jq .isDraft 2>$null
           if ($LASTEXITCODE -eq 0) {
-            if ($draft -ne 'true') { throw 'This version is already published. Use a new version tag.' }
+            if ($draft -ne 'true') {
+              # Android 可能已先行转正同一 tag 的 Release；仅当 Windows 产物已存在才是重复发版。
+              $assets = gh release view $tag --json assets --jq '.assets[].name' 2>$null
+              if ("$assets" -match 'windows-x64') { throw 'This version is already published. Use a new version tag.' }
+            }
           } else {
             gh release create $tag --draft --verify-tag --title "BMT $tag" --notes-file release-note.md
             if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft release.' }
