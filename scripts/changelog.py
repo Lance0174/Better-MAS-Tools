@@ -12,6 +12,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Windows runner 的 stdout 默认是 cp1252，中文输出会 UnicodeEncodeError；统一强制 UTF-8。
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 CHANGELOG = ROOT / "CHANGELOG.md"
 FRAGMENTS = ROOT / "changelog.d"
