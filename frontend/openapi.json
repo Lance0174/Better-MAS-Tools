@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.1.3"
+    "version": "0.1.4"
   },
   "paths": {
     "/api/session": {
@@ -1296,6 +1296,192 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/command": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Command",
+        "operationId": "relayCommand",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayCommandIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayCommandAcceptedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/poll": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Poll",
+        "operationId": "relayPoll",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayPollIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayPollOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/result": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Result",
+        "operationId": "relayResult",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayResultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/nodes": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Nodes",
+        "operationId": "relayNodes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayNodesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/commands/{command_id}": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Command Status",
+        "operationId": "relayCommandStatus",
+        "parameters": [
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Command Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayCommandStatusOut"
                 }
               }
             }
@@ -3119,6 +3305,305 @@
         ],
         "title": "QrSaveIn"
       },
+      "RelayCommandAcceptedOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "RelayCommandAcceptedOut"
+      },
+      "RelayCommandIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "mas.snapshot",
+              "mas.start",
+              "mas.stop",
+              "sign.run"
+            ],
+            "title": "Type"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "RelayCommandIn",
+        "description": "控制端下发的转发指令；类型受白名单限制，payload 形状由执行层校验。"
+      },
+      "RelayCommandOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Type"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "createdAt": {
+            "type": "string",
+            "title": "Createdat",
+            "default": ""
+          },
+          "expireAt": {
+            "type": "string",
+            "title": "Expireat",
+            "default": ""
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "RelayCommandOut",
+        "description": "转发层下发给执行层的指令信封；version 供通道升级使用。"
+      },
+      "RelayCommandStatusOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": ""
+          },
+          "commandStatus": {
+            "type": "string",
+            "title": "Commandstatus",
+            "default": "unknown"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "RelayCommandStatusOut"
+      },
+      "RelayNodeOut": {
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "title": "Nodeid"
+          },
+          "online": {
+            "type": "boolean",
+            "title": "Online"
+          },
+          "lastSeenAt": {
+            "type": "string",
+            "title": "Lastseenat",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodeId",
+          "online"
+        ],
+        "title": "RelayNodeOut"
+      },
+      "RelayNodesOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/RelayNodeOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "RelayNodesOut"
+      },
+      "RelayPollIn": {
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Nodeid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodeId"
+        ],
+        "title": "RelayPollIn"
+      },
+      "RelayPollOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RelayCommandOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "RelayPollOut"
+      },
+      "RelayResultIn": {
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Nodeid"
+          },
+          "commandId": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Commandid"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          },
+          "error": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Error",
+            "default": ""
+          },
+          "finishedAt": {
+            "type": "string",
+            "title": "Finishedat",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodeId",
+          "commandId",
+          "ok"
+        ],
+        "title": "RelayResultIn",
+        "description": "执行层回传的指令结果；data 只允许 JSON 兼容值。"
+      },
       "SessionLoginIn": {
         "properties": {
           "password": {
@@ -3203,11 +3688,6 @@
             "title": "Scheduledtime",
             "default": "08:00"
           },
-          "LowPerformanceMode": {
-            "type": "boolean",
-            "title": "Lowperformancemode",
-            "default": false
-          },
           "Theme": {
             "type": "string",
             "enum": [
@@ -3266,6 +3746,16 @@
             "maxLength": 512,
             "title": "Cloudpassword",
             "default": ""
+          },
+          "RelayEnabled": {
+            "type": "boolean",
+            "title": "Relayenabled",
+            "default": false
+          },
+          "LightMode": {
+            "type": "boolean",
+            "title": "Lightmode",
+            "default": false
           }
         },
         "additionalProperties": false,

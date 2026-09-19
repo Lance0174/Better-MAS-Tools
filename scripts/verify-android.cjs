@@ -106,8 +106,7 @@ app.whenReady().then(async () => {
     document.querySelector('.ant-tabs-tabpane-active .ant-select-selector').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     await new Promise(r => setTimeout(r, 300));
     clickText('.ant-select-item-option-content', '深色');
-    await wait(() => !document.querySelector('.settings-page .ant-btn-primary').disabled);
-    clickText('button', '保存');
+    // 设置页已改为自动保存（无保存按钮），主题选择本地即时生效。
     await wait(() => document.documentElement.classList.contains('dark'));
     const state = JSON.parse(probe.state);
     if (state.gacha.length !== 1 || state.settings.Theme !== 'dark') throw new Error('Native persistence mismatch');

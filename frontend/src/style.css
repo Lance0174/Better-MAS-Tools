@@ -113,3 +113,11 @@ body {
   opacity: 0.5;
   z-index: 1;
 }
+
+/* 安卓 WebView 在非整数 DPR 下会把 1px 纹理渲染成摩尔细线，整体关闭。 */
+html.android-local body {
+  background-image: none;
+}
+html.android-local #app::before {
+  display: none;
+}

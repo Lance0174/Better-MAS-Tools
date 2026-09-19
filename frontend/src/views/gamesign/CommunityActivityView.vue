@@ -139,7 +139,6 @@ onMounted(() => {
           <article class="activity-card-wrap">
             <CommunityActivityCard
               :snapshot="element"
-              :simplified="performanceStore.lowPerformanceMode"
             />
           </article>
         </template>

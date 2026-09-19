@@ -35,6 +35,12 @@ export const router = createRouter({
       meta: { title: 'standalone.activity' },
     },
     {
+      path: '/remote',
+      name: 'RemoteControl',
+      component: () => import('@/views/remote/index.vue'),
+      meta: { title: 'standalone.remote' },
+    },
+    {
       path: '/settings',
       name: 'Settings',
       component: () => import('@/views/settings/index.vue'),

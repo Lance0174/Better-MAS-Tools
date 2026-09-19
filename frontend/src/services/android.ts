@@ -14,6 +14,9 @@ export const isAndroidLocal =
   location.origin === 'https://appassets.androidplatform.net' &&
   navigator.userAgent.includes('BMAT-Android/1')
 
+// 安卓 WebView 非整数 DPR 下 1px 纹理会渲染成摩尔细线，样式层按此关纹理。
+if (isAndroidLocal) document.documentElement?.classList.add('android-local')
+
 const nativePending = new Map<string, Pending<NativeResult>>()
 const apiPending = new Map<string, Pending<LocalResponse>>()
 const epoch = isAndroidLocal ? crypto.randomUUID() : ''

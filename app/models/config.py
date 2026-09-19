@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.gacha import GachaRecord
 
@@ -31,7 +31,6 @@ class SettingsData(BaseModel):
     RunOnStartup: bool = False
     ScheduledRun: bool = False
     ScheduledTime: str = Field(default="08:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
-    LowPerformanceMode: bool = False
     Theme: Literal["light", "dark", "system"] = "system"
     Proxy: str = Field(default="", repr=False)
     CaptchaMode: Literal["manual", "local", "local_yunma"] = "local"
@@ -40,6 +39,16 @@ class SettingsData(BaseModel):
     CloudMode: bool = False
     CloudBaseUrl: str = Field(default="", max_length=300)
     CloudPassword: str = Field(default="", repr=False, max_length=512)
+    RelayEnabled: bool = False
+    LightMode: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_legacy_keys(cls, data: object) -> object:
+        """旧持久化数据含已废除的 LowPerformanceMode；extra=forbid 下需先清洗。"""
+        if isinstance(data, dict):
+            data.pop("LowPerformanceMode", None)
+        return data
 
 
 class SavedState(BaseModel):

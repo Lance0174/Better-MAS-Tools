@@ -28,9 +28,7 @@ interface GameVisual {
   uiClass: string
 }
 
-const props = withDefaults(defineProps<{ snapshot: ActivitySnapshot; simplified?: boolean }>(), {
-  simplified: false,
-})
+const props = defineProps<{ snapshot: ActivitySnapshot }>()
 const { t, locale } = useI18n()
 const backgroundAttempt = ref(0)
 
@@ -132,11 +130,11 @@ watch(
 <template>
   <a-card
     :bordered="false"
-    :class="['activity-card', visual?.uiClass, { 'activity-card--simple': simplified }]"
+    :class="['activity-card', visual?.uiClass]"
     :style="cardStyle"
   >
     <img
-      v-if="!simplified && visual?.backgroundImage && backgroundAttempt < 2"
+      v-if="visual?.backgroundImage && backgroundAttempt < 2"
       class="activity-background"
       :src="backgroundUrl"
       alt=""
@@ -185,7 +183,7 @@ watch(
           v-for="metric in presentation.featured"
           :key="metric.name"
           :metric="metric"
-          :simplified="simplified"
+          
           featured
         />
       </div>

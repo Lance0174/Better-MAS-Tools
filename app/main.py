@@ -40,6 +40,7 @@ def create_app(
     start_scheduler: bool = True,
     remote: RemoteAccess | None = None,
     external_state: bool = False,
+    relay_store=None,
 ) -> FastAPI:
     remote = remote or RemoteAccess.from_environment()
     remote_sessions = RemoteSessions(remote) if remote else None
@@ -64,12 +65,17 @@ def create_app(
             diagnostics.write, format="{message}", diagnose=False, backtrace=False
         )
         scheduler = None
+        relay_task = None
         try:
             state.initialize(directory)
             logger.info(f"更好的MAS工具包 {VERSION} 启动，账号数={len(state.accounts)}")
             scheduler = (
                 asyncio.create_task(runtime.auto_loop()) if start_scheduler else None
             )
+            if start_scheduler:
+                from app.core.relay import relay_executor
+
+                relay_task = asyncio.create_task(relay_executor.loop())
             yield
         except Exception:
             logger.exception("工具启动或生命周期异常")
@@ -77,9 +83,10 @@ def create_app(
         finally:
             kuro_login.clear_sessions()
             miyoushe_missions.clear()
-            if scheduler is not None:
-                scheduler.cancel()
-                await asyncio.gather(scheduler, return_exceptions=True)
+            for task in (scheduler, relay_task):
+                if task is not None:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
             logger.info("工具后端已关闭")
             logger.remove(capture_sink)
             logger.remove(log_sink)
@@ -261,6 +268,7 @@ def create_app(
     from app.api.kuro_login import router as kuro_login_router
     from app.api.mas import router as mas_router
     from app.api.miyoushe_missions import router as miyoushe_missions_router
+    from app.api.relay import router as relay_router
 
     app.include_router(router)
     app.include_router(cloud_router)
@@ -269,6 +277,8 @@ def create_app(
     app.include_router(mas_router)
     app.include_router(kuro_login_router)
     app.include_router(miyoushe_missions_router)
+    app.include_router(relay_router)
+    app.state.relay_store = relay_store
     frontend = Path(os.environ.get("COMMUNITY_WEB_DIR", PROJECT_ROOT / "frontend/dist"))
     if not external_state and frontend.is_dir():
         app.mount("/assets", StaticFiles(directory=frontend / "assets"), name="assets")
@@ -286,4 +296,16 @@ def create_app(
     return app
 
 
-app = create_app()
+def _default_relay_store():
+    """本地后端默认不做转发层；COMMUNITY_RELAY_HUB=1 时启用内存转发（演练/局域网）。"""
+    if os.environ.get("COMMUNITY_RELAY_HUB") != "1":
+        return None
+    from app.services.relay import MemoryRelayStore
+
+    logger.info("已启用本地转发服务（COMMUNITY_RELAY_HUB=1）")
+    return MemoryRelayStore()
+
+
+app = create_app(
+    relay_store=_default_relay_store(),
+)

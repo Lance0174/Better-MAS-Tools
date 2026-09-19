@@ -17,10 +17,6 @@
   border-color: var(--activity-accent);
 }
 
-.activity-card--simple {
-  box-shadow: none;
-  transition: none;
-}
 
 .activity-card :deep(.ant-card-body) {
   position: relative;

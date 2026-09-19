@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import time
 from datetime import datetime
 from urllib.parse import urlsplit
 
@@ -30,6 +31,7 @@ class AndroidRuntime:
     async def initialize(self, *, run_startup: bool) -> None:
         from app.main import create_app
 
+        started = time.perf_counter()
         storage = AndroidStorage(self.call)
         state.data = await storage.load()
         state.storage = storage
@@ -38,7 +40,15 @@ class AndroidRuntime:
         network.proxy = None
         if state.data.settings.Proxy:
             raise ValueError("手机本地版不支持桌面代理配置，请清除该配置后重试")
+        logger.info(
+            f"本机配置读取耗时 {round((time.perf_counter() - started) * 1000)} ms，"
+            f"账号数={len(state.accounts)}"
+        )
+        build_started = time.perf_counter()
         app = create_app(start_scheduler=False, external_state=True)
+        logger.info(
+            f"后端应用构建耗时 {round((time.perf_counter() - build_started) * 1000)} ms"
+        )
         self.client = httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://localhost"
         )

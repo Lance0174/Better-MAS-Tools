@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { connectSession, LoginRequiredError } from '@/services/session'
@@ -7,9 +7,11 @@ import { errorMessage } from '@/composables/useCommunityApi'
 import { useSettingsStore } from '@/stores/settings'
 import { useTheme } from '@/composables/useTheme'
 import { isAndroidLocal, markAndroidReady, retryAndroidEngine } from '@/services/android'
+import { setDesktopLightMode } from '@/services/desktop'
 import OnboardingWizard from '@/components/OnboardingWizard.vue'
 import {
   CalendarOutlined,
+  ControlOutlined,
   DashboardOutlined,
   GiftOutlined,
   LinkOutlined,
@@ -58,6 +60,9 @@ const maybeOpenOnboarding = () => {
 // 底部导航：游戏社区为主入口 + 系统工具；功能页在左侧可收起侧边栏。
 const mobileItems = computed(() => [
   { path: '/sign', label: t('standalone.sign'), icon: CalendarOutlined },
+  ...(settings.data?.CloudMode
+    ? [{ path: '/remote', label: t('standalone.remote'), icon: ControlOutlined }]
+    : []),
   { path: '/logs', label: t('standalone.logs'), icon: FileTextOutlined },
   { path: '/settings', label: t('standalone.settings'), icon: SettingOutlined },
 ])
@@ -69,6 +74,9 @@ const sideItems = computed(() => [
     ? [{ path: '/activity', label: t('standalone.activity'), icon: DashboardOutlined }]
     : []),
   { path: '/gacha', label: t('standalone.gacha'), icon: GiftOutlined },
+  ...(settings.data?.CloudMode
+    ? [{ path: '/remote', label: t('standalone.remote'), icon: ControlOutlined }]
+    : []),
 ])
 const goSide = (item: { key: string | number }) => {
   router.push(String(item.key))
@@ -78,6 +86,13 @@ const pageTitle = computed(() => {
   const meta = route.meta.title as string | undefined
   return meta ? t(meta) : t('standalone.sign')
 })
+// 轻量模式开关同步给桌面壳（托盘驻留/窗口销毁）；非桌面端为空实现。
+watch(
+  () => settings.data?.LightMode,
+  enabled => {
+    if (enabled !== undefined) setDesktopLightMode(enabled)
+  }
+)
 const connect = async () => {
   if (loading.value) return
   if (isAndroidLocal) retryAndroidEngine()
@@ -127,7 +142,6 @@ onBeforeUnmount(() => {
         <nav
           v-if="!isAndroidLocal"
           class="navigation"
-          :class="{ 'reduced-motion': settings.data?.LowPerformanceMode }"
           :aria-label="t('standalone.navigation')"
         >
           <div class="brand-block">
@@ -155,6 +169,11 @@ onBeforeUnmount(() => {
             >
             <a-menu-item v-if="!isAndroidLocal" key="/mas"
               ><template #icon><LinkOutlined /></template>{{ t('standalone.mas') }}</a-menu-item
+            >
+            <a-menu-item v-if="settings.data?.CloudMode" key="/remote"
+              ><template #icon><ControlOutlined /></template>{{
+                t('standalone.remote')
+              }}</a-menu-item
             >
           </a-menu>
           <a-menu
@@ -402,9 +421,6 @@ onBeforeUnmount(() => {
   height: 9px;
   background: var(--ant-color-primary);
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-}
-.navigation.reduced-motion :deep(.ant-menu-item) {
-  transition: none;
 }
 .app-content {
   position: relative;

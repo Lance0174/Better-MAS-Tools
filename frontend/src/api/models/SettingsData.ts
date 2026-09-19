@@ -9,7 +9,6 @@ export type SettingsData = {
     RunOnStartup?: boolean;
     ScheduledRun?: boolean;
     ScheduledTime?: string;
-    LowPerformanceMode?: boolean;
     Theme?: 'light' | 'dark' | 'system';
     Proxy?: string;
     CaptchaMode?: 'manual' | 'local' | 'local_yunma';
@@ -18,5 +17,7 @@ export type SettingsData = {
     CloudMode?: boolean;
     CloudBaseUrl?: string;
     CloudPassword?: string;
+    RelayEnabled?: boolean;
+    LightMode?: boolean;
 };
 

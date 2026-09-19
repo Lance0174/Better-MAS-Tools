@@ -387,6 +387,67 @@ class CloudSyncOut(OutBase):
     message: str = Field(default="操作成功")
 
 
+RelayCommandType = Literal["mas.snapshot", "mas.start", "mas.stop", "sign.run"]
+
+
+class RelayCommandIn(BaseModel):
+    """控制端下发的转发指令；类型受白名单限制，payload 形状由执行层校验。"""
+
+    type: RelayCommandType
+    payload: dict = Field(default_factory=dict)
+
+
+class RelayCommandOut(BaseModel):
+    """转发层下发给执行层的指令信封；version 供通道升级使用。"""
+
+    id: str = Field(min_length=1, max_length=80)
+    type: str = Field(min_length=1, max_length=40)
+    payload: dict = Field(default_factory=dict)
+    createdAt: str = ""
+    expireAt: str = ""
+    version: int = 1
+
+
+class RelayPollIn(BaseModel):
+    nodeId: str = Field(min_length=1, max_length=80)
+
+
+class RelayPollOut(OutBase):
+    data: RelayCommandOut | None = None
+
+
+class RelayCommandAcceptedOut(OutBase):
+    id: str
+
+
+class RelayResultIn(BaseModel):
+    """执行层回传的指令结果；data 只允许 JSON 兼容值。"""
+
+    nodeId: str = Field(min_length=1, max_length=80)
+    commandId: str = Field(min_length=1, max_length=80)
+    ok: bool
+    data: dict = Field(default_factory=dict)
+    error: str = Field(default="", max_length=2000)
+    finishedAt: str = ""
+
+
+class RelayNodeOut(BaseModel):
+    nodeId: str
+    online: bool
+    lastSeenAt: str = ""
+
+
+class RelayNodesOut(OutBase):
+    data: list[RelayNodeOut] = Field(default_factory=list)
+
+
+class RelayCommandStatusOut(OutBase):
+    id: str
+    type: str = ""
+    commandStatus: str = "unknown"
+    result: dict | None = None
+
+
 class LogEntryInfo(BaseModel):
     id: int
     time: str

@@ -3,8 +3,8 @@ import { computed } from 'vue'
 import type { NoteMetric } from '../communityActivityPresentation'
 
 const props = withDefaults(
-  defineProps<{ metric: NoteMetric; featured?: boolean; simplified?: boolean }>(),
-  { featured: false, simplified: false }
+  defineProps<{ metric: NoteMetric; featured?: boolean }>(),
+  { featured: false }
 )
 const hasProgress = computed(() => props.metric.target > 0)
 const percent = computed(() =>
@@ -34,7 +34,7 @@ const showStatus = computed(
     </strong>
     <span v-if="showStatus" class="activity-metric-status">{{ metric.status }}</span>
     <a-progress
-      v-if="featured && hasProgress && !simplified"
+      v-if="featured && hasProgress"
       :percent="percent"
       :show-info="false"
       :stroke-width="3"

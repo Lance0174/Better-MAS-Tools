@@ -50,6 +50,10 @@ class Community(DurableObject):
             self.app = create_app(
                 start_scheduler=False, remote=access, external_state=True
             )
+            from app.services.relay import DurableRelayStore
+
+            self.relay_store = DurableRelayStore(self.ctx.storage, encryption_key)
+            self.app.state.relay_store = self.relay_store
             self.ready = True
 
     async def fetch(self, request):
@@ -81,6 +85,9 @@ class Community(DurableObject):
             await runtime.sign(force=False)
         except CommunitySignInProgressError:
             pass
+        finally:
+            # 顺带清理转发层过期指令，保持 Durable Object 存储干净。
+            self.relay_store.sweep()
 
 
 class Default(WorkerEntrypoint):

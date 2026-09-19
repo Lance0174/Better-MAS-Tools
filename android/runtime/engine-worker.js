@@ -19,13 +19,23 @@ function nativeCall(operation, serialized) {
 }
 
 async function initialize(runStartup) {
+  const bootStartedAt = performance.now();
+  let stageStartedAt = bootStartedAt;
   const log = message => nativeCall('log.write', JSON.stringify({ message })).catch(() => {});
+  // 每阶段完成时输出耗时，真机启动诊断据此归因（阶段=上一阶段起，累计=Worker 启动起）。
+  const markStage = async name => {
+    const now = performance.now();
+    await log(
+      `${name}：阶段 ${Math.round(now - stageStartedAt)} ms，累计 ${Math.round(now - bootStartedAt)} ms`,
+    );
+    stageStartedAt = now;
+  };
   await log('引擎: 正在加载 Pyodide 运行时');
   self.postMessage({ type: 'stage', text: '启动本地 Python 引擎' });
   engine = await loadPyodide({ indexURL: '/runtime/' });
   engine.setStdout({ batched: log });
   engine.setStderr({ batched: log });
-  await log('引擎: 运行时已加载，正在安装核心依赖');
+  await markStage('引擎: Pyodide 运行时已加载');
   self.postMessage({ type: 'stage', text: '加载核心运行依赖' });
   // numpy/pillow 体积大且只在本地滑块/抽卡时才 import；核心启动不等待，避免首屏 8 秒。
   await engine.loadPackage(['pydantic', 'pycryptodome', 'httpx', 'ssl']);
@@ -34,11 +44,12 @@ async function initialize(runStartup) {
   engine.unpackArchive(await source.arrayBuffer(), 'zip', { extractDir: '/bmat' });
   engine.registerJsModule('bmat_native', { nativeCall });
   engine.globals.set('_bmat_run_startup', runStartup);
-  await log('引擎: 核心就绪，正在初始化后端');
+  await markStage('引擎: 核心依赖与业务源码已就绪');
   self.postMessage({ type: 'stage', text: '读取本机配置并初始化接口' });
   await engine.runPythonAsync(`
-import sys, shutil, site
-shutil.copytree('/bmat/site', site.getsitepackages()[0], dirs_exist_ok=True)
+import sys
+# pure wheel 内容已在 /bmat/site 下（含 dist-info），挂 sys.path 即可，免去每次启动重拷 site-packages。
+sys.path.insert(0, '/bmat/site')
 sys.path.insert(0, '/bmat')
 from bmat_native import nativeCall
 from app.core.android_runtime import AndroidRuntime
@@ -48,6 +59,7 @@ await _bmat_engine.initialize(run_startup=_bmat_run_startup)
   runtime = engine.globals.get('_bmat_engine');
   requestApi = runtime.request;
   cancelApi = runtime.cancel;
+  await markStage('引擎: 本机配置读取与接口初始化完成');
   // 方法代理依附于宿主代理；保留至 Worker 结束，不能在请求前销毁宿主。
   self.postMessage({ type: 'ready' });
   setInterval(() => self.postMessage({ type: 'heartbeat' }), 1000);

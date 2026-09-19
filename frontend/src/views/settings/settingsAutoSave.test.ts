@@ -25,7 +25,8 @@ describe('settings auto save', () => {
     const saver = createSettingsAutoSave({ getSnapshot: () => ({}), save, onFailure })
     saver.textChanged()
     saver.textBlurred()
-    await vi.advanceTimersByTimeAsync(2_000)
+    // 重试链在 0/500/1000/1500/2000ms 各尝试一次；1999ms 时仅 4 次，尚未触发失败上报。
+    await vi.advanceTimersByTimeAsync(1_999)
     expect(onFailure).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(500)
     expect(save).toHaveBeenCalledTimes(5)
