@@ -51,10 +51,8 @@ jobs:
 
       - name: Check release version matches tag
         run: |
-          version="$(node -p "require('./frontend/package.json').version")"
-          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match version v$version"
-            exit 1
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            python scripts/changelog.py guard --tag "$GITHUB_REF_NAME"
           fi
 
       - name: Build frontend
@@ -71,16 +69,18 @@ jobs:
         working-directory: android
         run: gradle assembleDebug --no-daemon
 
-      - name: Write checksum
+      - name: Rename APK and write checksum
         working-directory: android/app/build/outputs/apk/debug
         run: |
-          sha256sum app-debug.apk > SHA256SUMS.txt
+          version="$(node -p "require('../../../../../../frontend/package.json').version")"
+          mv app-debug.apk "BMT-${version}-android.apk"
+          sha256sum "BMT-${version}-android.apk" > SHA256SUMS.txt
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: Android-debug
           path: |
-            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/BMT-*-android.apk
             android/app/build/outputs/apk/debug/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
@@ -92,13 +92,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
+          python scripts/changelog.py release-note --version "${tag#v}" --output release-note.md
+          apk="$(ls android/app/build/outputs/apk/debug/BMT-*-android.apk)"
           exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
           if [ -z "$exists" ]; then
             # Windows 与 Android 可能先后触发同一 tag；不存在时创建草稿，存在时直接补资产。
-            gh release create "$tag" --draft --verify-tag --title "Better MAS Tools $tag" --notes-file CHANGELOG.md
+            gh release create "$tag" --draft --verify-tag --title "BMT $tag" --notes-file release-note.md
           fi
-          gh release upload "$tag" \
-            android/app/build/outputs/apk/debug/app-debug.apk \
+          gh release upload "$tag" "$apk" \
             android/app/build/outputs/apk/debug/SHA256SUMS.txt \
             --clobber
           gh release edit "$tag" --draft=false

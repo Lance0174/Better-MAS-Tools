@@ -1,6 +1,6 @@
 [project]
 name = "better-mas-tools"
-version = "0.1.4"
+version = "0.1.5"
 description = "MAS 游戏社区扩展工具包"
 requires-python = ">=3.12,<3.13"
 license = { file = "LICENSE" }
@@ -19,6 +19,7 @@ dev = [
     "pillow==12.1.1",
     "pyinstaller>=6.16,<7",
     "pytest>=8,<10",
+    "pytest-asyncio>=1.4,<2",
     "ruff>=0.12,<1",
 ]
 

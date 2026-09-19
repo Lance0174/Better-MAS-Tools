@@ -34,9 +34,9 @@ jobs:
         run: |
           $binaries = git ls-files -- '*.exe' '*.msi' '*.apk' '*.aab' '*.zip' '*.dll' '*.pyd'
           if ($binaries) { throw 'Generated binaries must not be committed to the source repository.' }
-          $version = (Get-Content frontend/package.json -Raw | ConvertFrom-Json).version
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
-            throw 'The release tag must match the version in CHANGELOG.md and package.json.'
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            & python scripts/changelog.py guard --tag $env:GITHUB_REF_NAME
+            if ($LASTEXITCODE -ne 0) { throw 'Release guard failed.' }
           }
       - name: Enable Yarn
         run: corepack enable
@@ -78,11 +78,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = $env:GITHUB_REF_NAME
+          & .venv/Scripts/python.exe scripts/changelog.py release-note --version $tag.TrimStart('v') --output release-note.md
+          if ($LASTEXITCODE -ne 0) { throw 'Could not render the release note.' }
           $draft = gh release view $tag --json isDraft --jq .isDraft 2>$null
           if ($LASTEXITCODE -eq 0) {
             if ($draft -ne 'true') { throw 'This version is already published. Use a new version tag.' }
           } else {
-            gh release create $tag --draft --verify-tag --title "Better MAS Tools $tag" --notes-file CHANGELOG.md
+            gh release create $tag --draft --verify-tag --title "BMT $tag" --notes-file release-note.md
             if ($LASTEXITCODE -ne 0) { throw 'Could not create the draft release.' }
           }
           $assets = Get-ChildItem frontend/out -File | Where-Object { $_.Extension -in '.zip', '.exe' -or $_.Name -eq 'SHA256SUMS.txt' }

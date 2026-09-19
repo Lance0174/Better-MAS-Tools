@@ -28,6 +28,6 @@ module.exports = {
     ],
     requestedExecutionLevel: 'asInvoker',
   },
-  artifactName: 'BetterMASTools-${version}-win-${arch}.${ext}',
+  artifactName: 'BMT-${version}-windows-x64.${ext}',
   publish: null,
 }
