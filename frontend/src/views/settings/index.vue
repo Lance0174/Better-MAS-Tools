@@ -86,6 +86,12 @@ onBeforeUnmount(autoSave.dispose)
           <a-form-item name="Theme" :label="t('standalone.theme')"
             ><a-select v-model:value="draft.Theme" :options="themes" class="short-field" @change="changed"
           /></a-form-item>
+          <a-form-item
+            name="GlassEffect"
+            :label="t('standalone.glassEffect')"
+            :extra="t('standalone.glassEffectHint')"
+            ><a-switch v-model:checked="draft.GlassEffect" @change="changed"
+          /></a-form-item>
           <a-form-item name="onboarding" :label="t('standalone.onboardingReopen')" :extra="t('standalone.onboardingReopenHint')">
             <a-button @click="reopenOnboarding">{{ t('standalone.onboardingReopen') }}</a-button>
           </a-form-item>

@@ -1,5 +1,17 @@
 /** 更好的MAS工具包：独立窗口、独立数据、单实例、托盘驻留及后端清理。 */
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, shell, Tray } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeImage,
+  nativeTheme,
+  screen,
+  session,
+  shell,
+  Tray,
+} from 'electron'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { BackendService } from './backend.cjs'
@@ -42,6 +54,55 @@ function openExternal(url: string): void {
   } catch {
     log('已忽略无效链接')
   }
+}
+
+/** 只信任本机服务页面：导航与 IPC 都按 origin 比对，拒绝外域页面操作桌面能力。 */
+function isTrustedUrl(value: string): boolean {
+  if (!value || !origin) return false
+  try {
+    return new URL(value).origin === origin
+  } catch {
+    return false
+  }
+}
+
+/** 窗口底色跟随系统主题，避免深色系统下启动瞬间先闪一帧白屏。 */
+function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#141414' : '#ffffff'
+}
+
+// 渲染进程兜底 CSP：与 Android 主页面策略（NativePolicy.contentPolicy）保持一致。
+// 本机后端已为每个响应下发策略，验证码页还有极验白名单，因此这里只补后端没给的响应。
+const RENDERER_CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "worker-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://doc.auto-mas.top https://data.akedata.wiki " +
+    'https://www.akedata.wiki https://resource.starrailassistant.top ' +
+    'https://prod-alicdn-community.kurobbs.com https://webusstatic.yo-star.com ' +
+    'https://web.hycdn.cn https://aka.doubaocdn.com https://i0.hdslb.com',
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-src 'self'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join('; ')
+
+function applyRendererCsp(): void {
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const responseHeaders = details.responseHeaders ?? {}
+    const hasPolicy = Object.keys(responseHeaders).some(
+      key => key.toLowerCase() === 'content-security-policy'
+    )
+    // 只给顶层/子框架文档补策略：后端已下发的（含验证码 iframe 的极验放行）原样保留，
+    // 覆盖它会把极验脚本和图片挡掉，验证码就打不开了。
+    const isDocument =
+      details.resourceType === 'mainFrame' || details.resourceType === 'subFrame'
+    if (!hasPolicy && isDocument) responseHeaders['Content-Security-Policy'] = [RENDERER_CSP]
+    callback({ responseHeaders })
+  })
 }
 
 function readLightMode(): boolean {
@@ -93,7 +154,7 @@ function createWindow(): void {
     minWidth: Math.min(780, area.width),
     minHeight: Math.min(540, area.height),
     show: false,
-    backgroundColor: '#ffffff',
+    backgroundColor: windowBackground(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -114,10 +175,10 @@ function createWindow(): void {
     return { action: 'deny' }
   })
   window.webContents.on('will-navigate', (event, url) => {
-    if (new URL(url).origin !== origin) {
-      event.preventDefault()
-      openExternal(url)
-    }
+    // 默认拦截：只有能解析且与本机服务同源的地址才放行；畸形 URL 也不会因解析抛异常而漏放。
+    if (isTrustedUrl(url)) return
+    event.preventDefault()
+    openExternal(url)
   })
   window.on('close', event => {
     // 轻量模式关窗即转入托盘驻留（销毁渲染进程降低占用）；普通模式维持关窗退出。
@@ -140,6 +201,9 @@ function createWindow(): void {
 
 async function start(): Promise<void> {
   Menu.setApplicationMenu(null)
+  applyRendererCsp()
+  // 系统深浅色切换时同步窗口底色（轻量模式重建窗口也会读到新值）。
+  nativeTheme.on('updated', () => window?.setBackgroundColor(windowBackground()))
   lightMode = !smokeTest && readLightMode()
   origin = await backend.start({
     packaged: app.isPackaged,
@@ -167,7 +231,13 @@ async function start(): Promise<void> {
 }
 
 // 轻量模式开关由设置页经 preload 同步；主进程持久化并即时切换窗口形态。
-ipcMain.on('bmat-light-mode', (_event, enabled: unknown) => {
+ipcMain.on('bmat-light-mode', (event, enabled: unknown) => {
+  // 该通道会销毁窗口并写盘，只接受本机服务页面发来的请求。
+  const senderUrl = event.senderFrame?.url ?? ''
+  if (!isTrustedUrl(senderUrl)) {
+    log(`已忽略来源未知的轻量模式请求：${senderUrl || '未知来源'}`)
+    return
+  }
   lightMode = enabled === true
   try {
     writeFileSync(lightFile, JSON.stringify({ light: lightMode }))

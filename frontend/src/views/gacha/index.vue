@@ -117,6 +117,8 @@ const finish = async (response: GachaUpdateOut) => {
   })
   if (warnings.value.length) message.warning(text)
   else message.success(text)
+  // 导入/抓取会改变记录总数，原本停在最后一页时页码可能越界（表格空但 total>0），统一回到第一页。
+  page.value = 1
   await load()
 }
 const fetchRecords = async () => {
