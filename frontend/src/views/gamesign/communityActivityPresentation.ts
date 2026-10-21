@@ -15,7 +15,32 @@ const FEATURED_RESOURCES: Record<string, string[]> = {
   原神: ['原粹树脂', '洞天宝钱'],
   星穹铁道: ['开拓力', '储备开拓力'],
   绝区零: ['电量'],
+  鸣潮: ['结晶波片'],
 }
+
+// 平台与游戏的中文名是后端稳定枚举，这里只做「枚举 → i18n 键」映射；
+// 未知值返回 null，调用方直接显示后端原文，避免新平台上线时裸 key 或空白。
+const PLATFORM_LABEL_KEYS: Record<string, string> = {
+  森空岛: 'gamesign.activity.platform.skland',
+  米游社: 'gamesign.activity.platform.miyoushe',
+  库街区: 'gamesign.activity.platform.kuro',
+  塔吉多: 'gamesign.activity.platform.taygedo',
+}
+
+const GAME_LABEL_KEYS: Record<string, string> = {
+  明日方舟: 'gamesign.activity.game.arknights',
+  终末地: 'gamesign.activity.game.endfield',
+  原神: 'gamesign.activity.game.genshin',
+  星穹铁道: 'gamesign.activity.game.starrail',
+  绝区零: 'gamesign.activity.game.zenless',
+  鸣潮: 'gamesign.activity.game.wuthering',
+  异环: 'gamesign.activity.game.nte',
+}
+
+export const platformLabelKey = (platform: string): string | null =>
+  PLATFORM_LABEL_KEYS[platform] ?? null
+
+export const gameLabelKey = (game: string): string | null => GAME_LABEL_KEYS[game] ?? null
 
 export function presentActivity(snapshot: ActivitySnapshot) {
   const visible = (metric: { name: string }) => !/经验|experience|\bexp\b/i.test(metric.name)
@@ -38,7 +63,9 @@ export function presentActivity(snapshot: ActivitySnapshot) {
   }
   const remainingResources = resources.filter(resource => !featured.includes(resource))
   const remainingTasks = tasks.filter(task => !featured.includes(task))
-  const overview = snapshot.game === '明日方舟' || snapshot.game === '绝区零'
+  // 鸣潮便笺只有结晶波片一项资源，用单列总览把体力与回满倒计时放大展示。
+  const overview =
+    snapshot.game === '明日方舟' || snapshot.game === '绝区零' || snapshot.game === '鸣潮'
   const groups = overview
     ? [
         { labelKey: 'gamesign.activity.noteTasks', metrics: remainingTasks },

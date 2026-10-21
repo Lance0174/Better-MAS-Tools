@@ -5,6 +5,11 @@
 #   ZZZ widget protocol reference: PizzaHelperUnited
 #   Copyright © 2024 and onwards Pizza Studio (AGPL-3.0-or-later)
 #   https://github.com/pizza-studio/PizzaHelperUnited
+#
+#   KuroBBS (鸣潮) widget protocol reference: TomyJan/Yunzai-Kuro-Plugin
+#   Copyright © 2024 TomyJan (MPL-2.0)
+#   https://github.com/TomyJan/Yunzai-Kuro-Plugin
+#   Only the public interface contract was consulted; no source code copied.
 
 #   This file is part of AUTO-MAS.
 
@@ -53,17 +58,19 @@ __all__ = [
 
 
 ActivityRequester = Callable[["CommunityActivityRequest"], Awaitable[object]]
-ActivityAuthScope = Literal["skland", "miyoushe"]
+ActivityAuthScope = Literal["skland", "miyoushe", "kuro"]
 ActivitySignatureProfile = Literal[
     "skland_widget",
     "skland_endfield_web",
     "miyoushe_params",
     "miyoushe_ios",
     "miyoushe_data",
+    "kuro_widget",
 ]
 
 SKLAND_BASE_URL = "https://zonai.skland.com"
 MIYOUSHE_RECORD_BASE_URL = "https://api-takumi-record.mihoyo.com"
+KURO_BBS_BASE_URL = "https://api.kurobbs.com"
 
 
 class CommunityActivityTransportError(RuntimeError):
@@ -130,8 +137,11 @@ class CommunityActivityRequest:
 
     target: CommunityActivityTarget
     source: str
-    method: Literal["GET"]
+    method: Literal["GET", "POST"]
     params: tuple[tuple[str, str], ...] = ()
+    # 表单 body 与查询参数分开保存：库街区小组件是 POST 表单接口，
+    # 其 body 不参与任何签名计算，不能混入 query_string。
+    form: tuple[tuple[str, str], ...] = ()
     headers: tuple[tuple[str, str], ...] = ()
     auth_scope: ActivityAuthScope = "miyoushe"
     signature_profile: ActivitySignatureProfile = "miyoushe_data"
@@ -145,6 +155,12 @@ class CommunityActivityRequest:
         """返回供 HTTP 客户端使用的查询参数副本。"""
 
         return dict(self.params)
+
+    @property
+    def form_data(self) -> dict[str, str]:
+        """返回供 HTTP 客户端使用的表单副本。"""
+
+        return dict(self.form)
 
     @property
     def header_map(self) -> dict[str, str]:
@@ -257,6 +273,24 @@ def _miyoushe_zzz_headers(
     )
 
 
+def _kuro_bbs_headers(
+    target: CommunityActivityTarget,
+) -> tuple[tuple[str, str], ...]:
+    """库街区小组件的 WebView 请求头（与 kuro.GAME_HEADERS 同一套）。
+
+    只登记非认证字段；token/devcode/distinct_id 由 provider 在执行时注入。
+    """
+
+    from .kuro import GAME_HEADERS
+
+    return tuple(
+        (name, value)
+        for name, value in GAME_HEADERS.items()
+        # 认证与设备字段一律由 provider 注入，规格本身保持脱敏。
+        if name.lower() not in {"token", "devcode", "distinct_id", "content-length"}
+    )
+
+
 def _miyoushe_zzz_widget_headers(
     target: CommunityActivityTarget,
 ) -> tuple[tuple[str, str], ...]:
@@ -347,6 +381,28 @@ def build_community_activity_requests(
                 auth_scope="skland",
                 signature_profile="skland_endfield_web",
                 requires_device_id=True,
+            ),
+        )
+
+    if target.platform == "库街区" and target.game == "鸣潮":
+        server = _required(target.server, "鸣潮角色区服")
+        return (
+            CommunityActivityRequest(
+                target=target,
+                source=f"{KURO_BBS_BASE_URL}/gamer/widget/game3/getData",
+                method="POST",
+                # gameId=3 固定对应鸣潮，type/sizeType 为上游确认的小组件参数。
+                form=(
+                    ("gameId", "3"),
+                    ("roleId", role_uid),
+                    ("serverId", server),
+                    ("type", "2"),
+                    ("sizeType", "1"),
+                ),
+                headers=_kuro_bbs_headers(target),
+                auth_scope="kuro",
+                signature_profile="kuro_widget",
+                requires_device_id=False,
             ),
         )
 

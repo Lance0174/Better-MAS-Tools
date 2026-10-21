@@ -54,10 +54,13 @@ import httpx
 from app.services.network import network
 
 from .community_activity_roles import (
+    TAYGEDO_NOTES_UNAVAILABLE_REASON,
     CommunityActivityCapability,
     CommunityActivityRoleDiscovery,
+    normalize_kuro_roles,
     normalize_miyoushe_roles,
     normalize_skland_roles,
+    normalize_taygedo_roles,
 )
 from .community_activity_transport import (
     CommunityActivityRequest,
@@ -163,6 +166,17 @@ def _raise_business_error(
     code = _response_code(payload)
     if code is None or code == 0:
         return
+    if platform == "库街区":
+        # 库街区小组件以 200 表示成功，220/1513 表示登录态或用户信息异常。
+        if code == 200:
+            return
+        limited = code in {220, 1513}
+        raise CommunityActivityTransportError(
+            f"库街区{game}便笺查询需要重新登录（业务码 {code}）"
+            if limited
+            else f"库街区{game}接口返回业务失败（业务码 {code}）",
+            status="limited" if limited else "unavailable",
+        )
     if platform == "米游社" and abs(code) in _MIYOUSHE_RISK_CODES:
         raise CommunityActivityTransportError(
             f"米游社{game}查询受到验证限制（业务码 {code}），"
@@ -452,6 +466,12 @@ class CommunityActivityProvider:
             return await self._request_skland(request)
         if self.platform == "米游社":
             return await self._request_miyoushe(request)
+        if self.platform == "库街区":
+            return await self._request_kuro(request)
+        if self.platform == "塔吉多":
+            # 塔吉多没有公开的资源便笺端点：能力在角色发现阶段已标成 limited，
+            # 正常流程不会走到这里；走到这里说明上游契约变了，明确报错而不是猜字段。
+            raise ValueError(TAYGEDO_NOTES_UNAVAILABLE_REASON)
         raise ValueError(f"{self.platform}活动 provider 尚未登记")
 
     async def discover_roles(
@@ -472,7 +492,74 @@ class CommunityActivityProvider:
                 account_uid=account_uid,
                 account_name=account_name,
             )
+        if self.platform == "库街区":
+            return await self._discover_kuro_roles(
+                account_uid=account_uid,
+                account_name=account_name,
+            )
+        if self.platform == "塔吉多":
+            return await self._discover_taygedo_roles(
+                account_uid=account_uid,
+                account_name=account_name,
+            )
         raise ValueError(f"{self.platform}活动 provider 尚未登记")
+
+    async def _discover_taygedo_roles(
+        self,
+        *,
+        account_uid: str,
+        account_name: str,
+    ) -> CommunityActivityRoleDiscovery:
+        """读取塔吉多角色卡，只用于展示角色信息。
+
+        塔吉多没有公开的资源便笺接口，因此返回值的能力固定为 ``limited``：
+        上层不会为这些角色再发任何资源请求，卡片上直接说明原因。
+        """
+
+        from .taygedo import (
+            _get_taygedo_game_roles_with_status,
+            _taygedo_reason_is_auth_failure,
+            parse_taygedo_credential,
+        )
+
+        credential = parse_taygedo_credential(self.raw_credential)
+        access_token = str(credential.get("accessToken") or "").strip()
+        uid = str(credential.get("uid") or "").strip()
+        if not access_token or not uid:
+            raise ValueError("塔吉多凭据缺少访问令牌，请重新登录塔吉多")
+        device_id = str(credential.get("deviceId") or "").strip()
+
+        try:
+            roles, complete = await _get_taygedo_game_roles_with_status(
+                access_token,
+                uid,
+                device_id,
+                proxy=self.proxy if isinstance(self.proxy, str) else None,
+            )
+        except Exception as exc:
+            if _taygedo_reason_is_auth_failure(str(exc)):
+                raise CommunityActivityTransportError(
+                    "塔吉多登录状态已失效，请重新登录塔吉多", status="failed"
+                ) from None
+            raise CommunityActivityTransportError(
+                "塔吉多角色信息读取失败", status="failed"
+            ) from None
+
+        discovery = normalize_taygedo_roles(
+            roles,
+            reason=(
+                TAYGEDO_NOTES_UNAVAILABLE_REASON
+                if complete
+                else f"{TAYGEDO_NOTES_UNAVAILABLE_REASON}（部分角色读取失败）"
+            ),
+        )
+        # 角色数是脱敏信息，便于排查"账号绑定了但便笺空"的情况。
+        from app.utils.logger import get_logger
+
+        get_logger("社区便笺").debug(
+            f"{account_name} 塔吉多角色 {len(discovery.roles)} 个（账号 {account_uid}）"
+        )
+        return discovery
 
     async def _discover_skland_roles(
         self,
@@ -613,6 +700,112 @@ class CommunityActivityProvider:
             ),
         )
 
+    async def _discover_kuro_roles(
+        self,
+        *,
+        account_uid: str,
+        account_name: str,
+    ) -> CommunityActivityRoleDiscovery:
+        """读取库街区绑定的游戏角色，未绑定时返回空发现结果。
+
+        网络与错误映射复用 kuro._get_user_info / _get_role_list；角色归一化
+        交给纯函数 normalize_kuro_roles，便于离线测试覆盖。
+        """
+
+        from .kuro import (
+            _get_role_list,
+            _get_user_info,
+            _KuroAuthError,
+            _KuroRiskError,
+            parse_kuro_credential,
+        )
+
+        token, dev_code, distinct_id = parse_kuro_credential(self.raw_credential)
+        try:
+            async with network.client(
+                proxy=self.proxy, trust_env=False
+            ) as client:
+                profile = await _get_user_info(
+                    token, dev_code, distinct_id, client
+                )
+                roles = await _get_role_list(
+                    token,
+                    dev_code,
+                    distinct_id,
+                    str(profile.get("userId") or ""),
+                    client,
+                )
+        except _KuroAuthError as exc:
+            raise CommunityActivityTransportError(
+                str(exc) or "库街区 Token 已失效，请重新获取 Token",
+                status="limited",
+            ) from exc
+        except _KuroRiskError as exc:
+            raise CommunityActivityTransportError(
+                str(exc) or "库街区角色列表请求触发风控",
+                status="limited",
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise CommunityActivityTransportError(
+                "库街区角色列表请求超时", status="failed"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise CommunityActivityTransportError(
+                "库街区角色列表网络请求失败", status="failed"
+            ) from exc
+        except ValueError as exc:
+            raise CommunityActivityTransportError(
+                str(exc) or "库街区角色列表响应无法识别",
+                status="unavailable",
+            ) from exc
+
+        # _get_role_list 已按游戏归一化角色；这里只筛选已确认的鸣潮记录。
+        # 未绑定鸣潮时返回空发现结果，由调用方给出"未发现已绑定角色"状态，
+        # 而不是把它当成请求失败。
+        return normalize_kuro_roles({"data": roles}, game_id="3")
+
+    async def _request_kuro(
+        self, request: CommunityActivityRequest
+    ) -> Mapping[str, object]:
+        """执行库街区鸣潮小组件 POST 表单请求。"""
+
+        from .kuro import _kuro_request_headers, parse_kuro_credential
+
+        token, dev_code, distinct_id = parse_kuro_credential(self.raw_credential)
+        headers = _kuro_request_headers(
+            request.header_map, token, dev_code, distinct_id
+        )
+        try:
+            async with network.client(
+                proxy=self.proxy, trust_env=False
+            ) as client:
+                response = await client.post(
+                    request.source,
+                    headers=headers,
+                    data=request.form_data,
+                    timeout=request.timeout,
+                )
+        except httpx.TimeoutException as exc:
+            raise CommunityActivityTransportError(
+                f"库街区{request.target.game}接口请求超时", status="failed"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise CommunityActivityTransportError(
+                f"库街区{request.target.game}接口网络请求失败", status="failed"
+            ) from exc
+
+        payload = _response_json(
+            response,
+            platform="库街区",
+            game=request.target.game,
+        )
+        _raise_business_error(
+            payload,
+            platform="库街区",
+            game=request.target.game,
+        )
+        return payload
+
     async def _request_skland(
         self, request: CommunityActivityRequest
     ) -> Mapping[str, object]:
@@ -662,6 +855,7 @@ class CommunityActivityProvider:
         client: httpx.AsyncClient,
     ) -> tuple[dict[str, str], str]:
         from .skland import (
+            SklandCredentialExpiredError,
             get_cached_device_id,
             prepare_skland_session_credential,
             refresh_skland_session_credential,
@@ -700,9 +894,14 @@ class CommunityActivityProvider:
                         httpx.HTTPError,
                         OSError,
                         ValueError,
+                        SklandCredentialExpiredError,
                     ):
                         # 刷新失败不覆盖原凭据；本次查询继续用旧值，让活动接口
                         # 自己返回可见的失效或风控状态。
+                        #
+                        # SklandCredentialExpiredError 继承 RuntimeError 而非
+                        # ValueError（对齐 AUTO-MAS 29a98a88）：漏掉它会让一次
+                        # 刷新失败直接中断整段活动查询，而不是降级为可见状态。
                         pass
                 self._credential_ready = True
                 if self.on_credential_update is not None:
@@ -1119,7 +1318,7 @@ def build_community_activity_requester(
 ) -> Callable[[CommunityActivityRequest], Awaitable[object]]:
     """构造一个账号级 provider 请求函数，供活动 collector 注入。"""
 
-    if platform not in {"森空岛", "米游社"}:
+    if platform not in {"森空岛", "米游社", "库街区"}:
         raise ValueError(f"{platform}活动 provider 尚未登记")
     provider = CommunityActivityProvider(
         platform=platform,

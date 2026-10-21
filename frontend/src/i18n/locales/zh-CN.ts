@@ -54,6 +54,8 @@ export default {
       platform: {
         skland: '森空岛',
         miyoushe: '米游社',
+        kuro: '库街区',
+        taygedo: '塔吉多',
       },
       game: {
         arknights: '明日方舟',
@@ -61,6 +63,8 @@ export default {
         genshin: '原神',
         starrail: '星穹铁道',
         zenless: '绝区零',
+        wuthering: '鸣潮',
+        nte: '异环',
       },
     },
     statusInvalid: '签到状态响应无效',

@@ -5,7 +5,9 @@ import {
   AimOutlined,
   ApiOutlined,
   AppstoreOutlined,
+  CloudOutlined,
   CompassOutlined,
+  ExperimentOutlined,
   HolderOutlined,
   RocketOutlined,
   ThunderboltOutlined,
@@ -16,7 +18,7 @@ import genshinNoteImage from '@/assets/community-notes/genshin.webp'
 import starRailNoteImage from '@/assets/community-notes/star-rail.webp'
 import zenlessNoteImage from '@/assets/community-notes/zenless.webp'
 import type { ActivitySnapshot } from '../useCommunityActivityApi'
-import { presentActivity } from '../communityActivityPresentation'
+import { gameLabelKey, platformLabelKey, presentActivity } from '../communityActivityPresentation'
 import CommunityActivityMetric from './CommunityActivityMetric.vue'
 
 interface GameVisual {
@@ -24,7 +26,6 @@ interface GameVisual {
   backgroundImage: string
   icon: Component
   image: string
-  labelKey: string
   uiClass: string
 }
 
@@ -35,14 +36,13 @@ const backgroundAttempt = ref(0)
 // 背景由文档站分发；哈希前缀与 public/community-notes/manifest.json 对应，绕过发布前缓存。
 const NOTE_BACKGROUND_BASE = 'https://doc.auto-mas.top/community-notes'
 
-// 这些中文值是后端稳定游戏枚举，只用于映射，不参与界面翻译。
+// 这些中文值是后端稳定游戏枚举，只用于映射，不参与界面翻译；名称文案在 presentation 里映射 i18n 键。
 const GAME_VISUALS: Record<string, GameVisual> = {
   明日方舟: {
     accent: 'var(--ant-color-primary)',
     backgroundImage: `${NOTE_BACKGROUND_BASE}/arknights-background.webp?v=6a23195b201d`,
     icon: AimOutlined,
     image: arknightsNoteImage,
-    labelKey: 'gamesign.activity.game.arknights',
     uiClass: 'activity-card--arknights',
   },
   终末地: {
@@ -50,7 +50,6 @@ const GAME_VISUALS: Record<string, GameVisual> = {
     backgroundImage: `${NOTE_BACKGROUND_BASE}/endfield-background.webp?v=9d3a6fee469e`,
     icon: ApiOutlined,
     image: endfieldNoteImage,
-    labelKey: 'gamesign.activity.game.endfield',
     uiClass: 'activity-card--endfield',
   },
   原神: {
@@ -58,7 +57,6 @@ const GAME_VISUALS: Record<string, GameVisual> = {
     backgroundImage: `${NOTE_BACKGROUND_BASE}/genshin-background.webp?v=f06788a6cb81`,
     icon: CompassOutlined,
     image: genshinNoteImage,
-    labelKey: 'gamesign.activity.game.genshin',
     uiClass: 'activity-card--genshin',
   },
   星穹铁道: {
@@ -66,7 +64,6 @@ const GAME_VISUALS: Record<string, GameVisual> = {
     backgroundImage: `${NOTE_BACKGROUND_BASE}/star-rail-background.webp?v=1048d29ea88f`,
     icon: RocketOutlined,
     image: starRailNoteImage,
-    labelKey: 'gamesign.activity.game.starrail',
     uiClass: 'activity-card--star-rail',
   },
   绝区零: {
@@ -74,8 +71,25 @@ const GAME_VISUALS: Record<string, GameVisual> = {
     backgroundImage: `${NOTE_BACKGROUND_BASE}/zenless-background.webp?v=e4f8798de02c`,
     icon: ThunderboltOutlined,
     image: zenlessNoteImage,
-    labelKey: 'gamesign.activity.game.zenless',
     uiClass: 'activity-card--zenless',
+  },
+  鸣潮: {
+    accent: '#7fd6ea',
+    // 鸣潮背景尚未在文档站发布；留空以复用玻璃卡片的底色与本地图标，
+    // 不用其它游戏的素材冒充鸣潮。
+    backgroundImage: '',
+    icon: CloudOutlined,
+    image: '',
+    uiClass: 'activity-card--waves',
+  },
+  异环: {
+    accent: '#c9a2ff',
+    // 异环同样没有已发布的背景素材：背景与图片留空，卡片退回玻璃底色 + 图标标识，
+    // 复用鸣潮那套「无背景素材」的降级样式（不编造图片地址）。
+    backgroundImage: '',
+    icon: ExperimentOutlined,
+    image: '',
+    uiClass: 'activity-card--waves',
   },
 }
 
@@ -107,9 +121,12 @@ const alertType = computed(() => {
   return 'info'
 })
 const platform = computed(() => {
-  if (props.snapshot.platform === '森空岛') return t('gamesign.activity.platform.skland')
-  if (props.snapshot.platform === '米游社') return t('gamesign.activity.platform.miyoushe')
-  return props.snapshot.platform
+  const key = platformLabelKey(props.snapshot.platform)
+  return key ? t(key) : props.snapshot.platform
+})
+const gameLabel = computed(() => {
+  const key = gameLabelKey(props.snapshot.game)
+  return key ? t(key) : props.snapshot.game
 })
 const updatedAt = computed(() => {
   const date = new Date(props.snapshot.updatedAt)
@@ -157,7 +174,7 @@ watch(
         <component v-else :is="visual?.icon ?? AppstoreOutlined" aria-hidden="true" />
       </span>
       <div class="activity-card-title">
-        <strong>{{ visual?.labelKey ? t(visual.labelKey) : snapshot.game }}</strong>
+        <strong>{{ gameLabel }}</strong>
         <span>{{ platform }}</span>
       </div>
       <a-tag :color="statusMeta.color">{{ statusMeta.label }}</a-tag>

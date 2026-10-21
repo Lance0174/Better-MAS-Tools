@@ -33,7 +33,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -41,16 +41,23 @@ from .community_activity_transport import CommunityActivityTarget
 
 __all__ = [
     "ACTIVITY_COMMUNITY_DEFINITIONS",
+    "TAYGEDO_NOTES_UNAVAILABLE_REASON",
     "CommunityActivityProviderDefinition",
     "CommunityActivityCapability",
     "CommunityActivityRole",
     "CommunityActivityRoleDiscovery",
+    "normalize_kuro_roles",
     "normalize_miyoushe_roles",
     "normalize_skland_roles",
+    "normalize_taygedo_roles",
 ]
 
 
-ActivityCommunity = Literal["森空岛", "米游社"]
+ActivityCommunity = Literal["森空岛", "米游社", "库街区", "塔吉多"]
+
+# 塔吉多（异环/幻塔）只有角色与签到类接口，没有公开的"资源便笺"端点；
+# 便笺因此只展示角色信息，并在卡片上说明原因，不猜测字段、不发请求。
+TAYGEDO_NOTES_UNAVAILABLE_REASON = "塔吉多社区未公开资源便笺接口，仅展示角色信息"
 
 
 @dataclass(frozen=True)
@@ -69,6 +76,17 @@ ACTIVITY_COMMUNITY_DEFINITIONS = (
     CommunityActivityProviderDefinition(
         platform="米游社",
         games=("原神", "星穹铁道", "绝区零"),
+    ),
+    # 库街区目前只登记鸣潮结晶波片便笺；战双帕弥什尚未确认同构字段。
+    CommunityActivityProviderDefinition(
+        platform="库街区",
+        games=("鸣潮",),
+    ),
+    # 塔吉多只登记异环：幻塔与异环共用同一套角色接口，先按用户实际需求接入异环，
+    # 需要时再把 "幻塔" 加进 games 即可，无需改协议层。
+    CommunityActivityProviderDefinition(
+        platform="塔吉多",
+        games=("异环",),
     ),
 )
 
@@ -270,6 +288,55 @@ _MIYOUSHE_GAME_NAMES = {
 }
 
 
+_KURO_GAME_NAMES = {
+    "3": "鸣潮",
+}
+
+
+def normalize_kuro_roles(
+    payload: Mapping[str, object],
+    *,
+    game_id: str = "3",
+) -> CommunityActivityRoleDiscovery:
+    """归一化库街区角色列表响应，只保留明确带角色的记录。
+
+    库街区把 gameId 放在每个角色条目上，缺少 gameId 的记录不猜测归属；
+    角色列表为空时返回空发现结果，由调用方给出未绑定状态。
+    """
+
+    from .kuro import GAME_CONFIG, _extract_kuro_role_records, _normalise_kuro_role
+
+    discovery = CommunityActivityRoleDiscovery("库街区")
+    game_name = GAME_CONFIG.get(game_id, {}).get("name")
+    if not game_name:
+        return discovery
+
+    try:
+        records = _extract_kuro_role_records(payload.get("data", []))
+    except ValueError:
+        return discovery
+
+    roles: list[CommunityActivityRole] = []
+    for record in records:
+        role = _normalise_kuro_role(record, game_id)
+        if role is None:
+            continue
+        role_uid = str(role.get("roleId") or "").strip()
+        if not role_uid:
+            continue
+        roles.append(
+            CommunityActivityRole(
+                platform="库街区",
+                game=game_name,
+                role_uid=role_uid,
+                server=str(role.get("serverId") or "").strip(),
+                role_name=str(role.get("roleName") or "").strip(),
+            )
+        )
+
+    return CommunityActivityRoleDiscovery("库街区", _deduplicate_roles(roles))
+
+
 def normalize_miyoushe_roles(
     payload: Mapping[str, object],
 ) -> CommunityActivityRoleDiscovery:
@@ -309,3 +376,44 @@ def normalize_miyoushe_roles(
         )
 
     return CommunityActivityRoleDiscovery("米游社", _deduplicate_roles(roles))
+
+
+def normalize_taygedo_roles(
+    roles: Iterable[Mapping[str, object]],
+    *,
+    game: str = "异环",
+    reason: str = TAYGEDO_NOTES_UNAVAILABLE_REASON,
+) -> CommunityActivityRoleDiscovery:
+    """把塔吉多角色卡归一化成便笺的角色发现结果。
+
+    输入是 ``taygedo`` 已归一化的角色字典（gameId/gameName/roleId/roleName）。
+    塔吉多没有公开的资源便笺接口，所以这里把能力标记成 ``limited``：上层据此
+    只为每个角色渲染一张"只有角色信息"的卡片，不会再去请求不存在的资源接口。
+
+    Args:
+        roles: 塔吉多角色卡列表；缺少 gameId 或 roleId 的条目会被丢弃。
+        game: 只保留属于该游戏的已确认角色，默认异环。
+        reason: 卡片上说明"为什么没有资源数据"的文案。
+    """
+
+    items: list[CommunityActivityRole] = []
+    for role in roles:
+        if str(role.get("gameName") or "").strip() != game:
+            continue
+        role_uid = str(role.get("roleId") or "").strip()
+        if not role_uid:
+            continue
+        items.append(
+            CommunityActivityRole(
+                platform="塔吉多",
+                game=game,
+                role_uid=role_uid,
+                role_name=str(role.get("roleName") or "").strip(),
+            )
+        )
+
+    return CommunityActivityRoleDiscovery(
+        "塔吉多",
+        _deduplicate_roles(items),
+        CommunityActivityCapability(status="limited", reason=reason),
+    )

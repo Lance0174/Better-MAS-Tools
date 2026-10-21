@@ -53,6 +53,7 @@ import json
 import time
 import uuid
 from datetime import datetime, timedelta
+from email.utils import parsedate_to_datetime
 from typing import Awaitable, Callable
 from urllib import parse
 
@@ -70,6 +71,9 @@ _skland_sign_lock = asyncio.Lock()
 _device_id_lock = asyncio.Lock()
 _cached_device_id: str | None = None
 _cache_time: datetime | None = None
+# 系统时钟不可信时的服务器取时结果：(服务器时间戳, 采样时的单调时钟)。
+_server_clock: tuple[float, float] | None = None
+_SERVER_CLOCK_TTL = 300.0
 
 SKLAND_APP_CODE = "4ca99fa6b56cc2ba"
 SKLAND_GRANT_CODE_URL = "https://as.hypergryph.com/user/oauth2/v2/grant"
@@ -92,6 +96,111 @@ def is_skland_already_signed(response: dict[str, object]) -> bool:
     return response.get("code") == 10001 or any(
         marker in message for marker in ("请勿重复签到", "Please do not sign in again!")
     )
+
+
+def _skland_failure_reason(response: dict[str, object]) -> str:
+    """把签到失败响应整理成一句可展示的原因，不泄漏原始响应体。"""
+
+    message = str(response.get("message") or "").strip()
+    code = response.get("code")
+    if message:
+        return message
+    if code is not None:
+        return f"上游拒绝（错误码 {code}）"
+    return "签到失败"
+
+
+def _response_server_time(
+    response: httpx.Response, payload: dict[str, object] | None = None
+) -> float | None:
+    """优先读取接口返回的秒级 timestamp，缺失时兼容 Date 响应头。
+
+    来自 AUTO-MAS 8333f11a：系统时间偏差会让签名直接失败，这里以服务器时间
+    作为签名基准，避免依赖第三方校时接口。
+    """
+
+    try:
+        if int(response.headers.get("Age", "0")) > 0:
+            # 命中 CDN 缓存时 Date 是旧值，取时结果不可信。
+            return None
+    except (ValueError, TypeError):
+        return None
+    if payload is not None:
+        timestamp = payload.get("timestamp")
+        if isinstance(timestamp, (str, int, float)) and not isinstance(timestamp, bool):
+            try:
+                server_time = float(timestamp)
+                # 上游字段是秒级时间，拒绝非有限值与误传的毫秒时间。
+                if 0 < server_time < 10_000_000_000:
+                    return server_time
+            except (ValueError, OverflowError):
+                pass
+    try:
+        value = parsedate_to_datetime(response.headers["Date"])
+        return value.timestamp() if value.tzinfo is not None else None
+    except (KeyError, ValueError, TypeError, OverflowError):
+        return None
+
+
+def _update_skland_time(
+    response: httpx.Response, payload: dict[str, object] | None = None
+) -> None:
+    """记录 cred 获取或刷新响应的服务器时间，后续签名由单调时钟推进。"""
+
+    global _server_clock
+    server_time = _response_server_time(response, payload)
+    if server_time is None:
+        return
+    # 采样点取收到响应之后，不能把连接失败或 DNS 回退耗时算入偏移。
+    _server_clock = (server_time, time.monotonic())
+    offset = abs(server_time - time.time())
+    if offset > 30:
+        logger.warning(
+            f"系统时间与森空岛服务器偏差约 {offset:.0f} 秒，本次请求已使用服务器时间"
+        )
+
+
+def _skland_time() -> float:
+    """以单调时钟推进服务器时间，兼容签到中途调整系统时钟。"""
+
+    if _server_clock is not None:
+        server_time, sampled_at = _server_clock
+        elapsed = time.monotonic() - sampled_at
+        if 0 <= elapsed < _SERVER_CLOCK_TTL:
+            return server_time + elapsed
+    return time.time()
+
+
+def current_system_time_offset() -> float | None:
+    """返回本机与森空岛服务器的时间偏差秒数，未取到时间时为 None。"""
+
+    if _server_clock is None:
+        return None
+    server_time, sampled_at = _server_clock
+    elapsed = time.monotonic() - sampled_at
+    if not (0 <= elapsed < _SERVER_CLOCK_TTL):
+        return None
+    return server_time + elapsed - time.time()
+
+
+async def _sync_skland_time(client: httpx.AsyncClient) -> None:
+    """仅在没有新鲜 cred 响应时间时补充取时，兼容已保存的 cred/token。"""
+
+    started = time.monotonic()
+    if (
+        _server_clock is not None
+        and 0 <= started - _server_clock[1] < _SERVER_CLOCK_TTL
+    ):
+        return
+    try:
+        response = await client.head(
+            "https://zonai.skland.com/",
+            headers={"Cache-Control": "no-cache"},
+            timeout=5.0,
+        )
+        _update_skland_time(response)
+    except httpx.HTTPError:
+        logger.debug("森空岛服务器取时暂不可用，继续签到并由请求结果报告原因")
 
 
 def _get_arknights_game_id(character: dict[str, object]) -> object:
@@ -159,12 +268,32 @@ def _create_skland_client(proxy: str | None = None) -> httpx.AsyncClient:
     return network.client(proxy=proxy, trust_env=False)
 
 
-def _parse_json_object(response: httpx.Response) -> dict[str, object]:
-    """解析森空岛响应，并拒绝空值或非对象 JSON。"""
+def _parse_json_object(
+    response: httpx.Response, *, allow_already_signed: bool = False
+) -> dict[str, object]:
+    """解析森空岛响应，并拒绝空值或非对象 JSON。
 
-    payload = response.json()
+    上游对"今日已签到"会返回 HTTP 403，签到接口需要保留这种业务结果而不是
+    直接按 HTTP 状态失败（对齐 AUTO-MAS 29a98a88）：调用方传
+    allow_already_signed=True 时，只要业务码表示已签到就照常返回 payload。
+    """
+
+    try:
+        payload = response.json()
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError(
+            "森空岛接口响应解码失败，请检查系统代理/TUN、DNS 设置或稍后重试"
+        ) from exc
     if not isinstance(payload, dict):
         raise ValueError("森空岛接口返回格式无效")
+    # 仅签到接口收紧：上游对"今日已签到"返回 HTTP 403，需要保留业务结果；
+    # 其它接口沿用各自的 HTTP 状态处理，避免用通用文案覆盖上游提示。
+    if (
+        allow_already_signed
+        and not response.is_success
+        and not is_skland_already_signed(payload)
+    ):
+        raise ValueError(f"森空岛接口请求失败: HTTP {response.status_code}")
     return payload
 
 
@@ -447,21 +576,36 @@ async def get_device_id(
     devices_info_url = f"{SKLAND_SM_CONFIG['protocol']}://{SKLAND_SM_CONFIG['apiHost']}{SKLAND_SM_CONFIG['apiPath']}"
 
     async def request(active_client: httpx.AsyncClient) -> str:
-        response = await active_client.post(
-            devices_info_url,
-            json=body,
-            headers={"Content-Type": "application/json"},
-            timeout=30.0,
-        )
-        resp = _parse_json_object(response)
+        # 对齐 AUTO-MAS b834a123：设备验证接口会间歇性返回 1901（拒绝），
+        # 单次失败不应中断整场签到；退避重试三次，失败只回显错误码。
+        last_code: object = None
+        resp: dict[str, object] = {}
+        for attempt, delay in enumerate((0.0, 1.0, 2.0)):
+            if delay:
+                await asyncio.sleep(delay)
+            response = await active_client.post(
+                devices_info_url,
+                json=body,
+                headers={"Content-Type": "application/json"},
+                timeout=30.0,
+            )
+            resp = _parse_json_object(response)
+            if resp.get("code") == 1100:
+                break
+            last_code = resp.get("code")
+            if attempt < 2:
+                logger.warning(f"森空岛设备验证被拒绝（错误码 {last_code}），正在重试")
 
         if resp.get("code") != 1100:
-            raise Exception(f"设备ID计算失败: {resp}")
+            raise ValueError(
+                f"森空岛设备验证失败（错误码 {last_code}），请稍后重试"
+            )
 
         detail = resp.get("detail")
-        if not isinstance(detail, dict) or not detail.get("deviceId"):
+        device_id = detail.get("deviceId") if isinstance(detail, dict) else None
+        if not isinstance(device_id, str) or not device_id:
             raise ValueError("设备ID响应格式无效")
-        return f"B{detail['deviceId']}"
+        return f"B{device_id}"
 
     if client is not None:
         return await request(client)
@@ -589,7 +733,8 @@ async def _get_cred_by_code(
         "origin": "https://www.skland.com",
         "dId": device_id,
         "platform": "3",
-        "timestamp": str(int(time.time())),
+        # 取 cred 时同样使用服务器时间，系统时钟偏差不影响绑定。
+        "timestamp": str(int(_skland_time())),
         "vName": "1.0.0",
     }
     response = await client.post(
@@ -602,6 +747,8 @@ async def _get_cred_by_code(
         raise ValueError(
             f"获得森空岛 cred 失败: {response_data.get('message') or '上游拒绝请求'}"
         )
+    # 该响应的 Date/timestamp 是后续签名的取时来源，先于结果校验记录。
+    _update_skland_time(response, response_data)
     data = response_data.get("data")
     if not isinstance(data, dict) or not data.get("token") or not data.get("cred"):
         raise ValueError("森空岛 cred 响应格式无效")
@@ -620,7 +767,8 @@ def build_skland_signed_headers(
 ) -> dict[str, str]:
     """为森空岛 API 请求生成统一签名头，不修改输入字典。"""
 
-    timestamp = str(int(time.time() * 1000 - 2000))[:-3]
+    # 以服务器时间为签名基准（取不到时回退本机时间），避免时钟偏差导致签名失败。
+    timestamp = str(int(_skland_time() * 1000 - 2000))[:-3]
     signature_headers = {
         "platform": platform,
         "timestamp": timestamp,
@@ -676,6 +824,8 @@ async def prepare_skland_session_credential(
     # 此时丢弃缓存并重新授权。活动入口仍会在调用本函数前执行严格校验。
     credential = parse_skland_credential(raw_credential)
     if credential["cred"] and credential["token"]:
+        # 已保存的 cred/token 不会走 OAuth 取时，这里补一次服务器时间。
+        await _sync_skland_time(client)
         return credential
     if not credential["oauthToken"]:
         raise ValueError("森空岛登录凭据为空")
@@ -725,6 +875,7 @@ async def refresh_skland_session_credential(
             timeout=timeout,
         )
     response_data = _parse_json_object(response)
+    _update_skland_time(response, response_data)
     if response_data.get("code") != 0:
         raise ValueError(
             f"森空岛凭据刷新失败: {response_data.get('message') or '上游拒绝请求'}"
@@ -957,7 +1108,7 @@ async def _run_skland_sign_in(
         rsp = _parse_json_object(response)
         if not response.is_success or rsp.get("code") != 0:
             message = str(rsp.get("message") or "")
-            if "未登录" in message:
+            if "未登录" in message or response.status_code == 401:
                 raise SklandCredentialExpiredError("森空岛凭据已失效")
             reason = message or f"HTTP {response.status_code}"
             raise ValueError(f"森空岛角色列表请求失败: {reason}")
@@ -1040,12 +1191,14 @@ async def _run_skland_sign_in(
             cred, sign_token, app_code_override="arknights"
         )
         reward_map: dict[str, str] = {}
+        failure_reasons: dict[str, str] = {}
         result = {
             "成功": [],
             "重复": [],
             "失败": [],
             "总计": len(characters),
             "奖励": reward_map,
+            "失败原因": failure_reasons,
         }
 
         attendance_states = await asyncio.gather(
@@ -1096,7 +1249,8 @@ async def _run_skland_sign_in(
                     headers=sign_headers,
                     content=json.dumps(body),
                 )
-                rsp = _parse_json_object(response)
+                # 已签到时上游返回 HTTP 403，需保留业务码交给下面的重复分支处理。
+                rsp = _parse_json_object(response, allow_already_signed=True)
 
                 if rsp.get("code") != 0:
                     if is_skland_already_signed(rsp):
@@ -1104,6 +1258,7 @@ async def _run_skland_sign_in(
                         logger.info(f"{character_name} 重复签到")
                     else:
                         result["失败"].append(character_name)
+                        failure_reasons[character_name] = _skland_failure_reason(rsp)
                         logger.warning(
                             f"{character_name} 签到失败: {rsp.get('message')}"
                         )
@@ -1118,7 +1273,9 @@ async def _run_skland_sign_in(
 
             except Exception as e:
                 result["失败"].append(character_name)
-                _log_skland_exception("明日方舟签到失败", e)
+                failure_reasons[character_name] = _log_skland_exception(
+                    "明日方舟签到失败", e
+                )
 
             if index < len(characters) - 1:
                 await asyncio.sleep(SKLAND_SIGN_INTERVAL)
@@ -1146,7 +1303,8 @@ async def _run_skland_sign_in(
 
         assert client is not None
         response = await client.post(endfield_sign_url, headers=headers)
-        return _parse_json_object(response)
+        # 同上：终末地已签到时上游返回 403，业务码才是判定依据。
+        return _parse_json_object(response, allow_already_signed=True)
 
     async def sign_for_endfield(cred, sign_token) -> dict[str, object]:
         """终末地签到"""
@@ -1173,12 +1331,14 @@ async def _run_skland_sign_in(
                 role_items.append((character, role, character_name, game_name))
 
         reward_map: dict[str, str] = {}
+        failure_reasons: dict[str, str] = {}
         result = {
             "成功": [],
             "重复": [],
             "失败": [],
             "总计": len(role_items),
             "奖励": reward_map,
+            "失败原因": failure_reasons,
         }
 
         for index, (_character, role, character_name, game_name) in enumerate(
@@ -1192,6 +1352,7 @@ async def _run_skland_sign_in(
                         logger.info(f"{character_name} 重复签到")
                     else:
                         result["失败"].append(character_name)
+                        failure_reasons[character_name] = _skland_failure_reason(rsp)
                         logger.warning(
                             f"{character_name} 签到失败: {rsp.get('message')}"
                         )
@@ -1210,7 +1371,9 @@ async def _run_skland_sign_in(
                         logger.info(f"{character_name} 签到成功")
             except Exception as e:
                 result["失败"].append(character_name)
-                _log_skland_exception("终末地签到失败", e)
+                failure_reasons[character_name] = _log_skland_exception(
+                    "终末地签到失败", e
+                )
 
             if index < len(role_items) - 1:
                 await asyncio.sleep(SKLAND_SIGN_INTERVAL)

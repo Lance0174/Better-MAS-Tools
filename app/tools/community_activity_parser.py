@@ -26,13 +26,15 @@ from __future__ import annotations
 
 import json
 import math
+import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 from app.utils.constants import UTC8
 
 from .community_contract import ActivityState, CommunityActivitySnapshot
+from .kuro import parse_kuro_waves_widget
 
 __all__ = ["ACTIVITY_GAME_DEFINITIONS", "parse_activity_snapshot"]
 
@@ -486,6 +488,20 @@ def _coerce_payload(
                 f"{platform}{game}接口返回的数据结构无法识别"
             )
         root = decoded
+
+    if platform == "库街区":
+        # 库街区小组件的业务成功码是 200（森空岛/米游社使用 0）；
+        # 220 是登录态失效，1513 是用户信息异常，均按受限处理。
+        code = _as_code(root.get("code"))
+        if code is None or code in (0, 200):
+            return root
+        if code in (220, 1513):
+            raise ActivityResponseLimitedError(
+                f"{platform}{game}接口提示登录状态失效（业务码 {code}），请重新获取 Token"
+            )
+        raise ActivityResponseUnavailableError(
+            f"{platform}{game}接口返回业务失败（业务码 {code}）"
+        )
 
     for key in ("retcode", "code"):
         code = _as_code(root.get(key))
@@ -1424,6 +1440,76 @@ def _parse_miyoushe_zzz(
     )
 
 
+def _parse_kuro_waves(
+    payload: Mapping[str, object],
+    account_uid: str,
+    account_name: str,
+    role: ActivityRole,
+) -> CommunityActivitySnapshot:
+    """解析库街区鸣潮结晶波片小组件，输出与其它游戏一致的便笺快照。
+
+    字段读取与时间纠正全部复用 kuro.parse_kuro_waves_widget；该解析器
+    不抛异常，字段缺失时以空值加可读 reason 进入快照。
+    """
+
+    parsed = parse_kuro_waves_widget(payload, local_timestamp=int(time.time()))
+    current = parsed.get("current")
+    total = parsed.get("total")
+    current_value = _as_int(current)
+    total_value = _as_int(total)
+    refresh_time = _as_int(parsed.get("refresh_time"))
+    server_time = _as_int(parsed.get("server_time"))
+    reason = str(parsed.get("reason") or "").strip()
+
+    resources: list[dict[str, object]] = []
+    if current_value is not None or total_value is not None:
+        # 是否需要倒计时由解析层给出：库洛的 refreshTimeStamp <= 0 是"无需刷新"
+        # 的哨兵值（实测体力已满时返回 0），不能按时间戳符号在这里猜。
+        refresh_pending = bool(parsed.get("refresh_pending"))
+        recovery_seconds = (
+            None
+            if not refresh_pending or refresh_time is None or server_time is None
+            else _remaining_seconds(refresh_time, server_time)
+        )
+        resource = _resource_item(
+            "结晶波片",
+            {},
+            pair=(current_value or 0, total_value or 0),
+            status=_recovery_status(
+                recovery_seconds,
+                current=current_value or 0,
+                target=total_value or 0,
+            ),
+        )
+        if resource is not None:
+            resources.append(resource)
+
+    if not resources:
+        return _failed_snapshot(
+            account_uid=account_uid,
+            account_name=account_name,
+            platform="库街区",
+            game="鸣潮",
+            status="unavailable",
+            reason=reason or "鸣潮小组件未返回可识别的结晶波片数据",
+            role=role,
+            source="/gamer/widget/game3/getData",
+        )
+
+    snapshot = _build_snapshot(
+        account_uid=account_uid,
+        account_name=account_name,
+        platform="库街区",
+        game="鸣潮",
+        items=[],
+        resources=resources,
+        role=role,
+        source="/gamer/widget/game3/getData",
+    )
+    # 时间纠正与字段缺失说明随快照展示，便于用户判断倒计时是否可信。
+    return replace(snapshot, reason=reason) if reason else snapshot
+
+
 @dataclass(frozen=True)
 class ActivityGameDefinition:
     platform: str
@@ -1463,6 +1549,12 @@ ACTIVITY_GAME_DEFINITIONS = (
         game="绝区零",
         parser=_parse_miyoushe_zzz,
         source="/event/game_record_zzz/api/zzz/note",
+    ),
+    ActivityGameDefinition(
+        platform="库街区",
+        game="鸣潮",
+        parser=_parse_kuro_waves,
+        source="/gamer/widget/game3/getData",
     ),
 )
 

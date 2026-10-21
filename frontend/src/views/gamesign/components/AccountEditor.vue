@@ -35,6 +35,8 @@ watch(
       draft.value = { ...props.account.data }
       baseline.value = JSON.stringify(draft.value)
     }
+    // 切换账号或关窗时复位短信登录弹窗，否则给另一个账号重开编辑会沿用它上次的打开状态。
+    kuroOpen.value = false
     credentials.phone = ''
     credentials.password = ''
   },
@@ -71,6 +73,8 @@ const close = () => {
   if (saving.value || loggingIn.value) return
   const finish = () => {
     qr.cancel()
+    // 与扫码弹窗同样在这里收尾：关抽屉即复位短信登录弹窗，下次打开不会被残留状态顶出来。
+    kuroOpen.value = false
     credentials.password = ''
     emit('close')
   }
@@ -95,6 +99,8 @@ const save = async () => {
       data: { ...draft.value, Name: draft.value.Name.trim() },
     })
     baseline.value = JSON.stringify(draft.value)
+    // 保存成功后直接 emit('close')，不经过 close()，这里同步复位短信登录弹窗。
+    kuroOpen.value = false
     message.success(t('standalone.saved'))
     emit('saved')
     emit('close')

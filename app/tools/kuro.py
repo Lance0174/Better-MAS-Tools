@@ -38,6 +38,7 @@
 import asyncio
 import json
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
 
 import httpx
@@ -334,6 +335,15 @@ GAME_CONFIG = {
     "2": {"name": "战双帕弥什"},
     "3": {"name": "鸣潮"},
 }
+
+# 鸣潮结晶波片小组件：gameId=3 固定对应鸣潮，taskType/sizeType 沿用上游确认值。
+WAVES_GAME_ID = "3"
+WAVES_WIDGET_URL = "https://api.kurobbs.com/gamer/widget/game3/getData"
+WAVES_WIDGET_TASK_TYPE = "2"
+WAVES_WIDGET_SIZE_TYPE = "1"
+
+# 上游提醒：库洛服务器时间可能不准，偏差超过该秒数时改用本地时间纠正回满时间。
+WAVES_SERVER_TIME_TOLERANCE_SECONDS = 600
 
 # 请求头模板
 BBS_HEADERS = {
@@ -821,6 +831,201 @@ async def _get_kuro_sign_reward(
             rewards.append(reward)
 
     return "、".join(rewards)
+
+
+# ==================== 鸣潮结晶波片便笺 ====================
+# 端点与表单字段参考 TomyJan/Yunzai-Kuro-Plugin 的公开接口协议
+# （MPL-2.0，仅作协议参考，未复制其源代码），请求头复用本项目既有的
+# BBS/GAME 模板与 _kuro_request_headers 注入方式。
+
+
+def _waves_int(value: object) -> int | None:
+    """读取小组件里的整数；兼容数字与数字字符串，其余返回 None。"""
+
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            return None
+        return int(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return int(float(text))
+        except ValueError:
+            return None
+    return None
+
+
+def _waves_mapping(value: object) -> Mapping[str, object]:
+    """只在值确实是映射时返回它，其余统一给出空映射。"""
+
+    return value if isinstance(value, Mapping) else {}
+
+
+def parse_kuro_waves_widget(
+    payload: object,
+    *,
+    local_timestamp: int | None = None,
+) -> dict[str, object]:
+    """把鸣潮小组件响应转换为与其它便笺一致的中间结构。
+
+    上游确认的响应字段为 data.serverTime（秒级服务器时间戳）、
+    data.energyData.cur（当前结晶波片）、data.energyData.total（上限）与
+    data.energyData.refreshTimeStamp（回满时间戳）。战双小组件使用同义的
+    data.actionData，仅在 energyData 缺失时回退。
+
+    **refreshTimeStamp 的语义（真实响应核对，2026-10-16）**：它是绝对时间戳，
+    但 <= 0 是"无需刷新"的哨兵值——体力已满时实测返回 0，不是某个 1970 年的时间。
+    上游插件的判据同样是 refreshTimeStamp > 0，因此这里把 <= 0 一律视为
+    "无需倒计时"，返回 refresh_time=None。**哨兵必须先判定、再参与时间纠正**，
+    否则时间纠正会把 0 平移到本机时间轴上，变成"1971 年回满"的荒谬倒计时。
+
+    上游提醒：库洛服务器时间有时不准。当它与本地时间偏差超过
+    WAVES_SERVER_TIME_TOLERANCE_SECONDS 时，改用本地时间为基准平移
+    refreshTimeStamp，避免回满倒计时显示错误。实测该偏差可达数百天，
+    因此纠正几乎总会发生；这也是哨兵必须在纠正前判定的原因。
+
+    该函数是纯函数：字段缺失或类型异常都返回空值并在 reason 里说明，
+    既不抛异常也不访问网络。
+    """
+
+    reason_parts: list[str] = []
+    empty = {
+        "current": None,
+        "total": None,
+        "refresh_time": None,
+        "refresh_pending": False,
+        "server_time": None,
+        "clock_skew": None,
+        "server_time_corrected": False,
+    }
+    if not isinstance(payload, Mapping):
+        return {**empty, "reason": "鸣潮小组件响应不是 JSON 对象"}
+
+    data = payload.get("data")
+    if not isinstance(data, Mapping):
+        return {**empty, "reason": "鸣潮小组件响应缺少 data 字段"}
+
+    # 已确认的鸣潮字段是 energyData；actionData 属于战双小组件的同义结构，
+    # 只在 energyData 缺失时作为兼容回退，不改变字段语义。
+    energy = _waves_mapping(data.get("energyData"))
+    if not energy:
+        energy = _waves_mapping(data.get("actionData"))
+        if energy:
+            reason_parts.append("响应未返回 energyData，已按 actionData 兼容解析")
+
+    current = _waves_int(energy.get("cur"))
+    total = _waves_int(energy.get("total"))
+    if current is None:
+        reason_parts.append("响应缺少当前结晶波片（energyData.cur）")
+    if total is None:
+        reason_parts.append("响应缺少结晶波片上限（energyData.total）")
+
+    server_time = _waves_int(data.get("serverTime"))
+    refresh_time = _waves_int(energy.get("refreshTimeStamp"))
+    if server_time is None:
+        reason_parts.append("响应缺少服务器时间（data.serverTime）")
+    if refresh_time is None:
+        reason_parts.append("响应缺少回满时间（energyData.refreshTimeStamp）")
+
+    # 先判定哨兵：<= 0 表示无需刷新（体力已满）。必须在下面的时间纠正之前处理，
+    # 否则 0 会被平移到本机时间轴，变成一个久远过去的时间戳而不是"无需倒计时"。
+    refresh_pending = refresh_time is not None and refresh_time > 0
+    if refresh_time is not None and not refresh_pending:
+        refresh_time = None
+
+    clock_skew: int | None = None
+    corrected = False
+    reference_time = _waves_int(local_timestamp)
+    if server_time is not None and reference_time is not None:
+        clock_skew = reference_time - server_time
+        if abs(clock_skew) > WAVES_SERVER_TIME_TOLERANCE_SECONDS:
+            # 服务器时间不可信：以本地时间为基准平移回满时间戳，并把
+            # 服务器时间改写为本地时间，保证两者始终在同一条时间轴上。
+            # 哨兵已在上面排除，这里只需处理真实时间戳。
+            if refresh_time is not None:
+                refresh_time += clock_skew
+                if refresh_time <= reference_time:
+                    # 平移后已过回满时刻：说明其实已经回满，不再显示倒计时。
+                    refresh_time = None
+            server_time = reference_time
+            corrected = True
+            reason_parts.append(
+                f"库洛服务器时间偏差 {clock_skew} 秒，已按本地时间纠正回满时间"
+            )
+    elif server_time is None and reference_time is not None:
+        # 服务器时间缺失时仍然给出本地时间基准，倒计时才能计算。
+        server_time = reference_time
+
+    return {
+        "current": max(0, current) if current is not None else None,
+        "total": max(0, total) if total is not None else None,
+        "refresh_time": refresh_time,
+        "refresh_pending": refresh_pending,
+        "server_time": server_time,
+        "clock_skew": clock_skew,
+        "server_time_corrected": corrected,
+        "reason": "；".join(reason_parts),
+    }
+
+
+async def fetch_kuro_waves_note(
+    token: str,
+    *,
+    role_id: str,
+    server_id: str,
+    proxy: str | None = None,
+    local_timestamp: int | None = None,
+) -> dict[str, object]:
+    """请求鸣潮结晶波片小组件，返回可直接交给解析器的 JSON 对象。
+
+    Args:
+        token: 库街区凭据（Token 或完整登录凭据 JSON）。
+        role_id: 鸣潮角色 ID，来自角色发现结果。
+        server_id: 鸣潮服务器 ID，来自角色发现结果。
+        proxy: 代理地址；缺省时沿用全局网络设置。
+        local_timestamp: 用于时间纠正的秒级本地时间戳，缺省取当前时间。
+
+    Returns:
+        上游原始 JSON 对象（含 code/msg/data）。
+
+    Raises:
+        ValueError: 凭据、角色参数或上游响应本身不可用。
+    """
+
+    if not str(token or "").strip():
+        raise ValueError("库街区 Token 为空")
+    token_value, dev_code, distinct_id = parse_kuro_credential(str(token))
+    role_value = str(role_id or "").strip()
+    if not role_value:
+        raise ValueError("鸣潮便笺缺少 roleId")
+    server_value = str(server_id or "").strip()
+
+    resolved_proxy = proxy if proxy is not None else network.proxy
+    # 小组件是 WebView 接口：沿用签到使用的 GAME_HEADERS（origin、
+    # source=android、Kuro/<版本> UA 与表单 content-type 由模板提供）。
+    headers = _kuro_request_headers(GAME_HEADERS, token_value, dev_code, distinct_id)
+    async with network.client(proxy=resolved_proxy, trust_env=False) as client:
+        response = await client.post(
+            WAVES_WIDGET_URL,
+            headers=headers,
+            data={
+                "gameId": WAVES_GAME_ID,
+                "roleId": role_value,
+                "serverId": server_value,
+                "type": WAVES_WIDGET_TASK_TYPE,
+                "sizeType": WAVES_WIDGET_SIZE_TYPE,
+            },
+            timeout=30.0,
+        )
+    payload = _safe_json(response)
+    _raise_kuro_response_error(response, payload, "获取鸣潮结晶波片")
+    return payload
 
 
 async def _do_sign(

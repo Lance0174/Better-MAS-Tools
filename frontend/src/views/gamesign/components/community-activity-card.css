@@ -236,6 +236,28 @@ html.dark .activity-card--zenless .activity-background {
   opacity: 0.48;
 }
 
+/* 鸣潮结晶波片：尚无已发布的背景素材，改用玻璃高光带做出水波层次，
+   accent 只用于顶部刻度条与图标，不引入新的实色面板。 */
+.activity-card--waves {
+  background:
+    linear-gradient(
+      112deg,
+      color-mix(in srgb, var(--activity-accent) 16%, transparent) 0%,
+      color-mix(in srgb, var(--activity-accent) 6%, transparent) 34%,
+      transparent 58%
+    ),
+    var(--app-glass-tint);
+}
+
+.activity-card--waves .activity-game-mark {
+  background: color-mix(in srgb, var(--activity-accent) 18%, transparent);
+  color: var(--activity-accent);
+}
+
+.activity-card--waves .activity-featured .activity-metric-value {
+  color: var(--activity-accent);
+}
+
 @media (max-width: 400px) {
   .activity-content {
     column-gap: 8px;
