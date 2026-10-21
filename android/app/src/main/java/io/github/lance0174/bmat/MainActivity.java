@@ -48,6 +48,7 @@ public final class MainActivity extends Activity {
     private WebView webView;
     private WebMessagePort port;
     private LocalStateStore state;
+    private WikiCacheStore wikiCache;
     private NativeDiagnostics diagnostics;
     private Button diagnosticButton;
     private ValueCallback<Uri[]> fileCallback;
@@ -68,6 +69,7 @@ public final class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         state = new LocalStateStore(getApplicationContext());
+        wikiCache = new WikiCacheStore(getApplicationContext());
         diagnostics = new NativeDiagnostics(getApplicationContext());
         diagnostics.write("Android startup version=" + BuildConfig.VERSION_NAME + " code=" + BuildConfig.VERSION_CODE
                 + " SDK=" + Build.VERSION.SDK_INT + " WebView="
@@ -273,6 +275,13 @@ public final class MainActivity extends Activity {
             }
             case "state.write":
                 state.write(payload.getString("state"));
+                return new JSONObject().put("saved", true);
+            case "wiki.read": {
+                String content = wikiCache.read(payload.getString("path"));
+                return new JSONObject().put("content", content == null ? JSONObject.NULL : content);
+            }
+            case "wiki.write":
+                wikiCache.write(payload.getString("path"), payload.getString("content"));
                 return new JSONObject().put("saved", true);
             case "http.request": return network.request(payload, generation);
             case "http.cancel":

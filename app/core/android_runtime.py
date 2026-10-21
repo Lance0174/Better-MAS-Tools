@@ -10,7 +10,13 @@ import httpx
 
 from app.core.runtime import runtime
 from app.core.state import state
-from app.services.android import AndroidStorage, AndroidTransport, NativeCall
+from app.services.android import (
+    AndroidStorage,
+    AndroidTransport,
+    AndroidWikiStorage,
+    NativeCall,
+)
+from app.services.endfield_wiki import WikiStore
 from app.services.network import network
 from app.tools.community_contract import CommunitySignInProgressError
 from app.tools.community_sign_provider import has_community_credentials
@@ -45,7 +51,11 @@ class AndroidRuntime:
             f"账号数={len(state.accounts)}"
         )
         build_started = time.perf_counter()
-        app = create_app(start_scheduler=False, external_state=True)
+        wiki_store = WikiStore(storage=AndroidWikiStorage(self.call))
+        await wiki_store.initialize()
+        app = create_app(
+            start_scheduler=False, external_state=True, wiki_store=wiki_store
+        )
         logger.info(
             f"后端应用构建耗时 {round((time.perf_counter() - build_started) * 1000)} ms"
         )

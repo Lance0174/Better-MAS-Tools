@@ -48,6 +48,30 @@ try { .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:l
 
 提交源码时排除 `android/app/src/main/assets`、APK、Gradle 缓存、`local.properties` 和签名文件，规则已写入 `android/.gitignore`。资源及依赖随 APK 打包，首次启动无需下载 Python 引擎；签到、登录和在线抽卡查询仍需要网络。
 
+## 安卓运行时依赖矩阵
+
+手机里不安装任何 Python：解释器与第三方包都由 Pyodide（WASM）在 WebView 的 Worker 里运行，所以安卓端的 Python 版本和依赖版本是独立锁定的，不能直接套用桌面/后端的 `pyproject.toml`。
+
+| 项目 | 安卓实际版本 | 依据 |
+| --- | --- | --- |
+| Pyodide | 0.28.3 | `android/runtime/manifest.json` 的 `pyodide`（资源按 `v0.28.3` 下载） |
+| Pyodide 内置 CPython | 3.13.2，`abi_version` 2025_0，wasm32 / emscripten_4_0_9 | `android/runtime/pyodide-lock.json` 的 `info` |
+| 源码声明的 Python | `requires-python = ">=3.12,<3.13"`（即 3.12） | `pyproject.toml` |
+| CI：Windows 发布 | 3.12 | `.github/workflows/windows-release.yml` 的 `setup-python` |
+| CI：Android 发布 | 3.13 | `.github/workflows/android-release.yml` 的 `setup-python`；只用于 `prepare-android.py` 下载/校验资源，Gradle 构建本身不依赖 Python |
+
+| 包 | 安卓锁定版本 | 桌面/后端约束 |
+| --- | --- | --- |
+| pydantic | 2.10.6（pydantic-core 2.27.2） | `pyproject.toml` 的 `pydantic==2.11.7` |
+| pycryptodome | 3.21.0 | `pyproject.toml` 的 `pycryptodome==3.23.0` |
+| pillow | 11.3.0 | dev 组 `pillow==12.1.1`、captcha 组 `pillow>=12.1,<13` |
+| numpy | 2.2.5 | captcha 组 `numpy>=2.2,<3` |
+
+- `requires-python` 约束的是桌面与源码后端（3.12）；安卓端的解释器由 Pyodide 固定为 CPython 3.13.2，两个版本区间并不重合，所以安卓侧必须按 `manifest.json` 的独立锁定版本取 wheel，而不是跟着 `pyproject.toml` 走。
+- 版本以 `android/runtime/manifest.json` 为准：`packages` 是带二进制扩展、必须匹配 Pyodide ABI 的包（文件名形如 `cp313-cp313-pyodide_2025_0_wasm32.whl`，pycryptodome 为 `cp36-abi3`）；`pure` 是纯 Python 包，当前锁 fastapi 0.116.1、httpx 0.28.1、pypinyin 0.55.0、anyio 4.15.1、starlette 0.47.3、loguru 0.7.3 等。
+- `pyodide-lock.json` 里 `info.version` 是上游锁文件自带的 `0.28.0.dev0` 串，实际加载的运行时版本以 `manifest.json` 的 `0.28.3` 为准；`info.python` 才是解释器版本。
+- 升级其中任何一项都要同时改 `manifest.json` 与 `pyodide-lock.json`，并重新执行 `prepare-android.py` 校验 SHA-256；只改 `pyproject.toml` 不会影响安卓运行时。
+
 ## 验证边界
 
 后端与前端回归使用合成数据及模拟网络；Chromium 验证覆盖真实打包 Worker 和现有 Vue 页面，但不能替代 Android WebView、Keystore、系统文件选择器或真实平台签到验证。本轮按用户选择交付 APK 自行安装，不对连接的 ADB 设备执行安装、启动或数据操作。

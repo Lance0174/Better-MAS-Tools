@@ -33,12 +33,14 @@
 | `frontend/src/services/android.ts` | 前端安卓桥：引擎启动、消息端口、本地请求适配 |
 | `frontend/src/utils/download.ts` | 文件保存/分享工具（纯前端工具） |
 | `scripts/prepare-android.py` | 构建前端并同步安卓离线资源 |
-| `scripts/verify-android.cjs` | APK 内容校验脚本 |
+| `scripts/verify-android.cjs` | 在 Electron 里跑打包资源的前端/引擎隔离回归：原生操作全部 mock、外部网络一律拒绝，直接读 `android/app/src/main/assets`；不解包 APK、也不校验 APK 内容，且不在 CI 中运行 |
 | `docs/ANDROID.md` | 安卓架构与可行性说明 |
 
 ## 构建
 
 见 `docs/ANDROID.md` 与由 `BETTER_MAS_DEV_REPORT` 指定的开发报告。要点：前端构建 → `prepare-android.py` → 仓库内 Gradle Wrapper `assembleDebug`；APK 产物在 `android/app/build/outputs/apk/debug/`。JDK、Android SDK 等外部工具链只通过 `JAVA_HOME`、`ANDROID_SDK_ROOT` 等环境变量提供，不在文档中写入开发机绝对路径。
+
+`scripts/verify-android.cjs` 不是 APK 校验脚本：它在 Electron 里以 `https://appassets.androidplatform.net` 加载 `android/app/src/main/assets` 的打包前端，页面内的 Pyodide 引擎（`/runtime/engine-worker.js`）正常启动，而存储、网络、日志、导出等原生操作全部由脚本 mock，外部请求一律拦截。因此它必须先跑 `prepare-android.py` 生成资源，且不解包 APK、不检查签名或清单；`.github/workflows/android-release.yml` 不执行它，只在本地手动运行（结果与截图写入 `local/android-ui-probe`，详见 `docs/ANDROID.md` 的验证边界）。
 
 ## 约束
 
