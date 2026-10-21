@@ -121,3 +121,221 @@ html.android-local body {
 html.android-local #app::before {
   display: none;
 }
+
+/* ---------------------------------------------------------------------------
+   液态玻璃材质（Liquid Glass）
+   视觉语言沿用 Kinara 音乐客户端定稿的 E 稿：背景模糊 + 饱和度提升 +
+   112° 斜向高光带 + 顶部描边高光 + 多层内阴影。令牌由 useTheme.ts 切换
+   html.dark / html.glass-lite 类驱动，这里只描述材质本身。
+   降级：不支持 backdrop-filter、安卓 WebView、系统"减少动态效果"或用户在
+   设置中关闭玻璃时，--app-glass-blur 归零并改用更实的玻璃底色。
+--------------------------------------------------------------------------- */
+:root {
+  /* 运行时偏好由 useTheme.ts 写入 --app-glass-blur-pref；未写入时默认开启。 */
+  --app-glass-blur: var(--app-glass-blur-pref, 26px);
+  --app-glass-saturate: 160%;
+  --app-glass-tint: rgba(255, 255, 255, 0.32);
+  --app-glass-tint-strong: rgba(255, 255, 255, 0.58);
+  --app-glass-tint-soft: rgba(255, 255, 255, 0.24);
+  --app-glass-border-top: rgba(255, 255, 255, 0.95);
+  --app-glass-border-body: rgba(255, 255, 255, 0.62);
+  --app-glass-highlight: rgba(255, 255, 255, 0.46);
+  --app-glass-shadow: rgba(6, 30, 42, 0.2);
+  /* 暗角只压四周：浅色下过重会把整个画布压成灰色，玻璃反而失去景深。 */
+  --app-glass-vignette: rgba(6, 30, 42, 0.08);
+  --app-glass-radius: 14px;
+}
+html.dark {
+  --app-glass-saturate: 140%;
+  --app-glass-tint: rgba(25, 35, 57, 0.38);
+  --app-glass-tint-strong: rgba(20, 28, 46, 0.64);
+  --app-glass-tint-soft: rgba(25, 35, 57, 0.26);
+  --app-glass-border-top: rgba(200, 238, 255, 0.7);
+  --app-glass-border-body: rgba(160, 220, 245, 0.24);
+  --app-glass-highlight: rgba(255, 255, 255, 0.18);
+  --app-glass-shadow: rgba(0, 0, 0, 0.48);
+  --app-glass-vignette: rgba(0, 0, 0, 0.42);
+}
+/* 关闭玻璃或命中降级条件：用更实的玻璃底色替代模糊，保持可读性。 */
+html.glass-lite {
+  --app-glass-tint: var(--app-glass-tint-strong);
+  --app-glass-highlight: rgba(255, 255, 255, 0.12);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --app-glass-blur: 0px;
+    --app-glass-tint: var(--app-glass-tint-strong);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --app-glass-blur: 0px;
+  }
+}
+/* 安卓 WebView 在非整数 DPR 下 backdrop-filter 会渲染成条带，且滚动重绘成本高。 */
+html.android-local {
+  --app-glass-blur: 0px;
+  --app-glass-tint: var(--app-glass-tint-strong);
+}
+
+/* 玻璃表面：斜向高光带在底层之上、内容之下，边框与内阴影负责"厚度"。
+   选择器统一以 html 提权：Ant Design 运行时注入的组件样式是单类选择器，
+   且注入顺序在后，不加前缀会被它的不透明底色覆盖，玻璃就"看不见"了。 */
+html .glass-surface,
+html .ant-modal-content,
+html .ant-drawer-content,
+html .ant-dropdown-menu,
+html .ant-select-dropdown,
+html .ant-popover-inner,
+html .ant-tooltip-inner,
+html .ant-picker-dropdown .ant-picker-panel-container,
+html .ant-message-notice-content,
+html .ant-notification-notice {
+  /* 112° 斜向高光带：镜面条收敛在左上，右下留出暗部。 */
+  background:
+    linear-gradient(
+      112deg,
+      color-mix(in srgb, var(--app-glass-highlight) 92%, transparent) 0%,
+      color-mix(in srgb, var(--app-glass-highlight) 30%, transparent) 26%,
+      transparent 44%
+    ),
+    var(--app-glass-tint);
+  border: 1px solid var(--app-glass-border-body);
+  border-top-color: var(--app-glass-border-top);
+  -webkit-backdrop-filter: blur(var(--app-glass-blur)) saturate(var(--app-glass-saturate));
+  backdrop-filter: blur(var(--app-glass-blur)) saturate(var(--app-glass-saturate));
+  /* 四周不对称的内描边模拟玻璃厚度：上/左受光偏亮，下/右背光偏暗。 */
+  box-shadow:
+    inset 0 1px 0 var(--app-glass-border-top),
+    inset 1px 0 0 var(--app-glass-highlight),
+    inset -1px -1px 0 rgba(0, 0, 0, 0.09),
+    0 22px 52px -28px var(--app-glass-shadow),
+    0 2px 10px -6px var(--app-glass-shadow);
+}
+/* 浮层内部仍有各自的底色，玻璃材质下统一交给外层，避免叠加成不透明块。 */
+html .ant-modal-content > .ant-modal-header,
+html .ant-modal-content > .ant-modal-body,
+html .ant-modal-content > .ant-modal-footer,
+html .ant-drawer-content > .ant-drawer-wrapper-body,
+html .ant-drawer-wrapper-body > .ant-drawer-header,
+html .ant-drawer-wrapper-body > .ant-drawer-body,
+html .ant-card > .ant-card-head,
+html .ant-card > .ant-card-body,
+html .ant-tabs > .ant-tabs-nav {
+  background: transparent;
+}
+html .ant-modal-content,
+html .ant-drawer-content,
+html .ant-popover-inner,
+html .ant-dropdown-menu,
+html .ant-select-dropdown {
+  border-radius: var(--app-glass-radius);
+}
+html .ant-modal-mask,
+html .ant-drawer-mask {
+  background: var(--app-glass-shadow);
+  /* 遮罩本身也滤镜背景：面板与遮罩之间的层次更接近真实玻璃。 */
+  -webkit-backdrop-filter: blur(5px) saturate(120%);
+  backdrop-filter: blur(5px) saturate(120%);
+}
+
+/* 背景景深层：固定的色雾 + 暗角，给玻璃提供可采样的景深；不参与交互。 */
+.glass-depth {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.glass-depth i {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  filter: blur(76px);
+  opacity: 0.85;
+}
+.glass-depth i:nth-child(1) {
+  width: 46vw;
+  height: 46vw;
+  left: -10vw;
+  top: -12vw;
+  background: radial-gradient(circle, rgba(0, 179, 164, 0.55) 0%, transparent 70%);
+}
+.glass-depth i:nth-child(2) {
+  width: 38vw;
+  height: 38vw;
+  right: -8vw;
+  top: 18vh;
+  background: radial-gradient(circle, rgba(64, 128, 255, 0.42) 0%, transparent 70%);
+}
+.glass-depth i:nth-child(3) {
+  width: 52vw;
+  height: 52vw;
+  left: 22vw;
+  bottom: -24vw;
+  background: radial-gradient(circle, rgba(120, 90, 220, 0.34) 0%, transparent 72%);
+}
+.glass-depth i:nth-child(4) {
+  width: 30vw;
+  height: 30vw;
+  right: 6vw;
+  bottom: 4vh;
+  background: radial-gradient(circle, rgba(0, 179, 164, 0.4) 0%, transparent 70%);
+}
+/* 焦散细纹：给景深提供高频细节，玻璃覆盖处的模糊才有可观察的差异。 */
+.glass-depth::before {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  background:
+    repeating-conic-gradient(
+      from 20deg at 32% 18%,
+      rgba(255, 255, 255, 0.2) 0deg 3deg,
+      transparent 3deg 11deg
+    ),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.12) 0 2px, transparent 2px 26px);
+  opacity: 0.62;
+  -webkit-mask-image: radial-gradient(78% 68% at 50% 32%, #000 0%, transparent 80%);
+  mask-image: radial-gradient(78% 68% at 50% 32%, #000 0%, transparent 80%);
+}
+html.dark .glass-depth::before {
+  opacity: 0.34;
+}
+/* 关闭玻璃或降级时不动景深本身，只让面板不再模糊它（对照可见）。 */
+/* 暗角压住四周，玻璃面板靠近边缘时仍有对比。 */
+.glass-depth::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(135% 105% at 50% 16%, transparent 62%, var(--app-glass-vignette) 100%);
+}
+html.dark .glass-depth i {
+  opacity: 0.42;
+}
+html.glass-lite .glass-depth i,
+html.android-local .glass-depth i {
+  filter: blur(48px);
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* 极缓慢的漂移让景深有生命感；关闭动态效果时不播放。 */
+  .glass-depth i {
+    animation: glass-drift 48s ease-in-out infinite alternate;
+  }
+  .glass-depth i:nth-child(2) {
+    animation-duration: 66s;
+    animation-delay: -12s;
+  }
+  .glass-depth i:nth-child(3) {
+    animation-duration: 82s;
+    animation-delay: -24s;
+  }
+}
+@keyframes glass-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4vw, 3vh, 0) scale(1.12);
+  }
+}

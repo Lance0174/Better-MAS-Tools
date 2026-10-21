@@ -22,7 +22,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 from app.models.config import AccountData, SettingsData
 from app.models.gacha import GachaGame, GachaRecord
@@ -472,3 +472,142 @@ class ClientLogIn(BaseModel):
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR"]
     module: str = Field(min_length=1, max_length=80)
     message: str = Field(min_length=1, max_length=12000, repr=False)
+
+
+# ── 终末地资料库与活动日历 ─────────────────────────────────────────────
+# 资料卡片统一为 sections / fields（可选 table），前端只做通用渲染；取不到的数值一律
+# 用空字符串或空列表，不用 None，避免前端渲染出 "null"。
+
+WikiEntryKind = Literal["character", "weapon", "equipSuit", "dungeon", "enemy"]
+# 日历覆盖的游戏，对应 SRA 的 end/ak/ys/sr/zzz/ww/nte/xtlr（见 app/tools/sra_activity.py）。
+# 终末地也在其中：它的权威数据是本机 AKEData 索引里的日历，SRA 只在索引缺活动时补位，
+# 降级顺序写在 app/services/game_calendar.py 与 WikiStore.calendar_outcomes。
+WikiCalendarGame = Literal[
+    "endfield",
+    "arknights",
+    "genshin",
+    "starrail",
+    "zenless",
+    "wutheringwaves",
+    "nte",
+    "stellasora",
+]
+
+
+class WikiCountsOut(BaseModel):
+    """资料库各类条目的数量。"""
+
+    characters: int = 0
+    weapons: int = 0
+    equipSuits: int = 0
+    dungeons: int = 0
+    enemies: int = 0
+    activities: int = 0
+
+
+class WikiStatusDataOut(BaseModel):
+    """资料库状态；ready=false 时 counts 全为 0，problems 为空。"""
+
+    # 契约字段名为 schema；BaseModel 上已有同名方法，因此用别名映射，序列化仍输出 schema。
+    model_config = ConfigDict(populate_by_name=True)
+
+    ready: bool = False
+    version: str = ""
+    updatedAt: str = Field(default="", description="上次同步时间，ISO 8601 北京时间")
+    schema_: int = Field(
+        default=0,
+        alias="schema",
+        description="本机索引的布局版本，与程序不一致时需要重建",
+    )
+    counts: WikiCountsOut = Field(default_factory=WikiCountsOut)
+    problems: list[str] = Field(default_factory=list, description="数据体检发现的问题")
+    message: str = ""
+
+
+class WikiStatusOut(OutBase):
+    data: WikiStatusDataOut = Field(default_factory=WikiStatusDataOut)
+
+
+class WikiSyncIn(BaseModel):
+    """手动同步请求；force=true 时即使版本未变也重建索引。"""
+
+    force: bool = False
+
+
+class WikiSearchItemOut(BaseModel):
+    kind: WikiEntryKind
+    id: str
+    name: str
+    subtitle: str = ""
+    icon: str = ""
+
+
+class WikiSearchOut(OutBase):
+    data: list[WikiSearchItemOut] = Field(default_factory=list)
+
+
+class WikiFieldOut(BaseModel):
+    label: str
+    value: str = ""
+
+
+class WikiTableOut(BaseModel):
+    columns: list[str] = Field(default_factory=list)
+    rows: list[list[str]] = Field(default_factory=list)
+
+
+class WikiSectionOut(BaseModel):
+    title: str
+    fields: list[WikiFieldOut] = Field(default_factory=list)
+    table: WikiTableOut | None = None
+
+
+class WikiEntryDataOut(BaseModel):
+    kind: WikiEntryKind
+    id: str
+    name: str
+    subtitle: str = ""
+    icon: str = ""
+    tags: list[str] = Field(default_factory=list)
+    sections: list[WikiSectionOut] = Field(default_factory=list)
+
+
+class WikiEntryOut(OutBase):
+    data: WikiEntryDataOut
+
+
+class WikiCalendarRowOut(BaseModel):
+    game: WikiCalendarGame
+    kind: Literal["activity", "gacha"]
+    title: str
+    subtitle: str = ""
+    startsAt: str = Field(default="", description="ISO 8601 北京时间；常驻活动为空")
+    endsAt: str = ""
+    banner: str = ""
+    status: str = Field(default="", description="进行中 / 即将开始 / 已结束 / 常驻")
+
+
+class WikiCalendarOut(OutBase):
+    data: list[WikiCalendarRowOut] = Field(default_factory=list)
+
+
+class WikiCalendarGameOut(BaseModel):
+    """单个游戏的日历；某个游戏取不到数据时只影响它自己。"""
+
+    game: WikiCalendarGame
+    # 中文展示名用后端常量给出，前端不必再维护一份游戏名映射。
+    name: str = ""
+    source: str = Field(
+        default="",
+        description="数据来源：sra / cache（TTL 内缓存）/ stale-cache（回落到上次成功结果）"
+        " / local（本机解包索引）/ none（无数据）",
+    )
+    version: str = Field(default="", description="SRA 上的版本号；没有时为空")
+    versionName: str = Field(default="", description="当前版本名，前端可作卡片标题")
+    cover: str = Field(default="", description="当前版本主视觉；缺失是常态，前端需自备占位")
+    activities: list[WikiCalendarRowOut] = Field(default_factory=list)
+    message: str = ""
+
+
+class WikiCalendarAllOut(OutBase):
+    data: list[WikiCalendarGameOut] = Field(default_factory=list)

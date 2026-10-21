@@ -8,6 +8,7 @@ dependencies = [
   "httpx==0.28.1",
   "loguru==0.7.3",
   "pycryptodome==3.21.0",
+  "pypinyin==0.55.0",
   "pillow==11.3.0",
   "numpy==2.2.5",
   "workers-runtime-sdk==1.8.4",

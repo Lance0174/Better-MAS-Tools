@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import re
 import secrets
 import zlib
 
@@ -9,6 +10,54 @@ import httpx
 from Crypto.Cipher import AES
 
 from app.models.config import SavedState
+
+
+class DurableWikiStorage:
+    """Durable Object SQLite 中的资料库与日历 JSON 存储。"""
+
+    MAX_BYTES = 8_000_000
+    PATH_PATTERN = re.compile(r"wiki/(?:index|state|arknights|calendar-[a-z0-9_-]+)\.json\Z")
+
+    def __init__(self, storage):
+        self.storage = storage
+        self.storage.sql.exec(
+            "CREATE TABLE IF NOT EXISTS community_wiki "
+            "(path TEXT PRIMARY KEY, payload TEXT NOT NULL)"
+        )
+
+    @staticmethod
+    def _validate(path: str) -> str:
+        if (
+            not isinstance(path, str)
+            or not DurableWikiStorage.PATH_PATTERN.fullmatch(path)
+            or len(path) > 160
+        ):
+            raise ValueError("资料库缓存路径无效")
+        return path
+
+    async def read(self, name: str) -> str | None:
+        path = self._validate(name)
+        row = self.storage.sql.exec(
+            "SELECT payload FROM community_wiki WHERE path = ?", path
+        ).one()
+        if row is None:
+            return None
+        payload = str(row["payload"])
+        if len(payload.encode("utf-8")) > self.MAX_BYTES:
+            raise ValueError("资料库缓存超过8MB")
+        return payload
+
+    async def write(self, name: str, text: str) -> None:
+        path = self._validate(name)
+        if len(text.encode("utf-8")) > self.MAX_BYTES:
+            raise ValueError("资料库缓存超过8MB")
+        self.storage.sql.exec(
+            "INSERT INTO community_wiki (path, payload) VALUES (?, ?) "
+            "ON CONFLICT (path) DO UPDATE SET payload = excluded.payload",
+            path,
+            text,
+        )
+        await self.storage.sync()
 
 
 class FetchTransport(httpx.AsyncBaseTransport):

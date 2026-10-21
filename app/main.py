@@ -21,7 +21,7 @@ from app.core.community_scheduler import CommunityActivityInProgressError
 from app.core.runtime import runtime
 from app.core.state import state
 from app.models.schema import SessionLoginIn, SessionOut
-from app.services.access import RemoteAccess, RemoteSessions
+from app.services.access import RemoteAccess, RemoteSessions, resolve_peer
 from app.services.diagnostics import Diagnostics
 from app.tools.community_contract import CommunitySignInProgressError
 from app.utils.environment import load_project_environment
@@ -41,6 +41,7 @@ def create_app(
     remote: RemoteAccess | None = None,
     external_state: bool = False,
     relay_store=None,
+    wiki_store=None,
 ) -> FastAPI:
     remote = remote or RemoteAccess.from_environment()
     remote_sessions = RemoteSessions(remote) if remote else None
@@ -56,6 +57,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        if wiki_store is not None:
+            await wiki_store.initialize()
         if external_state:
             # Workers Durable Object 负责状态、定时触发与过期清理，不能每个 HTTP 请求重置。
             yield
@@ -66,6 +69,7 @@ def create_app(
         )
         scheduler = None
         relay_task = None
+        wiki_task = None
         try:
             state.initialize(directory)
             logger.info(f"更好的MAS工具包 {VERSION} 启动，账号数={len(state.accounts)}")
@@ -76,6 +80,12 @@ def create_app(
                 from app.core.relay import relay_executor
 
                 relay_task = asyncio.create_task(relay_executor.loop())
+            if start_scheduler:
+                # 本机没有终末地资料索引时后台补一次；不阻塞启动，也不做轮询。
+                from app.services.endfield_wiki import wiki as default_wiki
+
+                endfield_wiki = wiki_store or default_wiki
+                wiki_task = asyncio.create_task(endfield_wiki.startup_sync())
             yield
         except Exception:
             logger.exception("工具启动或生命周期异常")
@@ -83,7 +93,7 @@ def create_app(
         finally:
             kuro_login.clear_sessions()
             miyoushe_missions.clear()
-            for task in (scheduler, relay_task):
+            for task in (scheduler, relay_task, wiki_task):
                 if task is not None:
                     task.cancel()
                     await asyncio.gather(task, return_exceptions=True)
@@ -94,6 +104,8 @@ def create_app(
     app = FastAPI(title="更好的MAS工具包", version=VERSION, lifespan=lifespan)
     app.state.diagnostics = diagnostics
     app.state.session_key = secrets.token_urlsafe(32)
+    if wiki_store is not None:
+        app.state.wiki = wiki_store
     allowed_hosts = ["localhost", "127.0.0.1", "[::1]"]
     if remote:
         allowed_hosts.append(urlsplit(remote.origin).hostname)
@@ -133,7 +145,10 @@ def create_app(
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https://doc.auto-mas.top; font-src 'self' data:; "
+            "img-src 'self' data: https://doc.auto-mas.top https://data.akedata.wiki "
+            "https://www.akedata.wiki https://resource.starrailassistant.top "
+            "https://prod-alicdn-community.kurobbs.com https://webusstatic.yo-star.com "
+            "https://web.hycdn.cn https://aka.doubaocdn.com https://i0.hdslb.com; "
             "connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         )
         if request.url.path == "/captcha.html":
@@ -209,9 +224,12 @@ def create_app(
     async def login_session(body: SessionLoginIn, request: Request):
         if remote_sessions is None:
             return SessionOut(key=app.state.session_key)
-        key = remote_sessions.login(
+        key = await remote_sessions.login(
             body.password.get_secret_value(),
-            request.client.host if request.client else "unknown",
+            resolve_peer(
+                request.client.host if request.client else "unknown",
+                request.headers,
+            ),
         )
         return SessionOut(key=key)
 
@@ -269,6 +287,7 @@ def create_app(
     from app.api.mas import router as mas_router
     from app.api.miyoushe_missions import router as miyoushe_missions_router
     from app.api.relay import router as relay_router
+    from app.api.wiki import router as wiki_router
 
     app.include_router(router)
     app.include_router(cloud_router)
@@ -278,6 +297,7 @@ def create_app(
     app.include_router(kuro_login_router)
     app.include_router(miyoushe_missions_router)
     app.include_router(relay_router)
+    app.include_router(wiki_router)
     app.state.relay_store = relay_store
     frontend = Path(os.environ.get("COMMUNITY_WEB_DIR", PROJECT_ROOT / "frontend/dist"))
     if not external_state and frontend.is_dir():

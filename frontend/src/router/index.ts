@@ -16,6 +16,18 @@ export const router = createRouter({
       meta: { title: 'standalone.mas' },
     },
     {
+      path: '/wiki',
+      name: 'Wiki',
+      component: () => import('@/views/wiki/index.vue'),
+      meta: { title: 'standalone.wiki' },
+    },
+    {
+      path: '/calendar',
+      name: 'Calendar',
+      component: () => import('@/views/calendar/index.vue'),
+      meta: { title: 'standalone.calendar' },
+    },
+    {
       path: '/gacha',
       name: 'Gacha',
       component: () => import('@/views/gacha/index.vue'),

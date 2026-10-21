@@ -19,5 +19,6 @@ export type SettingsData = {
     CloudPassword?: string;
     RelayEnabled?: boolean;
     LightMode?: boolean;
+    GlassEffect?: boolean;
 };
 

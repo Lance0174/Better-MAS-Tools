@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.1.4"
+    "version": "0.1.5"
   },
   "paths": {
     "/api/session": {
@@ -1492,6 +1492,265 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/status": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Get Status",
+        "operationId": "getWikiStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiStatusOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/sync": {
+      "post": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Sync",
+        "operationId": "syncWikiData",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/WikiSyncIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/search": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Search",
+        "operationId": "searchWikiEntries",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "description": "关键词：名称、昵称或简称",
+              "default": "",
+              "title": "Q"
+            },
+            "description": "关键词：名称、昵称或简称"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiSearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/entry": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Get Entry",
+        "operationId": "getWikiEntry",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "character",
+                "weapon",
+                "equipSuit",
+                "dungeon",
+                "enemy"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiEntryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/calendar": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Get Calendar",
+        "operationId": "getWikiCalendar",
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "endfield",
+                "arknights",
+                "genshin",
+                "starrail",
+                "zenless",
+                "wutheringwaves",
+                "nte",
+                "stellasora"
+              ],
+              "type": "string",
+              "title": "Game"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiCalendarOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/wiki/calendar-all": {
+      "get": {
+        "tags": [
+          "Wiki"
+        ],
+        "summary": "Get Calendar All",
+        "operationId": "getWikiCalendarAll",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiCalendarAllOut"
                 }
               }
             }
@@ -3756,6 +4015,11 @@
             "type": "boolean",
             "title": "Lightmode",
             "default": false
+          },
+          "GlassEffect": {
+            "type": "boolean",
+            "title": "Glasseffect",
+            "default": true
           }
         },
         "additionalProperties": false,
@@ -4019,6 +4283,544 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WikiCalendarAllOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WikiCalendarGameOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "WikiCalendarAllOut"
+      },
+      "WikiCalendarGameOut": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "endfield",
+              "arknights",
+              "genshin",
+              "starrail",
+              "zenless",
+              "wutheringwaves",
+              "nte",
+              "stellasora"
+            ],
+            "title": "Game"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "数据来源：sra / cache（TTL 内缓存）/ stale-cache（回落到上次成功结果） / local（本机解包索引）/ none（无数据）",
+            "default": ""
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "SRA 上的版本号；没有时为空",
+            "default": ""
+          },
+          "versionName": {
+            "type": "string",
+            "title": "Versionname",
+            "description": "当前版本名，前端可作卡片标题",
+            "default": ""
+          },
+          "cover": {
+            "type": "string",
+            "title": "Cover",
+            "description": "当前版本主视觉；缺失是常态，前端需自备占位",
+            "default": ""
+          },
+          "activities": {
+            "items": {
+              "$ref": "#/components/schemas/WikiCalendarRowOut"
+            },
+            "type": "array",
+            "title": "Activities"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "game"
+        ],
+        "title": "WikiCalendarGameOut",
+        "description": "单个游戏的日历；某个游戏取不到数据时只影响它自己。"
+      },
+      "WikiCalendarOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WikiCalendarRowOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "WikiCalendarOut"
+      },
+      "WikiCalendarRowOut": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "endfield",
+              "arknights",
+              "genshin",
+              "starrail",
+              "zenless",
+              "wutheringwaves",
+              "nte",
+              "stellasora"
+            ],
+            "title": "Game"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "activity",
+              "gacha"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "type": "string",
+            "title": "Subtitle",
+            "default": ""
+          },
+          "startsAt": {
+            "type": "string",
+            "title": "Startsat",
+            "description": "ISO 8601 北京时间；常驻活动为空",
+            "default": ""
+          },
+          "endsAt": {
+            "type": "string",
+            "title": "Endsat",
+            "default": ""
+          },
+          "banner": {
+            "type": "string",
+            "title": "Banner",
+            "default": ""
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "进行中 / 即将开始 / 已结束 / 常驻",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "kind",
+          "title"
+        ],
+        "title": "WikiCalendarRowOut"
+      },
+      "WikiCountsOut": {
+        "properties": {
+          "characters": {
+            "type": "integer",
+            "title": "Characters",
+            "default": 0
+          },
+          "weapons": {
+            "type": "integer",
+            "title": "Weapons",
+            "default": 0
+          },
+          "equipSuits": {
+            "type": "integer",
+            "title": "Equipsuits",
+            "default": 0
+          },
+          "dungeons": {
+            "type": "integer",
+            "title": "Dungeons",
+            "default": 0
+          },
+          "enemies": {
+            "type": "integer",
+            "title": "Enemies",
+            "default": 0
+          },
+          "activities": {
+            "type": "integer",
+            "title": "Activities",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "WikiCountsOut",
+        "description": "资料库各类条目的数量。"
+      },
+      "WikiEntryDataOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "weapon",
+              "equipSuit",
+              "dungeon",
+              "enemy"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "subtitle": {
+            "type": "string",
+            "title": "Subtitle",
+            "default": ""
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": ""
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/WikiSectionOut"
+            },
+            "type": "array",
+            "title": "Sections"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "WikiEntryDataOut"
+      },
+      "WikiEntryOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/WikiEntryDataOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "WikiEntryOut"
+      },
+      "WikiFieldOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "WikiFieldOut"
+      },
+      "WikiSearchItemOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "character",
+              "weapon",
+              "equipSuit",
+              "dungeon",
+              "enemy"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "subtitle": {
+            "type": "string",
+            "title": "Subtitle",
+            "default": ""
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "name"
+        ],
+        "title": "WikiSearchItemOut"
+      },
+      "WikiSearchOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/WikiSearchItemOut"
+            },
+            "type": "array",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "title": "WikiSearchOut"
+      },
+      "WikiSectionOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/WikiFieldOut"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WikiTableOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "WikiSectionOut"
+      },
+      "WikiStatusDataOut": {
+        "properties": {
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "default": false
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": ""
+          },
+          "updatedAt": {
+            "type": "string",
+            "title": "Updatedat",
+            "description": "上次同步时间，ISO 8601 北京时间",
+            "default": ""
+          },
+          "schema": {
+            "type": "integer",
+            "title": "Schema",
+            "description": "本机索引的布局版本，与程序不一致时需要重建",
+            "default": 0
+          },
+          "counts": {
+            "$ref": "#/components/schemas/WikiCountsOut"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Problems",
+            "description": "数据体检发现的问题"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "WikiStatusDataOut",
+        "description": "资料库状态；ready=false 时 counts 全为 0，problems 为空。"
+      },
+      "WikiStatusOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "$ref": "#/components/schemas/WikiStatusDataOut"
+          }
+        },
+        "type": "object",
+        "title": "WikiStatusOut"
+      },
+      "WikiSyncIn": {
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "WikiSyncIn",
+        "description": "手动同步请求；force=true 时即使版本未变也重建索引。"
+      },
+      "WikiTableOut": {
+        "properties": {
+          "columns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Columns"
+          },
+          "rows": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "title": "WikiTableOut"
       }
     }
   }

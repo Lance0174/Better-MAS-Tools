@@ -10,6 +10,7 @@ import { isAndroidLocal, markAndroidReady, retryAndroidEngine } from '@/services
 import { setDesktopLightMode } from '@/services/desktop'
 import OnboardingWizard from '@/components/OnboardingWizard.vue'
 import {
+  BookOutlined,
   CalendarOutlined,
   ControlOutlined,
   DashboardOutlined,
@@ -17,6 +18,7 @@ import {
   LinkOutlined,
   FileTextOutlined,
   MenuOutlined,
+  ScheduleOutlined,
   SettingOutlined,
 } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
@@ -74,6 +76,8 @@ const sideItems = computed(() => [
     ? [{ path: '/activity', label: t('standalone.activity'), icon: DashboardOutlined }]
     : []),
   { path: '/gacha', label: t('standalone.gacha'), icon: GiftOutlined },
+  { path: '/wiki', label: t('standalone.wiki'), icon: BookOutlined },
+  { path: '/calendar', label: t('standalone.calendar'), icon: ScheduleOutlined },
   ...(settings.data?.CloudMode
     ? [{ path: '/remote', label: t('standalone.remote'), icon: ControlOutlined }]
     : []),
@@ -137,11 +141,13 @@ onBeforeUnmount(() => {
 
 <template>
   <a-config-provider :theme="themeConfig" :locale="zhCN">
+    <!-- 景深层：四团色雾、焦散细纹与暗角，为所有玻璃面板提供可采样的背景景深。 -->
+    <div class="glass-depth" aria-hidden="true"><i /><i /><i /><i /></div>
     <a-layout class="app-layout" :class="{ 'android-local': isAndroidLocal }">
       <a-layout class="app-body">
         <nav
           v-if="!isAndroidLocal"
-          class="navigation"
+          class="navigation glass-surface"
           :aria-label="t('standalone.navigation')"
         >
           <div class="brand-block">
@@ -166,6 +172,14 @@ onBeforeUnmount(() => {
             >
             <a-menu-item key="/gacha"
               ><template #icon><GiftOutlined /></template>{{ t('standalone.gacha') }}</a-menu-item
+            >
+            <a-menu-item key="/wiki"
+              ><template #icon><BookOutlined /></template>{{ t('standalone.wiki') }}</a-menu-item
+            >
+            <a-menu-item key="/calendar"
+              ><template #icon><ScheduleOutlined /></template>{{
+                t('standalone.calendar')
+              }}</a-menu-item
             >
             <a-menu-item v-if="!isAndroidLocal" key="/mas"
               ><template #icon><LinkOutlined /></template>{{ t('standalone.mas') }}</a-menu-item
@@ -294,7 +308,8 @@ onBeforeUnmount(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--ant-color-bg-container);
+  /* 衬底交给景深层与 body，外壳本身透明，玻璃面板才能采到背景。 */
+  background: transparent;
 }
 .remote-login {
   width: min(360px, 100%);
@@ -304,7 +319,7 @@ onBeforeUnmount(() => {
   min-height: 0;
   flex: 1;
   flex-direction: row;
-  background: var(--ant-color-bg-container);
+  background: transparent;
 }
 .navigation {
   position: relative;
@@ -312,9 +327,11 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 0 0 196px;
   min-height: 0;
-  background: var(--ant-color-bg-container);
-  border-right: 1px solid var(--ant-color-primary-border);
+  /* 侧栏是常驻玻璃面板：只保留右侧描边，避免整窗一圈玻璃边。 */
+  border: 0;
+  border-right: 1px solid var(--app-glass-border-body);
   padding: 0 8px 12px;
+  border-radius: 0;
 }
 /* 侧栏底部 HUD 角标：斜切三角 + 坐标刻度 */
 .navigation::after {
@@ -427,6 +444,8 @@ onBeforeUnmount(() => {
   padding: 28px 32px;
   overflow-y: auto;
   min-width: 0;
+  /* 内容画布透明，景深直接可见；具体面板各自使用玻璃或实色材质。 */
+  background: transparent;
 }
 /* 内容区左上 HUD 角标 */
 .app-content::before {
@@ -502,8 +521,12 @@ onBeforeUnmount(() => {
   display: flex;
   flex-shrink: 0;
   padding: 6px 4px;
-  border-top: 1px solid var(--ant-color-primary-border);
-  background: var(--ant-color-bg-container);
+  border-top: 1px solid var(--app-glass-border-body);
+  background:
+    linear-gradient(112deg, var(--app-glass-highlight) 0%, transparent 46%),
+    var(--app-glass-tint-strong);
+  -webkit-backdrop-filter: blur(var(--app-glass-blur)) saturate(var(--app-glass-saturate));
+  backdrop-filter: blur(var(--app-glass-blur)) saturate(var(--app-glass-saturate));
 }
 .mobile-navigation button {
   flex: 1;

@@ -67,6 +67,11 @@ version = "2.27.2"
 wheels = [{ url = "https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pydantic_core-2.27.2-cp313-cp313-pyodide_2025_0_wasm32.whl", hashes = { sha256 = "3695112ef99b222e48e0a2837b055ec818b43ff5e2e0802e99f5d6d2dd36af7b" } }]
 
 [[packages]]
+name = "pypinyin"
+version = "0.55.0"
+wheels = [{ url = "https://files.pythonhosted.org/packages/b9/7b/4cabc76fcc21c3c7d5c671d8783984d30ac9d3bb387c4ba784fca3cdfa3a/pypinyin-0.55.0-py2.py3-none-any.whl", hashes = { sha256 = "d53b1e8ad2cdb815fb2cb604ed3123372f5a28c6f447571244aca36fc62a286f" } }]
+
+[[packages]]
 name = "starlette"
 version = "0.47.3"
 wheels = [{ url = "https://files.pythonhosted.org/packages/ce/fd/901cfa59aaa5b30a99e16876f11abe38b59a1a2c51ffb3d7142bb6089069/starlette-0.47.3-py3-none-any.whl", upload-time = 2025-08-24T13:36:40Z, size = 72991, hashes = { sha256 = "89c0778ca62a76b826101e7c709e70680a1699ca7da6b44d38eb0a7e61fe4b51" } }]

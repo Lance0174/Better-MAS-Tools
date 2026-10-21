@@ -20,7 +20,12 @@ class Community(DurableObject):
             from app.core.state import state
             from app.main import create_app
             from app.services.access import RemoteAccess
-            from app.services.cloudflare import DurableStorage, FetchTransport
+            from app.services.cloudflare import (
+                DurableStorage,
+                DurableWikiStorage,
+                FetchTransport,
+            )
+            from app.services.endfield_wiki import WikiStore
             from app.services.network import network
 
             try:
@@ -47,8 +52,13 @@ class Community(DurableObject):
             network.proxy = None
             if state.data.settings.Proxy:
                 raise ValueError("云端配置含本机代理，请从空配置启动 Workers")
+            wiki_store = WikiStore(storage=DurableWikiStorage(self.ctx.storage))
+            await wiki_store.initialize()
             self.app = create_app(
-                start_scheduler=False, remote=access, external_state=True
+                start_scheduler=False,
+                remote=access,
+                external_state=True,
+                wiki_store=wiki_store,
             )
             from app.services.relay import DurableRelayStore
 
