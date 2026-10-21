@@ -13,6 +13,7 @@ from app.core.community_sign import run_community_sign_in
 from app.core.state import CommunityState
 from app.models.config import AccountData, SavedState, SettingsData
 from app.models.schema import CloudSyncIn, CloudSyncOut, CloudSyncResult
+from app.services.cloud import CLOUD_SYNC_TIMEOUT_SECONDS
 
 router = APIRouter(prefix="/api/cloud", tags=["Cloud"])
 
@@ -48,7 +49,7 @@ async def cloud_sync(body: CloudSyncIn) -> CloudSyncOut:
     try:
         results = await asyncio.wait_for(
             run_community_sign_in(force=True, override_state=temp),
-            timeout=180,
+            timeout=CLOUD_SYNC_TIMEOUT_SECONDS,
         )
     except asyncio.TimeoutError:
         return CloudSyncOut(

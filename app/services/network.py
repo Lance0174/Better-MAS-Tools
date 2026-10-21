@@ -64,6 +64,9 @@ class CommunityNetwork:
     local_connections: bool = True
 
     def client(self, **options) -> httpx.AsyncClient:
+        # 统一不读环境代理变量：带 Token 的社区请求只能走本进程配置的代理
+        # （network.proxy），否则系统里的 HTTP_PROXY 会把凭据送到第三方代理。
+        options.setdefault("trust_env", False)
         if self.transport_factory is not None:
             if options.get("proxy"):
                 raise ValueError("纯 Cloudflare 版不支持本机代理")

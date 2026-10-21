@@ -11,20 +11,36 @@ from app.utils.logger import get_logger
 
 logger = get_logger("云端同步")
 
+# 云端单次同步的执行预算；`app/api/cloud.py` 用同一常量等待执行结束。
+CLOUD_SYNC_TIMEOUT_SECONDS = 180.0
+# 客户端超时必须比服务端预算更宽：否则慢签到会出现"云端已执行、本地结果全丢"，
+# 客户端先超时，服务端随后写出的 504 没有人接收。
+CLOUD_CLIENT_TIMEOUT_SECONDS = CLOUD_SYNC_TIMEOUT_SECONDS + 30.0
+
+# 环回地址允许 http，便于本机联调；其余地址必须 https，因为同步请求会先发
+# 访问密码、再发全部账号 Token。
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
 
 def validate_cloud_url(value: str) -> str:
-    """校验云端后端地址：HTTPS，无路径/查询/凭据。"""
+    """校验云端后端地址：HTTPS（环回地址可用 http），无路径/查询/凭据。"""
     url = urlsplit(value)
+    host = (url.hostname or "").strip("[]").lower()
+    scheme_allowed = url.scheme == "https" or (
+        url.scheme == "http" and host in _LOOPBACK_HOSTS
+    )
     if (
-        url.scheme not in {"http", "https"}
-        or not url.hostname
+        not scheme_allowed
+        or not host
         or url.username
         or url.password
         or url.query
         or url.fragment
         or url.path not in {"", "/"}
     ):
-        raise ValueError("云端地址必须是 http/https 根地址，不含路径或参数")
+        raise ValueError(
+            "云端地址必须是 HTTPS 根地址，不含路径或参数（本机环回地址可用 http）"
+        )
     return value.rstrip("/")
 
 
@@ -51,7 +67,10 @@ async def sync_sign(
         raise ValueError("请先在设置中填写云端访问密码")
 
     async with network.client(
-        proxy=None, trust_env=False, timeout=60, follow_redirects=False
+        proxy=None,
+        trust_env=False,
+        timeout=CLOUD_CLIENT_TIMEOUT_SECONDS,
+        follow_redirects=False,
     ) as client:
         # 先用密码换会话密钥（与远端登录一致）；程序调用不带 Origin，避免被云端来源校验拒绝。
         session_resp = await client.post(

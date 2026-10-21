@@ -38,7 +38,8 @@ class CommunityAccount:
 
     async def _commit_changes(self) -> None:
         # 上游凭据轮换收尾会调用此接口；本项目先落盘后改内存，无脏内存问题。
-        await self.owner.mutate(lambda _candidate: None)
+        # 仍强制写一次，兼容"调用方先改内存再要求落盘"的旧流程。
+        await self.owner.mutate(lambda _candidate: None, force=True)
 
 
 class CommunityState:
@@ -92,12 +93,18 @@ class CommunityState:
                 )
         return grouped
 
-    async def mutate(self, change: Callable[[SavedState], None]) -> None:
+    async def mutate(
+        self, change: Callable[[SavedState], None], *, force: bool = False
+    ) -> None:
         async with self.lock:
             if self.storage is None:
                 raise RuntimeError("配置存储尚未初始化")
             candidate = self.data.model_copy(deep=True)
             change(candidate)
+            if not force and candidate == self.data:
+                # 没有任何实际变更时不写盘、不推进 revision：凭据轮换收尾这类
+                # 空提交否则会整份重写状态文件并让前端误以为数据变了。
+                return
             writing = asyncio.create_task(self.storage.save_async(candidate))
             cancelled = False
             try:
@@ -107,7 +114,10 @@ class CommunityState:
                 cancelled = True
                 await writing
             self.data = candidate
-            network.proxy = candidate.settings.Proxy or None
+            if self is state:
+                # 只有全局状态代表本进程的代理设置。云端同步用临时 state 构造，
+                # 默认 Proxy 为空，若照旧写入会把本地后端正在使用的代理清掉。
+                network.proxy = candidate.settings.Proxy or None
             self.revision += 1
             if cancelled:
                 raise asyncio.CancelledError()

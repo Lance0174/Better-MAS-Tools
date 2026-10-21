@@ -7,6 +7,7 @@ payload 与 result 沿用 COMMUNITY_ENCRYPTION_KEY 加密。
 
 import asyncio
 import base64
+import json
 import secrets
 import time
 import zlib
@@ -29,6 +30,28 @@ RELAY_VERSION = 1
 
 def _iso(epoch: float) -> str:
     return datetime.fromtimestamp(epoch, tz=UTC8).isoformat(timespec="seconds")
+
+
+def _encode_json(value: object) -> str:
+    """落库前统一序列化。
+
+    SQLite 列只能存字符串，而 API 契约里的 payload/result 是 dict；
+    直接 str(dict) 写进去既不是 JSON 也无法回读，读出来再塞进 dict 字段
+    会让 /api/relay/poll 与 /api/relay/commands/{id} 直接 500。
+    """
+
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _decode_json(text: object, *, field: str) -> object:
+    """读回 JSON；损坏或旧格式数据要给出可读原因，而不是抛出 JSONDecodeError。"""
+
+    if isinstance(text, (dict, list)):
+        return text
+    try:
+        return json.loads(str(text))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"转发指令的{field}已损坏，无法解析") from exc
 
 
 class _Cipher:
@@ -219,7 +242,7 @@ class DurableRelayStore:
             "INSERT INTO relay_commands VALUES (?, ?, ?, 'pending', ?, ?, NULL, NULL)",
             command_id,
             command_type,
-            self.cipher.encrypt(str(payload)),
+            self.cipher.encrypt(_encode_json(payload)),
             now,
             now + COMMAND_TTL_SECONDS,
         )
@@ -248,7 +271,9 @@ class DurableRelayStore:
         return {
             "id": row["id"],
             "type": row["type"],
-            "payload": self.cipher.decrypt(row["payload"]),
+            "payload": _decode_json(
+                self.cipher.decrypt(row["payload"]), field="请求内容"
+            ),
             "createdAt": _iso(row["created_at"]),
             "expireAt": _iso(row["expire_at"]),
             "version": RELAY_VERSION,
@@ -281,7 +306,7 @@ class DurableRelayStore:
             "UPDATE relay_commands SET status = ?, result = ?, finished_at = ? "
             "WHERE id = ? AND status = 'dispatched'",
             "done" if ok else "failed",
-            self.cipher.encrypt(str({"data": data, "error": error})),
+            self.cipher.encrypt(_encode_json({"data": data, "error": error})),
             time.time(),
             command_id,
         )
@@ -322,7 +347,7 @@ class DurableRelayStore:
             return None
         result = None
         if row["result"] is not None:
-            result = self.cipher.decrypt(row["result"])
+            result = _decode_json(self.cipher.decrypt(row["result"]), field="执行结果")
         return {
             "id": row["id"],
             "type": row["type"],

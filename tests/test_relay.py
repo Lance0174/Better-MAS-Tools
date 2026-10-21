@@ -1,6 +1,7 @@
 """转发层与执行层单元测试：不访问真实 MAS，不发送真实消息。"""
 
 import asyncio
+import base64
 import time
 
 import pytest
@@ -8,12 +9,20 @@ from pydantic import ValidationError
 
 from app.core.relay import relay_executor
 from app.core.state import state
-from app.models.schema import RelayCommandIn
+from app.models.schema import (
+    RelayCommandIn,
+    RelayCommandOut,
+    RelayCommandStatusOut,
+    RelayPollOut,
+    RelayResultIn,
+)
 from app.services.relay import (
     COMMAND_TTL_SECONDS,
-    MemoryRelayStore,
     NODE_ONLINE_SECONDS,
     RESULT_RETENTION_SECONDS,
+    DurableRelayStore,
+    MemoryRelayStore,
+    _decode_json,
 )
 
 
@@ -193,3 +202,135 @@ async def test_executor_rejects_unknown_type():
 
 def test_event_loop_runs_pending_tasks():
     asyncio.new_event_loop().close()
+
+
+class _Cursor:
+    """只实现 Durable Object SQL 游标里被测代码用到的部分。"""
+
+    def __init__(self, rows=(), rowcount: int | None = None):
+        self._rows = list(rows)
+        self.rowcount = len(self._rows) if rowcount is None else rowcount
+
+    def one(self):
+        return self._rows[0] if self._rows else None
+
+    def __iter__(self):
+        return iter(self._rows)
+
+
+class _FakeDurableStorage:
+    """按语句前缀模拟 Durable Object 的 SQLite，只覆盖转发层用到的 SQL。
+
+    真正的 Durable Object 无法在单元测试里启动，但"payload 以 str 落库"这类
+    契约错误只在 SQLite 路径上出现，所以这里用最小假实现把读回路径走通。
+    """
+
+    def __init__(self):
+        self.rows: dict[str, dict] = {}
+
+    @property
+    def sql(self):
+        return self
+
+    def exec(self, statement: str, *params):
+        text = " ".join(statement.split())
+        if text.startswith("SELECT id, type, payload"):
+            now = params[0]
+            pending = [
+                row
+                for row in self.rows.values()
+                if row["status"] == "pending" and row["expire_at"] >= now
+            ]
+            pending.sort(key=lambda row: row["created_at"])
+            return _Cursor(pending[:1])
+        if text.startswith("SELECT id, type, status, result"):
+            row = self.rows.get(params[0])
+            return _Cursor([row] if row is not None else [])
+        if text.startswith("INSERT INTO relay_commands VALUES"):
+            command_id, command_type, payload, created_at, expire_at = params
+            self.rows[command_id] = {
+                "id": command_id,
+                "type": command_type,
+                "payload": payload,
+                "status": "pending",
+                "created_at": created_at,
+                "expire_at": expire_at,
+                "finished_at": None,
+                "result": None,
+            }
+            return _Cursor()
+        if text.startswith("UPDATE relay_commands SET status = 'dispatched'"):
+            row = self.rows.get(params[0])
+            if row is None:
+                return _Cursor(rowcount=0)
+            row["status"] = "dispatched"
+            return _Cursor(rowcount=1)
+        if text.startswith("UPDATE relay_commands SET status = ?"):
+            status, result, finished_at, command_id = params
+            row = self.rows.get(command_id)
+            if row is None or row["status"] != "dispatched":
+                return _Cursor(rowcount=0)
+            row.update(status=status, result=result, finished_at=finished_at)
+            return _Cursor(rowcount=1)
+        # 过期清理与节点心跳语句与本次断言无关。
+        return _Cursor()
+
+    def transactionSync(self, action):
+        action()
+
+    async def sync(self):
+        return None
+
+
+def _durable_store() -> DurableRelayStore:
+    key = base64.b64encode(b"0" * 32).decode("ascii")
+    return DurableRelayStore(_FakeDurableStorage(), key)
+
+
+@pytest.mark.asyncio
+async def test_durable_store_round_trips_dict_payload_and_result():
+    store = _durable_store()
+    command_id = await store.enqueue("mas.start", {"taskId": "t1", "mode": "CycleRun"})
+    command = await store.take_wait("node-a", 0.1)
+    assert command is not None
+    # 契约要求 payload 是 dict：落库前 str(dict) 会让 RelayCommandOut 校验失败。
+    assert command["payload"] == {"taskId": "t1", "mode": "CycleRun"}
+    RelayPollOut(data=RelayCommandOut.model_validate(command))
+
+    await store.submit_result("node-a", command_id, True, {"queues": []}, "")
+    status = await store.command_status(command_id)
+    assert status == {
+        "id": command_id,
+        "type": "mas.start",
+        "status": "done",
+        "result": {"data": {"queues": []}, "error": ""},
+    }
+    RelayCommandStatusOut(
+        id=status["id"],
+        type=status["type"],
+        commandStatus=status["status"],
+        result=status["result"],
+    )
+
+
+@pytest.mark.asyncio
+async def test_durable_store_keeps_error_text_in_result():
+    store = _durable_store()
+    command_id = await store.enqueue("mas.stop", {"taskId": "t1"})
+    await store.take_wait("node-a", 0.1)
+    await store.submit_result("node-a", command_id, False, {}, "MAS 未完成该操作")
+    status = await store.command_status(command_id)
+    assert status["status"] == "failed"
+    assert status["result"]["error"] == "MAS 未完成该操作"
+
+
+def test_decode_json_reports_corrupted_payload():
+    assert _decode_json('{"taskId":"t1"}', field="请求内容") == {"taskId": "t1"}
+    with pytest.raises(ValueError, match="请求内容"):
+        _decode_json("{not-json", field="请求内容")
+
+
+def test_relay_result_accepts_only_json_compatible_data():
+    RelayResultIn.model_validate(
+        {"nodeId": "n", "commandId": "c", "ok": True, "data": {"queues": []}}
+    )

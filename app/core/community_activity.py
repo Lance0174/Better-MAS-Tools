@@ -44,7 +44,6 @@ from app.utils.constants import UTC8
 from app.utils.logger import get_logger
 
 __all__ = [
-    "build_configured_community_activity_failures",
     "collect_configured_community_activity",
 ]
 
@@ -142,45 +141,6 @@ def _selected_accounts(
     if requested_ids and matched_ids != requested_ids:
         raise ValueError("未找到指定的游戏社区账号组")
     return tuple(selected)
-
-
-def build_configured_community_activity_failures(
-    account_ids: Sequence[str] | None = None,
-    *,
-    reason: str = "游戏社区日常查询失败",
-) -> tuple[CommunityActivitySnapshot, ...]:
-    """为已配置社区构造分游戏失败结果，不执行任何上游请求。"""
-
-    from app.tools.community_sign_provider import (
-        get_community_token_field,
-        read_community_token,
-    )
-
-    snapshots: list[CommunityActivitySnapshot] = []
-    for account_uid, account in _selected_accounts(account_ids):
-        if not _account_value(account, "Enabled", False):
-            continue
-        account_name = str(_account_value(account, "Name", "用户") or "用户")
-        for definition in ACTIVITY_COMMUNITY_DEFINITIONS:
-            token_field = get_community_token_field(definition.platform)
-            try:
-                configured = bool(read_community_token(account, token_field))
-            except Exception:
-                configured = True
-            if not configured:
-                continue
-            snapshots.extend(
-                _empty_game_snapshot(
-                    account_uid=account_uid,
-                    account_name=account_name,
-                    definition=definition,
-                    game=game,
-                    status="failed",
-                    reason=reason,
-                )
-                for game in definition.games
-            )
-    return tuple(snapshots)
 
 
 async def collect_configured_community_activity(
@@ -320,7 +280,6 @@ async def collect_configured_community_activity(
             return game_snapshots
 
     tasks: list[tuple[int, int, asyncio.Task[list[CommunityActivitySnapshot]]]] = []
-    order = 0
     selected = _selected_accounts(account_ids)
     for account_index, (account_uid, account) in enumerate(selected):
         account_name = str(_account_value(account, "Name", "用户") or "用户")
@@ -339,7 +298,6 @@ async def collect_configured_community_activity(
             miyoushe_device_fp = ""
 
         for definition_index, definition in enumerate(ACTIVITY_COMMUNITY_DEFINITIONS):
-            order += 1
             task = asyncio.create_task(
                 query_one(
                     account_uid,
@@ -352,27 +310,40 @@ async def collect_configured_community_activity(
             )
             tasks.append((account_index, definition_index, task))
 
-    for account_index, definition_index, task in tasks:
-        try:
-            snapshots.extend(await task)
-        except Exception as error:
-            # 单个平台查询异常不应拖垮整个面板；补齐该平台的空结果。
-            definition = ACTIVITY_COMMUNITY_DEFINITIONS[definition_index]
-            account_uid, account = selected[account_index]
-            account_name = str(_account_value(account, "Name", "用户") or "用户")
-            _, reason = _failure_state(error)
-            logger.warning(f"{account_name} {definition.platform}活动查询失败: {reason}")
-            snapshots.extend(
-                _empty_game_snapshot(
-                    account_uid=account_uid,
-                    account_name=account_name,
-                    definition=definition,
-                    game=game,
-                    status="failed",
-                    reason=reason,
+    try:
+        for account_index, definition_index, task in tasks:
+            try:
+                snapshots.extend(await task)
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                # 单个平台查询异常不应拖垮整个面板；补齐该平台的空结果。
+                definition = ACTIVITY_COMMUNITY_DEFINITIONS[definition_index]
+                account_uid, account = selected[account_index]
+                account_name = str(_account_value(account, "Name", "用户") or "用户")
+                _, reason = _failure_state(error)
+                logger.warning(
+                    f"{account_name} {definition.platform}活动查询失败: {reason}"
                 )
-                for game in definition.games
-            )
+                snapshots.extend(
+                    _empty_game_snapshot(
+                        account_uid=account_uid,
+                        account_name=account_name,
+                        definition=definition,
+                        game=game,
+                        status="failed",
+                        reason=reason,
+                    )
+                    for game in definition.games
+                )
+    finally:
+        # 请求被取消或提前失败时，剩余任务必须取消并回收：否则它们会继续
+        # 打上游，且没人 await 的异常只会在事件循环里变成噪声。
+        pending = [task for _, _, task in tasks if not task.done()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     return tuple(snapshots)
 
