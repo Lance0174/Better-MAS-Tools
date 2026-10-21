@@ -39,6 +39,7 @@ from .community_credentials import (
     validate_community_credential,
 )
 from .game_sign_result import build_skland_sign_results
+from .skland import current_system_time_offset
 
 logger = get_logger("游戏社区签到")
 
@@ -86,19 +87,36 @@ class _CommunitySignProvider:
     error_game: ErrorGameResolver
 
 
+def _report_time_offset(offset: float, source: str) -> None:
+    """记录时间偏差；阈值以上按告警输出，供用户自行校准系统时间。"""
+
+    if abs(offset) > 300:
+        logger.warning(
+            f"系统时间与{source}偏差约 {abs(offset):.0f} 秒，部分平台签到可能失败，建议校准系统时间"
+        )
+    elif abs(offset) > 30:
+        logger.info(f"系统时间与{source}偏差 {abs(offset):.0f} 秒，在可接受范围内")
+
+
 async def check_community_system_time(*, time_source: _TimeSource = time) -> None:
     """检查系统时间偏差并提示用户，不阻断签到流程。
 
-    时间源不可信或不可用时（服务退役、被劫持的网络等）仅记录日志；
-    真正对时间敏感的只有米游社 DS 签名，其容差远大于此处阈值，
-    因此偏差过大时也只告警，由具体平台的签到结果反映实际影响。
+    优先使用森空岛响应提供的服务器时间（同一台机器的系统时钟是各平台
+    共同的时间基准，无需再请求第三方校时服务）；没有取到时才回退到
+    第三方时间服务。任何一条路径失败都只记录日志：真正对时间敏感的只有
+    米游社 DS 签名与森空岛签名，其容差远大于此处阈值，实际影响由签到结果体现。
     """
     global _system_time_checked_at
     now = time_source.monotonic()
     if now - _system_time_checked_at < _SYSTEM_TIME_CHECK_INTERVAL:
         return
-    # 无论时间服务成功与否，都缓存本次尝试，避免网络异常时每次签到重复等待。
+    # 无论取时成功与否都缓存本次尝试，避免网络异常时每次签到重复等待。
     _system_time_checked_at = now
+
+    offset = current_system_time_offset()
+    if offset is not None:
+        _report_time_offset(offset, "森空岛服务器")
+        return
 
     try:
         async with network.client(proxy=network.proxy) as client:
@@ -108,14 +126,7 @@ async def check_community_system_time(*, time_source: _TimeSource = time) -> Non
         api_time = resp.json().get("unixtime", 0)
         if not api_time:
             return
-        local_time = time_source.time()
-        offset = abs(api_time - local_time)
-        if offset > 300:
-            logger.warning(
-                f"系统时间与网络时间偏差约 {offset:.0f} 秒，部分平台签到可能失败，建议校准系统时间"
-            )
-        elif offset > 30:
-            logger.info(f"系统时间偏差 {offset:.0f} 秒，在可接受范围内")
+        _report_time_offset(float(api_time) - time_source.time(), "网络时间")
     except Exception as e:
         logger.debug(f"时间校准跳过: {e}")
 
@@ -575,41 +586,6 @@ async def run_community_provider(
         account_name=account_name,
         account_uid=account_uid,
     )
-
-
-def merge_community_sign_results(
-    existing: dict[str, list[dict[str, object]]],
-    formatted: dict[str, list[dict[str, object]]],
-    replace: bool = False,
-) -> dict[str, list[dict[str, object]]]:
-    """将新签到结果合并到已有结果中
-
-    Args:
-        existing: 已有的 _game_sign_result_data
-        formatted: 本次 format_community_sign_results 的新结果
-        replace: 保留该参数以兼容现有调用；受影响账号均按 account_uid 替换旧数据。
-
-    Returns:
-        合并后的 _game_sign_result_data
-    """
-    if not existing:
-        return formatted
-
-    for platform, accounts in formatted.items():
-        if platform not in existing:
-            existing[platform] = accounts
-        else:
-            # 手动和自动签到都替换受影响账号，避免旧成功状态遮蔽新失败结果。
-            new_uids = {g.get("account_uid") for g in accounts if g.get("account_uid")}
-            if new_uids:
-                existing[platform] = [
-                    g
-                    for g in existing[platform]
-                    if g.get("account_uid") not in new_uids
-                ]
-            existing[platform].extend(accounts)
-
-    return existing
 
 
 def _is_taygedo_community_detail_result(item: dict[str, object]) -> bool:
