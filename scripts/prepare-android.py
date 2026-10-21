@@ -99,15 +99,24 @@ def main() -> None:
         return data
 
     if not args.skip_frontend:
-        subprocess.run(
-            ["node", "node_modules/vite/bin/vite.js", "build"],
-            cwd=ROOT / "frontend",
-            check=True,
-        )
+        try:
+            subprocess.run(
+                ["node", "node_modules/vite/bin/vite.js", "build"],
+                cwd=ROOT / "frontend",
+                check=True,
+                # 没有超时的构建会一直挂着：本地看着像"没反应"，CI 里无法区分慢和卡死。
+                timeout=900,
+            )
+        except subprocess.TimeoutExpired:
+            raise RuntimeError(
+                "前端构建超过 900 秒仍未结束，请检查 Node/vite 进程后重试"
+            ) from None
     if not (ROOT / "frontend/dist/index.html").is_file():
         raise RuntimeError("请先构建 frontend")
     output = (ANDROID / "app/src/main/assets").resolve()
-    expected = ROOT / "android/app/src/main/assets"
+    # 比较的两侧都要先 resolve：Windows 上短路径、符号链接和大小写会让同一目录出现
+    # 两种字符串写法，只解析一侧会把合法目标误判成"非 Android 生成资源目录"。
+    expected = (ROOT / "android/app/src/main/assets").resolve()
     if output != expected or not output.is_relative_to(ANDROID.resolve()):
         raise RuntimeError("拒绝覆盖非 Android 生成资源目录")
     staging_parent = ROOT / "local/android-build"
@@ -119,6 +128,8 @@ def main() -> None:
         runtime.mkdir()
         lock = json.loads((ANDROID / "runtime/pyodide-lock.json").read_text(encoding="utf-8"))
         provenance = []
+        # pure 轮也要留摘要：只记 packages 时，纯 Python 包换过一次缓存或 wheel 也查不出来。
+        pure_provenance = []
         for item in manifest["runtime"]:
             (runtime / item["file"]).write_bytes(obtain(item["file"], item["sha256"]))
         for item in manifest["packages"]:
@@ -146,7 +157,12 @@ def main() -> None:
                 entry.compress_type = zipfile.ZIP_DEFLATED
                 bundle.writestr(entry, data)
 
+            # 只打包 *.py 会漏掉 app 下的数据文件（例如昵称表
+            # app/tools/data/endfield_aliases.json）。Pyodide 侧读取失败时不会
+            # 报错，只会让资料库检索退化成"只能按正式名搜索"，所以显式收进来。
             for source in sorted((ROOT / "app").rglob("*.py")):
+                add(source.relative_to(ROOT).as_posix(), source.read_bytes())
+            for source in sorted((ROOT / "app").rglob("*.json")):
                 add(source.relative_to(ROOT).as_posix(), source.read_bytes())
             for item in manifest["pure"]:
                 if args.python_cache:
@@ -155,6 +171,7 @@ def main() -> None:
                         module_cache
                         / f"{item['name'].replace('-', '_')}-{item['version']}.dist-info/RECORD"
                     )
+                    recorded = []
                     for name, checksum, _size in csv.reader(
                         io.StringIO(record.read_text(encoding="utf-8"))
                     ):
@@ -179,9 +196,23 @@ def main() -> None:
                                 f"纯 Python 缓存校验失败：{item['name']}/{name}"
                             )
                         add("site/" + name, data)
+                        recorded.append((name, actual))
+                    # 缓存目录没有单一产物，按"文件名 + 逐文件摘要"生成可复现的包级摘要。
+                    summary = hashlib.sha256()
+                    for name, value in sorted(recorded):
+                        summary.update(f"{name}\0{value}\n".encode())
+                    pure_provenance.append(
+                        {
+                            "name": item["name"],
+                            "version": item["version"],
+                            "sha256": summary.hexdigest(),
+                            "origin": "python-cache",
+                        }
+                    )
                 else:
                     filename = item["url"].rsplit("/", 1)[1]
                     wheel = obtain(filename, item["sha256"], url=item["url"])
+                    digest = hashlib.sha256(wheel).hexdigest()
                     with zipfile.ZipFile(io.BytesIO(wheel)) as package:
                         for name in sorted(package.namelist()):
                             if (
@@ -191,6 +222,22 @@ def main() -> None:
                             ):
                                 continue
                             add("site/" + name, package.read(name))
+                    pure_provenance.append(
+                        {
+                            "name": item["name"],
+                            "version": item["version"],
+                            "sha256": digest,
+                            "repacked": digest != item["sha256"],
+                            "origin": "wheel",
+                        }
+                    )
+        # 昵称表缺失时 Pyodide 侧只会静默退化成"只能按正式名搜索"，所以在产物上断言：
+        # 打包漏了就让构建失败，而不是等用户发现搜不到（同 tests/test_packaging_data.py）。
+        with zipfile.ZipFile(runtime / "python-source.zip") as bundled:
+            if "app/tools/data/endfield_aliases.json" not in bundled.namelist():
+                raise RuntimeError(
+                    "Python 源码包缺少 app/tools/data/endfield_aliases.json"
+                )
         licenses = staging / "licenses"
         licenses.mkdir(exist_ok=True)
         for name in ("LICENSE", "NOTICE.md"):
@@ -199,7 +246,10 @@ def main() -> None:
         shutil.copy2(ANDROID / "runtime/LICENSE-Pyodide.txt", licenses)
         frontend_licenses(licenses / "frontend")
         (licenses / "android-runtime.json").write_text(
-            json.dumps({"manifest": manifest, "packages": provenance}, indent=2),
+            json.dumps(
+                {"manifest": manifest, "packages": provenance, "pure": pure_provenance},
+                indent=2,
+            ),
             encoding="utf-8",
         )
         if output.exists():

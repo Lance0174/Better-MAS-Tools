@@ -37,8 +37,8 @@ jobs:
           java-version: '17'
 
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244 # v4
-        with:
-          gradle-version: '8.9'
+        # 不指定 gradle-version：构建必须走仓库内 wrapper（android/gradle/wrapper），
+        # 由 wrapper 固定分发版本，避免 CI 与本地用不同 Gradle 生成不同产物。
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
@@ -55,6 +55,10 @@ jobs:
             python scripts/changelog.py guard --tag "$GITHUB_REF_NAME"
           fi
 
+      - name: Check source tree
+        run: |
+          python scripts/verify_upstream.py --local
+
       - name: Build frontend
         working-directory: frontend
         run: |
@@ -65,23 +69,27 @@ jobs:
         run: |
           uv run --no-project --with httpx --python 3.13 python scripts/prepare-android.py --skip-frontend
 
-      - name: Build debug APK
+      - name: Build and check debug APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        # 与 README/docs 一致：走仓库内 wrapper，并跑单测与 lint，不只打包。
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
       - name: Rename APK and write checksum
         working-directory: android/app/build/outputs/apk/debug
         run: |
           version="$(node -p "require('../../../../../../frontend/package.json').version")"
           mv app-debug.apk "BMT-${version}-android.apk"
-          sha256sum "BMT-${version}-android.apk" > SHA256SUMS.txt
+          # 资产名与 Windows 流水线区分：Release 内资产名唯一，同名 --clobber 会互相覆盖。
+          sha256sum "BMT-${version}-android.apk" > SHA256SUMS-android.txt
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: Android-debug
+          name: BMT-android
           path: |
             android/app/build/outputs/apk/debug/BMT-*-android.apk
-            android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            android/app/build/outputs/apk/debug/SHA256SUMS-android.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -91,15 +99,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           tag="$GITHUB_REF_NAME"
           python scripts/changelog.py release-note --version "${tag#v}" --output release-note.md
           apk="$(ls android/app/build/outputs/apk/debug/BMT-*-android.apk)"
+          sums="android/app/build/outputs/apk/debug/SHA256SUMS-android.txt"
           exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
           if [ -z "$exists" ]; then
-            # Windows 与 Android 可能先后触发同一 tag；不存在时创建草稿，存在时直接补资产。
-            gh release create "$tag" --draft --verify-tag --title "BMT $tag" --notes-file release-note.md
+            # Windows 与 Android 可能先后触发同一 tag；创建失败后再确认一次，避免竞态直接失败。
+            gh release create "$tag" --draft --verify-tag --title "BMT $tag" --notes-file release-note.md || true
+            exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
+            if [ -z "$exists" ]; then
+              echo "无法创建或找到 tag $tag 的 Release" >&2
+              exit 1
+            fi
           fi
-          gh release upload "$tag" "$apk" \
-            android/app/build/outputs/apk/debug/SHA256SUMS.txt \
-            --clobber
+          draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"
+          assets="$(gh release view "$tag" --json assets --jq '.assets[].name')"
+          # 已转正的版本只允许补资产，不允许覆盖；Android 产物已存在即视为重复发版。
+          if [ "$draft" != "true" ] && printf '%s\n' "$assets" | grep -q 'android\.apk'; then
+            echo "该版本已正式发布，请使用新的版本号。" >&2
+            exit 1
+          fi
+          gh release upload "$tag" "$apk" "$sums" --clobber
           gh release edit "$tag" --draft=false

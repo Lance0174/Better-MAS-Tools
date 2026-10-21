@@ -30,7 +30,7 @@ app.whenReady().then(async () => {
     const file = path.resolve(assets, '.' + decodeURIComponent(uri.pathname));
     if (!file.startsWith(assets + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) return new Response('', { status: 404 });
     const type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.webp': 'image/webp' }[path.extname(file)] || 'application/octet-stream';
-    const mainPolicy = "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://doc.auto-mas.top; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
+    const mainPolicy = "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://doc.auto-mas.top https://data.akedata.wiki https://www.akedata.wiki https://resource.starrailassistant.top https://prod-alicdn-community.kurobbs.com https://webusstatic.yo-star.com https://web.hycdn.cn https://aka.doubaocdn.com https://i0.hdslb.com; font-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'";
     const workerPolicy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'";
     return new Response(fs.readFileSync(file), { headers: { 'Content-Type': type, 'Content-Security-Policy': uri.pathname === '/runtime/engine-worker.js' ? workerPolicy : mainPolicy } });
   });
@@ -44,11 +44,13 @@ app.whenReady().then(async () => {
   window.webContents.on('console-message', event => logs.push(event.message));
   await window.loadURL(origin + '/index.html');
   const installMock = async (savedState = null) => window.webContents.executeJavaScript(`(() => {
-    window.probe = { state: ${JSON.stringify(savedState)}, calls: [], logs: [], exports: [] };
+    window.probe = { state: ${JSON.stringify(savedState)}, wiki: {}, calls: [], logs: [], exports: [] };
     window.nativeMock = async (operation, payload) => {
       probe.calls.push(operation);
       if (operation === 'state.read') return { state: probe.state };
       if (operation === 'state.write') { probe.state = payload.state; return { saved: true }; }
+      if (operation === 'wiki.read') return { content: probe.wiki[payload.path] ?? null };
+      if (operation === 'wiki.write') { probe.wiki[payload.path] = payload.content; return { saved: true }; }
       if (operation === 'http.request') return { error: 'network' };
       if (operation === 'log.write') { probe.logs.push(payload.message); return {}; }
       if (operation === 'log.read') return { content: probe.logs.join('\\n') };

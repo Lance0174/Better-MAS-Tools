@@ -42,20 +42,33 @@ python scripts/changelog.py release --version 0.1.5
 推送 `v*` 标签后触发两条发布流水线（`windows-release.yml`、`android-release.yml`）：
 
 1. **guard 守门**：`changelog.py guard --tag` 校验 tag 与 CHANGELOG 版本一致、五处版本生成物一致（pyproject / package.json / app/version.py / uv.lock / android versionName）、`changelog.d` 已清空；
-2. **构建**：Windows 走 `build-desktop.ps1 -Zip`（typecheck/test/lint/verify-desktop 全跑），Android 走 prepare-android + gradle；
+2. **构建**：Windows 走 `scripts/build-desktop.ps1 -Zip`，脚本本身只做 `uv sync`（锁定依赖）、`yarn install --immutable` + `yarn typecheck` + `yarn build`、PyInstaller 打包后端、`electron-builder` 出产物；`ruff`、`pytest`、`verify_upstream.py`、`yarn lint`、`yarn test` 与 `scripts/verify-desktop.py` 由同一次运行里的“Check source and desktop runtime”步骤单独执行，不在构建脚本内。Android 走 `prepare-android.py` + `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`；
 3. **草稿 Release**：按 `changelog.py release-note` 生成的版本段正文创建 **draft** Release，上传产物；
 4. **转正**：资产上传成功后 `--draft=false` 发布。失败时 Release 保持草稿，可在 GitHub Releases 页面人工处理。
 
 ### 构建产物命名规范
 
-| 产物 | 文件名 |
+| 产物 | 文件名 / Artifact 名 |
 |---|---|
 | Windows ZIP | `BMT-<version>-windows-x64.zip` |
 | Windows 便携 EXE | `BMT-<version>-windows-x64.exe` |
 | Android APK | `BMT-<version>-android.apk` |
-| 校验和 | `SHA256SUMS.txt`（与产物一同上传） |
+| Windows 校验和 | `SHA256SUMS-windows-x64.txt`（与产物一同上传） |
+| Android 校验和 | `SHA256SUMS-android.txt`（与产物一同上传） |
+| Actions Artifact 名 | `BMT-windows-x64`（`windows-release.yml`）、`BMT-android`（`android-release.yml`） |
+
+校验和按平台拆成两个文件，而不是共用一个 `SHA256SUMS.txt`：Release 内资产名必须唯一，两条流水线都用 `gh release upload --clobber` 上传，同名清单会互相覆盖——谁后上传，另一个平台的清单就没了。Windows 侧由 `Get-FileHash` 生成（覆盖 ZIP 与便携 EXE 两个文件），Android 侧由 `sha256sum` 生成（只含 APK）。
 
 Release 标题统一为 `BMT vX.Y.Z`。
+
+### 重复发版守卫
+
+两条流水线都按“产物是否已存在”判定，而不是按 tag 是否推送过；已转正的版本不会被静默覆盖：
+
+- **草稿阶段不限次**：Release 仍是 draft 时，重跑工作流可以用 `--clobber` 覆盖同名资产，便于修复后重推同一 tag；
+- **已转正即拒绝**：Release 已转正（`isDraft=false`）且本平台产物已存在时直接失败并提示换版本号（Windows 匹配 `windows-x64` 资产名，Android 匹配 `android.apk`）；
+- **允许补齐另一平台的资产**：先转正的一方发布后，另一平台此时草稿判定已是 false，但它自己的产物尚不存在，因此仍可补传，不会被守卫拦下；
+- **创建 Release 允许竞态**：同一 tag 的两条流水线可能同时创建 Release，创建失败后会再查一次；查到即继续，避免把竞态判成发布失败。
 
 ## 常用命令速查
 
@@ -71,5 +84,6 @@ Release 标题统一为 `BMT vX.Y.Z`。
 ## 异常处理
 
 - **guard 失败**：按提示执行 `changelog.py sync` 或聚合碎片后重跑；
-- **Release 卡在草稿**：CI 某步失败时草稿保留，修复后重推同 tag 会让 Windows 侧守门拒绝——此时在 GitHub Releases 页面删除草稿 Release 与 tag 后重新打 tag；
-- **Android 与 Windows 先后触发同一 tag**：二者会向同一草稿 Release 补充各自产物，互不影响。
+- **Release 卡在草稿**：CI 某步失败时草稿保留，修好后重推同 tag 或手动重跑即可——草稿状态不拦重复上传，本平台资产会被覆盖成新产物；
+- **版本已转正但产物有问题**：守卫会拒绝覆盖已发布版本，此时改用新版本号（例如补一个修正版本），不要在 Releases 页面手改资产；
+- **Android 与 Windows 先后触发同一 tag**：二者会向同一草稿 Release 补充各自产物，互不影响；创建 Release 的竞态由“失败后重查”兜住。

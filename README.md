@@ -10,23 +10,29 @@ Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社�
 | 登录 | 米游社、森空岛扫码获取完整凭据；库街区手机号短信登录（自动或人工验证）；塔吉多一次性账号密码登录；已有凭据录入 |
 | 签到 | 库街区、森空岛、米游社游戏签到、塔吉多及云游戏签到，保留奖励、已签、失败和时长上限等结果 |
 | 米游币 | 米游社日常任务执行与验证码人工复核，按账号合并进签到结果 |
-| 日常便笺 | 明日方舟、终末地、原神、星穹铁道、绝区零；按游戏显示资源和日常，不显示经验 |
+| 日常便笺 | 明日方舟、终末地、原神、星穹铁道、绝区零、鸣潮；按游戏显示资源和日常，不显示经验 |
 | 抽卡记录 | 原神、崩铁、绝区零、鸣潮、明日方舟和终末地；全平台 BMASC JSON 导入导出，米家三游戏兼容 Starward/UIGF |
 | 自动签到 | 启动时签到、每天按北京时间定时签到；失败后可手动重试 |
 | 过码 | 免费本地滑块、人工验证与云码（付费）三种方式，密钥在“设置”中配置 |
 | 远端 | Docker Compose 部署、Cloudflare Tunnel 叠加、纯 Cloudflare Workers 版本，支持 Linux |
 | MAS 接入 | 保留本地 AUTO-MAS 接口入口，可在“MAS”页连接并控制本机 MAS |
-| 外观 | 浅色、深色、跟随系统和低性能模式；低性能模式不加载便笺背景 |
+| 资料库 | 终末地干员、武器、装备套装、关卡与敌人资料卡；支持昵称、简称、同音字与模糊匹配；同步后本机保存索引，并给出数据体检结果 |
+| 活动日历 | 终末地、明日方舟、原神、星穹铁道、绝区零、鸣潮、异环与星塔旅人的活动列表与起止时间 |
+| 外观 | 浅色、深色、跟随系统；液态玻璃材质（背景模糊、斜向高光与玻璃厚度描边），可在“设置 → 外观与查询”关闭或按系统条件自动降级 |
 | 内置教程 | 首次启动自动弹出分步引导，可在“设置 → 重新查看引导”再次打开 |
 | 诊断日志 | 程序内查询、级别筛选、日志编号关联和导出；终端与文件同步记录阶段、耗时和失败调用栈 |
 
-库街区、塔吉多日常便笺未接入。本期按需求不包含通知模块。
+塔吉多日常便笺未接入。鸣潮便笺取自库街区小组件，只显示结晶波片；体力已满（上游返回 `refreshTimeStamp <= 0`）时不显示倒计时，库洛服务器时间异常时按本地时间纠正回满时间。本期按需求不包含通知模块。
+
+资料库的昵称表 `app/tools/data/endfield_aliases.json` 位于源码目录里，并由 `.gitignore` 的 `!app/tools/data/`、`!app/tools/data/endfield_aliases.json` 从 `data/` 忽略规则中反选出来；`scripts/build-desktop.ps1` 打包时用 `--add-data` 显式收集到 `app/tools/data`（PyInstaller 只跟着 import 走，不会自动带上非 Python 数据文件），`scripts/verify-desktop.py` 在发行包里缺这个文件或内容为空时直接报错。若发现昵称、简称与同音字全部搜不到，通常是包不是由该脚本构建、或 `app/tools/data` 缺失，按下面的构建步骤重做即可。
+
+资料库数据与活动日历在运行期从外部来源下载，不随本仓库分发；各来源与许可说明见 [NOTICE.md](NOTICE.md)。活动日历取不到数据时保留上次成功结果并说明，不会因此阻塞其它功能。
 
 人工验证码在独立弹窗中显示，加载失败可重试；免费滑块总时限 15 秒，启用云码时总时限 30 秒，超时转人工。本地识别运行在独立进程中，单次计算最多 10 秒，超时或取消会回收进程，避免原生库加载卡住整个后端。也可直接选“改用人工验证”。云码目前只用于库街区极验4图标识别，米游社极验3由用户人工完成。手机号与验证码不持久化；登录响应中的正式凭据自动提取，无需安装抓包证书。
 
 ## 直接运行
 
-从 [GitHub Releases](https://github.com/Lance0174/Better-MAS-Tools/releases) 下载 Windows x64 便携 EXE 后直接打开，或下载 ZIP、完整解压后打开其中的 `BetterMASTools.exe`。`SHA256SUMS.txt` 用于核对下载文件完整性。源码仓库不包含生成的安装包或可执行程序。
+从 [GitHub Releases](https://github.com/Lance0174/Better-MAS-Tools/releases) 下载 Windows x64 便携 EXE 后直接打开，或下载 ZIP、完整解压后打开其中的 `BetterMASTools.exe`。`SHA256SUMS-windows-x64.txt` 用于核对下载文件完整性（Android APK 的校验和是同版本的 `SHA256SUMS-android.txt`）。源码仓库不包含生成的安装包或可执行程序。
 
 本地构建后，程序位于：
 
@@ -151,6 +157,8 @@ Push-Location android
 try { .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug } finally { Pop-Location }
 ```
 
+上面这条 Gradle 命令的任务集与 `.github/workflows/android-release.yml` 一致（CI 在 Linux 上用 `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`，Windows 本地用 `gradlew.bat`）：打包 debug APK 的同时跑 Java 单测与 lint，不只出产物。
+
 离线重复构建时，将最后一条 Gradle 命令改为 `.\gradlew.bat --no-daemon --offline :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`，并为资源准备脚本增加 `--offline`；前提是本地缓存已包含清单中的 Pyodide 资源。构建工具链的实际目录只应存在于环境变量或本机配置中，不要写入仓库文档。
 
 APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。`scripts/prepare-android.py` 会按 `android/runtime/manifest.json` 下载并校验 Pyodide 资源；离线缓存缺失时按脚本提示准备缓存。`scripts/install-worker-deps.py` 仅用于 Cloudflare Workers，不是 Android 构建前置步骤。工程结构、文件职责与约束见 [android/README.md](android/README.md) 与 [部署说明](docs/DEPLOYMENT.md)。
@@ -203,7 +211,7 @@ Workers 包含免费滑块、人工验证和库街区云码适配；云码需要
 
 ## 验证与后续开发
 
-后端代码检查使用 `.venv\Scripts\ruff.exe check app main.py scripts`；在 `frontend` 执行 `yarn lint`、`yarn typecheck`、`yarn test`。本次专用回归保留在本地 `local/tests`，不进入发布包。拆分结构与边界见 [架构说明](docs/ARCHITECTURE.md)。
+后端代码检查使用 `.venv\Scripts\ruff.exe check app main.py scripts`；在 `frontend` 执行 `yarn lint`、`yarn typecheck`、`yarn test`。Python 回归用 `.venv\Scripts\python.exe -m pytest -q`，用例在 `tests/`；前端单测是 `frontend/src` 下与源码同目录的 `*.test.ts`。两者都不进入发布包。拆分结构与边界见 [架构说明](docs/ARCHITECTURE.md)。
 
 项目由个人仓库 [Lance0174/Better-MAS-Tools](https://github.com/Lance0174/Better-MAS-Tools) 托管，独立于 AUTO-MAS 组织。本期未使用真实用户账号访问上游签到、扫码和日常接口，第三方协议的实跑可用性仍取决于账号状态、网络和上游服务。Linux 镜像与 Tunnel 尚未在实际 Linux/Docker 主机验收。
 

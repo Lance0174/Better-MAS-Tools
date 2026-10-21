@@ -23,9 +23,24 @@ def verify(directory: Path) -> None:
         application,
         directory / "resources/LICENSE",
         directory / "resources/NOTICE.md",
+        # extraResources 的其余条目：缺了不会崩，但界面、来源清单或便笺素材会静默缺失。
+        directory / "resources/renderer/index.html",
+        directory / "resources/docs/upstream-files.json",
+        directory / "resources/community-notes-ATTRIBUTION.md",
+        directory / "resources/community-notes-manifest.json",
     ):
         if not path.is_file():
             raise ValueError(f"发行包缺少文件：{path.name}")
+
+    # 随包的数据文件必须显式收集（PyInstaller 不会自动带上非 Python 文件）。
+    # 少了昵称表不会崩，但检索会静默退化成"只能按索引里的正式名搜索"，
+    # 用户看到的是"昵称/简称/同音字都搜不到"，所以在这里主动拦住。
+    aliases = directory / "resources/backend/_internal/app/tools/data/endfield_aliases.json"
+    if not aliases.is_file():
+        raise ValueError(f"发行包缺少数据文件：{aliases.name}")
+    payload = json.loads(aliases.read_text(encoding="utf-8"))
+    if not payload.get("operators") or not payload.get("weapons"):
+        raise ValueError("发行包内昵称表为空或不完整")
 
     background = Image.frombytes("RGB", (150, 100), random.Random(37).randbytes(45_000))
     images = []

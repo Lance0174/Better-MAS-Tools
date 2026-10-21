@@ -106,7 +106,7 @@ npm run deploy
 
 工作流会把 `CLOUDFLARE_PUBLIC_ORIGIN` 写入 `wrangler.jsonc` 的 `vars`，并把两个密钥用 `wrangler secret put` 设置为 Worker 加密 secret。`wrangler.jsonc` 中的 `name` 决定分配的 `*.workers.dev` 子域。密钥只存在于 GitHub Secrets 与 Cloudflare，不会写入仓库。
 
-注意：本仓库 main 分支尚无首个提交时，GitHub Actions 无法通过 `push` 触发；可先用 `workflow_dispatch` 手动运行验证，再按需创建提交。
+`deploy-cf.yml` 由 `main` 分支推送或手动 `workflow_dispatch` 触发；`push` 只在改动命中 `paths` 时运行，当前包含 `app/**`、`frontend/**`、`scripts/install-worker-deps.py`、`scripts/prepare-worker.py`、`deploy/worker/**` 与 `docs/DEPLOYMENT.md`。只改其他文件（例如仅动 `README.md`）不会自动部署，此时在 Actions 页运行 `Deploy Cloudflare Workers → Run workflow`。
 
 每个部署是一个固定名称的单用户实例，多名使用者应分开部署。数据在Durable Object的SQLite中压缩加密，整份未压缩状态上限8MB；大型抽卡档案建议用Linux完整后端。保留原加密密钥，并使用Cloudflare提供的持久存储恢复能力备份状态；抽卡页可另行导出JSON。更换密钥不会自动重加密已有数据。
 

@@ -1,9 +1,11 @@
 .git
 .venv
 .env*
-data
+/data
+!app/tools/data/
+!app/tools/data/**
 logs
-local
+/local
 build
 dist
 __pycache__

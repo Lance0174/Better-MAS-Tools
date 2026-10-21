@@ -7,6 +7,8 @@ __pycache__/
 **/.env
 **/.dev.vars
 data/
+!app/tools/data/
+!app/tools/data/endfield_aliases.json
 logs/
 !frontend/src/views/logs/
 local/
@@ -31,6 +33,8 @@ deploy/worker/node_modules/
 deploy/worker/python_modules/
 deploy/worker/.venv-workers/
 deploy/worker/.wrangler/
+deploy/worker/.dry-run-out/
+release-note.md
 
 .agents
 # Zcode 会话工作目录
