@@ -1,6 +1,5 @@
 """上游清单完整性校验：本地失败路径、反向扫描与归属文件字段。"""
 
-import hashlib
 import json
 import os
 import subprocess
@@ -13,7 +12,12 @@ REPO_ROOT = Path(verify_upstream.__file__).resolve().parents[1]
 
 
 def _sha(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """与脚本同源：文本按 LF 归一后取摘要。
+
+    Path.write_text 在 Windows 上会把换行落成 CRLF，直接对字节做哈希会让用例的结果
+    取决于手里是什么系统；归一后 Windows 与 CI 走同一条路。
+    """
+    return verify_upstream._local_sha256(path)
 
 
 def _file_entry(path: str, digest: str) -> dict:

@@ -61,15 +61,32 @@ SKIP_PARTS = frozenset(
     }
 )
 SKIP_ROOT_PARTS = frozenset({"data"})
-SKIP_PREFIXES = ("deploy/worker",)
+SKIP_PREFIXES = ("deploy/worker", "frontend/out", "frontend/dist")
 
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+BINARY_SUFFIXES = frozenset(
+    {
+        ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp",
+        ".ttf", ".otf", ".woff", ".woff2", ".pdf", ".zip", ".gz", ".tar",
+    }
+)
+
+
 def _local_sha256(path: Path) -> str:
-    return _sha256(path.read_bytes())
+    """本地文件摘要；文本先按 LF 归一。
+
+    git 在 Windows 上会按 core.autocrlf 把工作区还原成 CRLF，CI 检出的却是 LF；
+    不归一的话同一份内容在两边算出不同摘要，校验结果取决于谁在跑。没有扩展名的
+    文本（LICENSE）也算文本，图片字体等二进制保持原样，避免替换字节时损坏内容。
+    """
+    data = path.read_bytes()
+    if path.suffix.lower() not in BINARY_SUFFIXES:
+        data = data.replace(b"\r\n", b"\n")
+    return _sha256(data)
 
 
 def _upstream_sha256(repo: Path, rev: str, path: str) -> str | None:

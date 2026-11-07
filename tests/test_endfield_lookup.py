@@ -97,7 +97,10 @@ def test_fuzzy_match_corrects_a_typo():
 def test_to_pinyin_without_pypinyin_returns_nothing(monkeypatch):
     monkeypatch.setattr(lookup, "pinyin", None)
     assert lookup.to_pinyin("测试干员") == set()
-    # 常量只反映导入时的结果，不受运行时替换影响。
+
+
+def test_homophone_flag_follows_import_time_availability():
+    # 常量在导入时确定，跟随后端是否装了 pypinyin；CI 装了、精简环境没装，两种都得成立。
     assert lookup.HOMOPHONE_AVAILABLE == (lookup.pinyin is not None)
 
 
