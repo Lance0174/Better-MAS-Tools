@@ -1,5 +1,6 @@
 """上游清单完整性校验：本地失败路径、反向扫描与归属文件字段。"""
 
+import io
 import json
 import os
 import subprocess
@@ -239,3 +240,27 @@ def test_real_repository_passes_local_verification():
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert "校验通过" in result.stdout
+
+def test_console_output_switches_to_utf8_on_a_cp1252_terminal(monkeypatch):
+    """CI 的 Windows 控制台是 cp1252，不切编码时打印中文会 UnicodeEncodeError。"""
+    buffer = io.BytesIO()
+    stream = io.TextIOWrapper(buffer, encoding="cp1252", newline="")
+    monkeypatch.setattr(sys, "stdout", stream)
+    monkeypatch.setattr(sys, "stderr", stream)
+
+    verify_upstream._configure_output()
+    print("上游来源清单校验通过：基线 78bc197e5c37。")
+    stream.flush()
+
+    assert "上游来源清单校验通过" in buffer.getvalue().decode("utf-8")
+
+
+def test_console_output_tolerates_streams_without_reconfigure(monkeypatch):
+    """被重定向到 StringIO 之类的流没有 reconfigure，不能因此报错。"""
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    monkeypatch.setattr(sys, "stderr", io.StringIO())
+
+    verify_upstream._configure_output()
+
+    print("仍然可写")
+    assert sys.stdout.getvalue() == "仍然可写\n"

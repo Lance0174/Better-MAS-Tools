@@ -68,6 +68,23 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _configure_output() -> None:
+    """把标准输出/错误切到 UTF-8。
+
+    脚本会打印中文，而 Windows CI 的控制台编码是 cp1252：直接 print 会抛
+    UnicodeEncodeError（pytest 调用时 PYTHONIOENCODING=utf-8 才侥幸通过）。
+    这里显式指定编码与替换策略，让中文日志在任意终端都不至于把校验判成失败。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            continue
+
+
 BINARY_SUFFIXES = frozenset(
     {
         ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".bmp",
@@ -198,6 +215,7 @@ def _refresh_standalone_hashes(manifest: object) -> int:
 
 
 def main() -> int:
+    _configure_output()
     parser = argparse.ArgumentParser(description="校验上游来源清单")
     parser.add_argument("--repo", type=Path, default=None, help="本机 AUTO-MAS 检出路径（可选）")
     parser.add_argument("--local", action="store_true", help="同时校验本地文件摘要")
