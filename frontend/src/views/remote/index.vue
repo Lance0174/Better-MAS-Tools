@@ -135,7 +135,8 @@ const remoteSign = () =>
       try {
         const status = await runCommand('sign.run', {}, 300)
         if (!status) return
-        message.success(t('standalone.relay.signAccepted'))
+        if (status.commandStatus === 'done') message.success(t('standalone.relay.signAccepted'))
+        else message.error(t('standalone.relay.loadFailed', { error: status.result?.error || '' }))
       } catch (cause) {
         message.error(errorMessage(cause, t('standalone.relay.loadFailed', { error: '' })))
       } finally {

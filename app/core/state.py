@@ -1,10 +1,10 @@
 """独立账号与配置编排，写入成功后才发布内存状态。"""
 
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from app.models.config import AccountData, SavedState, SettingsData
 from app.services.network import network
@@ -14,6 +14,45 @@ from app.tools.community_sign_provider import (
     get_community_sign_providers,
 )
 from app.utils.constants import UTC8
+from app.utils.logger import get_logger
+
+logger = get_logger("社区状态")
+
+
+def normalize_account_uid(value: object) -> str | None:
+    """把账号组标识归一为标准 UUID 字符串，无法解析时返回 None。
+
+    账号组标识由 uuid4() 生成，标准形态是小写带连字符。前端或剪贴板可能
+    回传大写、带花括号、带前后空白的写法；直接做字符串比较会把合法账号组
+    误判成不存在（「账号组不存在」/「未找到指定的游戏社区账号组」）。
+    """
+
+    try:
+        return str(UUID(str(value).strip()))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def match_account_uid(account_uids: Iterable[object], value: object) -> str | None:
+    """在已知账号组键里查找与 value 等价的键，找不到返回 None。
+
+    先按原值直接命中（兼容历史非 UUID 键），再按归一后的 UUID 比较，
+    这样客户端回传大写或带花括号的标识也能命中真实账号组。
+    """
+
+    raw = str(value).strip() if value is not None else ""
+    if not raw:
+        return None
+    keys = [str(uid) for uid in account_uids]
+    if raw in keys:
+        return raw
+    normalized = normalize_account_uid(raw)
+    if normalized is None:
+        return None
+    for key in keys:
+        if key == normalized or normalize_account_uid(key) == normalized:
+            return key
+    return None
 
 
 class CommunityAccount:
@@ -107,12 +146,22 @@ class CommunityState:
                 return
             writing = asyncio.create_task(self.storage.save_async(candidate))
             cancelled = False
+            save_failed = False
             try:
                 await asyncio.shield(writing)
             except asyncio.CancelledError:
                 # 文件线程不会随请求取消；等待落盘再发布，避免下一次修改覆盖到旧状态。
                 cancelled = True
-                await writing
+                try:
+                    await writing
+                except Exception as error:
+                    # 取消期间落盘失败：放弃本次修改（内存与磁盘仍是同一份旧状态），
+                    # 但必须继续以 CancelledError 结束。否则普通异常会顶掉取消，
+                    # asyncio.wait_for 的超时也会变成一次普通失败。
+                    save_failed = True
+                    logger.opt(exception=error).error("配置保存失败，本次修改已放弃")
+            if save_failed:
+                raise asyncio.CancelledError()
             self.data = candidate
             if self is state:
                 # 只有全局状态代表本进程的代理设置。云端同步用临时 state 构造，
@@ -122,10 +171,16 @@ class CommunityState:
             if cancelled:
                 raise asyncio.CancelledError()
 
+    def match_account_uid(self, uid: object) -> str | None:
+        """按归一后的 UUID 查找真实账号组键，找不到返回 None。"""
+
+        return match_account_uid(self.data.accounts, uid)
+
     def require_account(self, uid: str) -> AccountData:
-        if uid not in self.data.accounts:
+        key = self.match_account_uid(uid)
+        if key is None:
             raise ValueError("账号组不存在")
-        return self.data.accounts[uid]
+        return self.data.accounts[key]
 
     async def create_account(self) -> str:
         uid = str(uuid4())
@@ -137,27 +192,31 @@ class CommunityState:
     async def update_account(
         self, uid: str, fields: dict[str, object], *, reset_date: bool = True
     ) -> None:
-        self.require_account(uid)
+        key = self.match_account_uid(uid)
+        if key is None:
+            raise ValueError("账号组不存在")
 
         def update(candidate: SavedState) -> None:
-            previous = candidate.accounts[uid].model_dump()
+            previous = candidate.accounts[key].model_dump()
             changed = any(previous.get(key) != value for key, value in fields.items())
             if not changed:
                 return
             previous.update(fields)
             if reset_date:
                 previous["LastSignDate"] = ""
-            candidate.accounts[uid] = AccountData.model_validate(previous)
+            candidate.accounts[key] = AccountData.model_validate(previous)
 
         await self.mutate(update)
 
     async def delete_account(self, uid: str) -> None:
-        self.require_account(uid)
+        key = self.match_account_uid(uid)
+        if key is None:
+            raise ValueError("账号组不存在")
 
         def delete(candidate: SavedState) -> None:
-            del candidate.accounts[uid]
+            del candidate.accounts[key]
             candidate.results = [
-                item for item in candidate.results if item.get("account_uid") != uid
+                item for item in candidate.results if item.get("account_uid") != key
             ]
 
         await self.mutate(delete)

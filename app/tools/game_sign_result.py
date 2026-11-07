@@ -1,5 +1,7 @@
 from collections.abc import Mapping
 
+from app.tools.community_contract import COMMUNITY_SIGN_SUCCESS_STATUSES
+
 SKLAND_GAME_MAPPING = {
     "arknights": "明日方舟",
     "endfield": "终末地",
@@ -116,9 +118,9 @@ def merge_community_sign_result(
 ) -> dict[str, object]:
     """合并同一账号的游戏签到和社区打卡，失败与奖励均不能被覆盖。"""
     result = dict(game_result)
-    signed_statuses = {"成功", "已签到"}
-    game_status = str(game_result.get("status") or "失败")
-    community_status = str(community_result.get("status") or "失败")
+    signed_statuses = set(COMMUNITY_SIGN_SUCCESS_STATUSES)
+    game_status = str(game_result.get("status") or "失败").strip()
+    community_status = str(community_result.get("status") or "失败").strip()
     if game_status in signed_statuses and community_status in signed_statuses:
         result["status"] = (
             "成功" if "成功" in (game_status, community_status) else "已签到"

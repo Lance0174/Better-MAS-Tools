@@ -13,11 +13,11 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.community import router
 from app.core import kuro_login, miyoushe_missions
-from app.core.community_scheduler import CommunityActivityInProgressError
 from app.core.runtime import runtime
 from app.core.state import state
 from app.models.schema import SessionLoginIn, SessionOut
@@ -253,6 +253,21 @@ def create_app(
     @app.exception_handler(ValueError)
     async def value_error(_request: Request, error: ValueError):
         reason = sanitize_log_message(str(error))
+        if isinstance(error, ValidationError):
+            # pydantic 的 ValidationError 是 ValueError 子类：端点内部的模型校验失败
+            # 会走到这里。原文带模型名、字段路径与回显入参，只写日志，不回给客户端。
+            logger.warning(f"数据未通过内部校验：{reason}")
+            return JSONResponse(
+                {
+                    "code": 500,
+                    "status": "error",
+                    "message": (
+                        "数据校验未通过，请刷新后重试"
+                        f"（日志编号 {_request.state.request_id}）"
+                    ),
+                },
+                status_code=500,
+            )
         logger.warning(reason)
         return JSONResponse(
             {
@@ -269,7 +284,6 @@ def create_app(
         )
 
     app.add_exception_handler(CommunitySignInProgressError, conflict)
-    app.add_exception_handler(CommunityActivityInProgressError, conflict)
 
     @app.exception_handler(Exception)
     async def unexpected(_request: Request, error: Exception):

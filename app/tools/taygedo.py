@@ -382,7 +382,7 @@ async def _laohu_password_login(
         or not token
         or not user_id
     ):
-        raise _login_api_error("塔吉多账号密码登录", response, payload)
+        raise _api_error("塔吉多账号密码登录", response, payload)
     return token, user_id
 
 
@@ -421,7 +421,7 @@ async def _user_center_login(
         or not _is_code(payload.get("code"), 0)
         or not isinstance(data, dict)
     ):
-        raise _login_api_error("塔吉多用户中心登录", response, payload)
+        raise _api_error("塔吉多用户中心登录", response, payload)
     access_token = str(data.get("accessToken") or "").strip()
     refresh_token = str(data.get("refreshToken") or "").strip()
     uid = str(data.get("uid") or "").strip()
@@ -527,19 +527,6 @@ def _is_code(value: object, expected: int) -> bool:
     """兼容上游以数字或字符串返回状态码。"""
 
     return str(value).strip() == str(expected)
-
-
-def _login_api_error(
-    endpoint: str,
-    response: httpx.Response,
-    data: Mapping[str, object],
-) -> ValueError:
-    # 不带响应正文，防止上游错误内容回显用户身份或认证数据。
-    message = str(data.get("msg") or data.get("message") or "请求失败").strip()
-    code = data.get("code", "unknown")
-    return ValueError(
-        f"{endpoint}失败（HTTP {response.status_code}，code={code}）：{message}"
-    )
 
 
 async def refresh_taygedo_credential(
@@ -1336,6 +1323,96 @@ async def _get_taygedo_game_roles_with_status(
     return _deduplicate_game_roles(roles), not failed_game_ids
 
 
+# 异环名片（roleHome）是塔吉多唯一公开的"角色当前数值"接口：它返回等级、
+# 经验、活跃度、周本次数与两项体力，但不含恢复时间戳，也不含每日任务明细。
+# 因此便笺只展示当前值/上限，倒计时留给游戏内，绝不用占位值冒充。
+ROLE_HOME_URL = f"{TAYGEDO_BASE_URL}/apihub/awapi/yh/roleHome"
+
+_ROLE_HOME_INT_FIELDS = (
+    "level",
+    "worldLevel",
+    "tycoonLevel",
+    "roleloginDays",
+    "staminaValue",
+    "staminaMaxValue",
+    "citystaminaValue",
+    "citystaminaMaxValue",
+    "dayvalue",
+    "weekcopiesremainCnt",
+)
+
+
+def parse_taygedo_role_home(payload: Mapping[str, object]) -> dict[str, object]:
+    """把异环名片响应归一化成便笺可读的字段表。
+
+    只做取值与类型归一，不补默认值：上游没给的字段一律为 None，让上层能区分
+    "接口缺字段"与"数值真的为 0"。characters 只保留数量，不复制角色列表
+    （姓名属于用户数据，便笺不需要）。
+
+    Args:
+        payload: 异环名片接口的完整 JSON 响应。
+
+    Returns:
+        字段名到 int 或 None 的映射，另含 characters 角色数量。
+    """
+
+    data = payload.get("data")
+    if not isinstance(data, Mapping):
+        data = {}
+    parsed: dict[str, object] = {
+        name: _to_optional_int(data.get(name)) for name in _ROLE_HOME_INT_FIELDS
+    }
+    characters = data.get("characters")
+    parsed["characters"] = len(characters) if isinstance(characters, list) else None
+    return parsed
+
+
+async def fetch_role_home(
+    access_token: str,
+    role_id: str,
+    *,
+    uid: str,
+    device_id: str = "",
+    client: httpx.AsyncClient | None = None,
+    proxy: str | None = None,
+) -> dict[str, object]:
+    """读取异环名片（roleHome），返回原始响应供解析层归一化。
+
+    Args:
+        access_token: 塔吉多访问令牌。
+        role_id: 异环角色 roleId。
+        uid: 塔吉多账号 uid，参与原生签名请求头。
+        device_id: 设备标识，缺省时原生头不带 deviceid。
+        client: 复用调用方的 HTTP 客户端；为空时自建并在退出时关闭。
+        proxy: 代理地址，仅在自建客户端时使用。
+
+    Raises:
+        ValueError: 上游返回非 0 code，或响应不是合法 JSON 对象。
+    """
+
+    if client is None:
+        async with network.client(proxy=proxy, trust_env=False) as owned_client:
+            return await fetch_role_home(
+                access_token,
+                role_id,
+                uid=uid,
+                device_id=device_id,
+                client=owned_client,
+                proxy=proxy,
+            )
+
+    response = await client.get(
+        ROLE_HOME_URL,
+        params={"roleId": role_id},
+        headers=_native_headers(access_token, uid, device_id),
+        timeout=30.0,
+    )
+    data = _read_json(response, "异环名片")
+    if not _is_code(data.get("code"), 0):
+        raise _api_error("异环名片", response, data)
+    return data
+
+
 def _is_game_record_cards_payload(value: object) -> bool:
     """判断角色卡响应是否是可解析的列表或包装对象。"""
 
@@ -1944,6 +2021,7 @@ def _read_json(response: httpx.Response, endpoint: str) -> dict[str, object]:
 def _api_error(
     endpoint: str, response: httpx.Response, data: Mapping[str, object]
 ) -> ValueError:
+    # 不带响应正文，防止上游错误内容回显用户身份或认证数据。
     message = str(data.get("msg") or data.get("message") or "请求失败").strip()
     code = data.get("code", "unknown")
     return ValueError(f"{endpoint}失败（HTTP {response.status_code}，code={code}）：{message}")
@@ -1964,13 +2042,6 @@ def _format_duration(duration: Mapping[str, int | None]) -> str:
     if remained is not None:
         parts.append(f"剩余{remained}分钟")
     return ",".join(parts) or "时长查询成功"
-
-
-def _to_int(value: object) -> int:
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return 0
 
 
 def _to_optional_int(value: object) -> int | None:

@@ -58,7 +58,7 @@ __all__ = [
 
 
 ActivityRequester = Callable[["CommunityActivityRequest"], Awaitable[object]]
-ActivityAuthScope = Literal["skland", "miyoushe", "kuro"]
+ActivityAuthScope = Literal["skland", "miyoushe", "kuro", "taygedo"]
 ActivitySignatureProfile = Literal[
     "skland_widget",
     "skland_endfield_web",
@@ -66,11 +66,13 @@ ActivitySignatureProfile = Literal[
     "miyoushe_ios",
     "miyoushe_data",
     "kuro_widget",
+    "taygedo_role_home",
 ]
 
 SKLAND_BASE_URL = "https://zonai.skland.com"
 MIYOUSHE_RECORD_BASE_URL = "https://api-takumi-record.mihoyo.com"
 KURO_BBS_BASE_URL = "https://api.kurobbs.com"
+TAYGEDO_BASE_URL = "https://bbs-api.tajiduo.com"
 
 
 class CommunityActivityTransportError(RuntimeError):
@@ -402,6 +404,27 @@ def build_community_activity_requests(
                 headers=_kuro_bbs_headers(target),
                 auth_scope="kuro",
                 signature_profile="kuro_widget",
+                requires_device_id=False,
+            ),
+        )
+
+    if target.platform == "塔吉多" and target.game == "异环":
+        # 异环名片只需要 roleId：uid 与签名都在原生请求头里，不进查询串。
+        return (
+            CommunityActivityRequest(
+                target=target,
+                source=f"{TAYGEDO_BASE_URL}/apihub/awapi/yh/roleHome",
+                method="GET",
+                params=_pairs(("roleId", role_uid)),
+                headers=_headers(
+                    target,
+                    ("Accept", "application/json, text/plain, */*"),
+                    ("Origin", "https://webstatic.tajiduo.com"),
+                    ("Referer", "https://webstatic.tajiduo.com/"),
+                    include_device=False,
+                ),
+                auth_scope="taygedo",
+                signature_profile="taygedo_role_home",
                 requires_device_id=False,
             ),
         )

@@ -30,6 +30,7 @@ from datetime import datetime
 from app.tools.community_contract import (
     CommunitySignInProgressError,
     CommunitySignResult,
+    is_community_sign_completed,
 )
 from app.tools.community_credentials import is_community_credential_configured
 from app.tools.community_sign_provider import (
@@ -115,9 +116,7 @@ def all_enabled_community_platforms_signed(
             and result.get("platform") == platform
         ]
         if not platform_results or any(
-            result.get("status") not in ("成功", "已签到")
-            and not result.get("_completed")
-            for result in platform_results
+            not is_community_sign_completed(result) for result in platform_results
         ):
             return False
 

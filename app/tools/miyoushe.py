@@ -38,6 +38,7 @@
 import asyncio
 import hashlib
 import json
+import math
 import random
 import string
 import time
@@ -49,6 +50,7 @@ from typing import Dict
 import httpx
 
 from app.services.network import network
+from app.tools.community_contract import COMMUNITY_SIGN_SUCCESS_STATUSES
 from app.utils.logger import get_logger
 from app.utils.security import format_exception_reason
 
@@ -297,6 +299,27 @@ def _safe_json_parse(response: httpx.Response) -> dict[str, object]:
     return data
 
 
+def _coerce_retcode(value: object) -> int | None:
+    """把上游 retcode 归一成整数，兼容字符串/浮点漂移。
+
+    bool、空值与不可解析文本一律返回 None（视为未提供业务码），避免 "0"、
+    "-5003" 这类合法结果因为类型不同被误判成失败。
+    """
+
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if math.isfinite(value) else None
+    if isinstance(value, str):
+        try:
+            return int(float(value.strip()))
+        except ValueError:
+            return None
+    return None
+
+
 def _parse_cookie(cookie_str: str) -> Dict[str, str]:
     """解析 cookie 字符串为字典"""
     cookies: Dict[str, str] = {}
@@ -509,12 +532,16 @@ async def derive_miyoushe_cookie_token(
         )
         rsp = _safe_json_parse(response)
 
-    if rsp.get("retcode") != 0:
+    if _coerce_retcode(rsp.get("retcode")) != 0:
         raise ValueError(f"派生 cookie_token 失败: {rsp.get('message')}")
 
-    data = rsp.get("data", {})
-    cookie_token = data.get("cookie_token", "")
-    uid = data.get("uid", "")
+    data = rsp.get("data")
+    if not isinstance(data, dict):
+        # data 为 null 是上游表示"该凭据不可派生"的常见形态，按派生失败处理，
+        # 而不是让 .get 在 None 上抛 AttributeError 把原因变成程序异常。
+        raise ValueError("派生 cookie_token 失败: 返回数据格式无效")
+    cookie_token = str(data.get("cookie_token") or "").strip()
+    uid = str(data.get("uid") or "").strip()
     if not cookie_token:
         raise ValueError("派生 cookie_token 失败: 返回数据无 cookie_token")
 
@@ -771,8 +798,12 @@ async def miyoushe_sign_in(
                 account,
                 proxy=proxy,
                 device_id=device_id,
+                game_biz=game_biz,
             )
-            if sign_result.get("status") in ("成功", "已签到"):
+            if (
+                str(sign_result.get("status") or "").strip()
+                in COMMUNITY_SIGN_SUCCESS_STATUSES
+            ):
                 try:
                     sign_info = await _fetch_miyoushe_sign_info(
                         effective_cookie,
@@ -866,26 +897,34 @@ async def _get_game_roles(
         )
         rsp = _safe_json_parse(response)
 
-    if rsp.get("retcode") != 0:
+    if _coerce_retcode(rsp.get("retcode")) != 0:
         raise ValueError(f"获取角色列表失败（retcode={rsp.get('retcode')}）: {rsp.get('message')}")
 
-    data_list = rsp.get("data", {}).get("list", [])
-    roles = []
+    # data 可能为 null（无绑定角色），list 里也可能混入非对象元素；逐层收窄再取字段。
+    data = rsp.get("data")
+    data_list = data.get("list") if isinstance(data, dict) else None
+    roles: list[dict[str, object]] = []
 
-    if not data_list:
+    if not isinstance(data_list, list) or not data_list:
         return roles
 
-    # 判断数据结构：有 "list" 子键 = 嵌套，否则 = 扁平
-    if "list" in data_list[0]:
+    # 判断数据结构：首项自带 "list" 子键 = 嵌套，否则 = 扁平
+    first = data_list[0]
+    if isinstance(first, dict) and isinstance(first.get("list"), list):
         # 嵌套结构: data.list[].list[]
         for item in data_list:
-            for role in item.get("list", []):
-                if role.get("game_biz") in GAME_CONFIG:
+            if not isinstance(item, dict):
+                continue
+            nested = item.get("list")
+            if not isinstance(nested, list):
+                continue
+            for role in nested:
+                if isinstance(role, dict) and role.get("game_biz") in GAME_CONFIG:
                     roles.append(role)
     else:
         # 扁平结构: data.list[]
         for role in data_list:
-            if role.get("game_biz") in GAME_CONFIG:
+            if isinstance(role, dict) and role.get("game_biz") in GAME_CONFIG:
                 roles.append(role)
 
     return roles
@@ -930,7 +969,7 @@ async def _fetch_miyoushe_sign_info(
         )
         rsp = _safe_json_parse(response)
 
-    if rsp.get("retcode") != 0:
+    if _coerce_retcode(rsp.get("retcode")) != 0:
         logger.warning(f"{game_cfg['name']} 签到状态查询未完成 retcode={rsp.get('retcode')}")
         return None
 
@@ -938,28 +977,6 @@ async def _fetch_miyoushe_sign_info(
     if not isinstance(sign_info, dict):
         return None
     return sign_info
-
-
-async def _check_sign_info(
-    cookie: str,
-    game_cfg: dict[str, object],
-    region: str,
-    uid: str,
-    *,
-    proxy: str | None = None,
-    device_id: str = "",
-) -> bool:
-    """检查今日是否已签到（保留给旧调用方使用）。"""
-
-    sign_info = await _fetch_miyoushe_sign_info(
-        cookie,
-        game_cfg,
-        region,
-        uid,
-        proxy=proxy,
-        device_id=device_id,
-    )
-    return bool(sign_info and sign_info.get("is_sign"))
 
 
 async def _fetch_miyoushe_sign_reward(
@@ -999,7 +1016,7 @@ async def _fetch_miyoushe_sign_reward(
         logger.debug(f"获取{game_cfg['name']}签到奖励失败: {e}")
         return ""
 
-    if rsp.get("retcode") != 0:
+    if _coerce_retcode(rsp.get("retcode")) != 0:
         return ""
 
     data = rsp.get("data")
@@ -1030,6 +1047,7 @@ async def _do_sign(
     *,
     proxy: str | None = None,
     device_id: str = "",
+    game_biz: str = "",
     verification: dict[str, str] | None = None,
 ) -> tuple[dict[str, object], str]:
     """执行签到（含验证码重试）
@@ -1043,6 +1061,7 @@ async def _do_sign(
         region: 服务器区号
         uid: 游戏 UID
         account: 账号标识（如 nickname/nickname(uid)），为空时用 stuid 构造
+        game_biz: 游戏的 game_biz（如 hk4e_cn），用于回填验证挑战；缺省按 game_cfg 反查
 
     Returns:
         (签到结果, 实际生效的 cookie 字符串) 元组；
@@ -1079,11 +1098,13 @@ async def _do_sign(
             )
             rsp = _safe_json_parse(response)
 
-        retcode = rsp.get("retcode")
+        retcode_raw = rsp.get("retcode")
+        # 上游同一个业务码会出现 int / 字符串两种形态，统一归一后再做分支判断。
+        retcode = _coerce_retcode(retcode_raw)
         data = rsp.get("data")
         if not isinstance(data, dict):
             data = {}
-        logger.info(f"{game_cfg['name']} 签到响应 retcode={retcode} 尝试={attempt + 1}")
+        logger.info(f"{game_cfg['name']} 签到响应 retcode={retcode_raw} 尝试={attempt + 1}")
 
         # ---- 需要验证码（极验风控） ----
         # 部分游戏 retcode=0 仍会携带挑战；必须先判断，不能误报签到成功。
@@ -1095,7 +1116,15 @@ async def _do_sign(
                     "status": "风控", "reward": "", "reason": "请完成人工验证后继续签到",
                     "_verification": {
                         "kind": "game", "gt": str(data["gt"]), "challenge": str(data["challenge"]),
-                        "gameBiz": next(key for key, value in GAME_CONFIG.items() if value is game_cfg or value == game_cfg),
+                        "gameBiz": game_biz
+                        or next(
+                            (
+                                key
+                                for key, value in GAME_CONFIG.items()
+                                if value is game_cfg or value == game_cfg
+                            ),
+                            "",
+                        ),
                         "region": region, "uid": uid,
                     },
                 }, cookie,
@@ -1121,7 +1150,11 @@ async def _do_sign(
             )
 
         # ---- 已签到 ----
-        if retcode == -5003 or "请勿重复签到" in rsp.get("message", ""):
+        # message 可能是 null（上游漏字段），先归一成字符串再判断，否则会抛 TypeError.
+        response_message = rsp.get("message")
+        if not isinstance(response_message, str):
+            response_message = ""
+        if retcode == -5003 or "请勿重复签到" in response_message:
             return _SignOutcome(
                 {
                     "account": account,
@@ -1220,7 +1253,7 @@ async def _do_sign(
                 )
 
         # ---- 其他失败 ----
-        message = f"{rsp.get('message') or '未知错误'}（retcode={retcode}）"
+        message = f"{rsp.get('message') or '未知错误'}（retcode={retcode_raw}）"
         logger.warning(f"{account} {game_cfg['name']} 签到失败: {message}")
         return _SignOutcome(
             {

@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type WikiCalendarRowOut = {
-    game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora';
+    game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora' | 'infinitynikki';
     kind: 'activity' | 'gacha';
     title: string;
     subtitle?: string;

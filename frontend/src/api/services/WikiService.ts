@@ -95,7 +95,7 @@ export class WikiService {
      * @throws ApiError
      */
     public static getWikiCalendar(
-        game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora',
+        game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora' | 'infinitynikki',
     ): CancelablePromise<WikiCalendarOut> {
         return __request(OpenAPI, {
             method: 'GET',

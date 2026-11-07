@@ -8,7 +8,7 @@ import { useDiagnosticsApi } from '@/composables/useDiagnosticsApi'
 import { androidCall, isAndroidLocal } from '@/services/android'
 import { saveTextFile } from '@/utils/download'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const api = useDiagnosticsApi()
 const entries = ref<LogEntryInfo[]>([])
 const level = ref('all')
@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
             >{{ entry.level }}</a-tag
           >{{ entry.module }}
         </div>
-        <small>{{ new Date(entry.time).toLocaleString() }} · {{ entry.requestId }}</small>
+        <small>{{ new Date(entry.time).toLocaleString(locale) }} · {{ entry.requestId }}</small>
         <pre class="log-message">{{ entry.message }}</pre>
       </article>
       <a-pagination
@@ -170,7 +170,7 @@ onBeforeUnmount(() => {
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'time'">{{
-          new Date(record.time).toLocaleString()
+          new Date(record.time).toLocaleString(locale)
         }}</template>
         <a-tag
           v-else-if="column.key === 'level'"

@@ -26,8 +26,12 @@ export type ActivitySnapshot = Omit<
 }
 
 export function useCommunityActivityApi() {
-  const queryActivity = async (accountIds: string[] | null = null): Promise<ActivitySnapshot[]> => {
-    const payload = assertSuccess(await CommunityService.queryActivity({ accountIds }))
+  // refresh=true 只在用户主动点刷新时传：自动进入页面走后端 5 分钟缓存。
+  const queryActivity = async (
+    accountIds: string[] | null = null,
+    refresh = false
+  ): Promise<ActivitySnapshot[]> => {
+    const payload = assertSuccess(await CommunityService.queryActivity({ accountIds, refresh }))
     return (payload.data ?? []).map(snapshot => ({
       ...snapshot,
       completed: snapshot.completed ?? null,

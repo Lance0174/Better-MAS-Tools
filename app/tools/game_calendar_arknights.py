@@ -31,6 +31,7 @@ from typing import Any
 
 from app.services.network import network
 from app.tools.akedata_client import AkedataError
+from app.utils.atomic_io import atomic_write_text
 from app.utils.constants import UTC8
 
 __all__ = [
@@ -186,13 +187,7 @@ def version_due(cached: dict, version: str, now: float) -> bool:
 
 def write_cache(cache_file: Path, payload: dict) -> None:
     """原子替换写盘：先写 .tmp 再 replace，失败时原文件保持可用。"""
-    cache_file.parent.mkdir(parents=True, exist_ok=True)
-    temporary = cache_file.with_suffix(".tmp")
-    try:
-        temporary.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        temporary.replace(cache_file)
-    finally:
-        temporary.unlink(missing_ok=True)
+    atomic_write_text(cache_file, json.dumps(payload, ensure_ascii=False))
 
 
 async def _fetch_json(client, url: str) -> Any:

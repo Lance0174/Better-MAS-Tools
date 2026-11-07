@@ -18,13 +18,13 @@
       "path": "app/tools/community_activity_parser.py",
       "source": "app/tools/community_activity_parser.py",
       "source_sha256": "7c971fe72800a7e16991bfba996a697af4674fc86a6d47822eeb9c1feb63b667",
-      "standalone_sha256": "0847693e6e9a97cb60d01f77751dad018b5d011d8b0da7e951395e0afe125d4d"
+      "standalone_sha256": "db08ac917a2c23d4b88dc3cec07acb33a1ce8058716f47785e31230b16b9645f"
     },
     {
       "path": "app/tools/community_activity_provider.py",
       "source": "app/tools/community_activity_provider.py",
       "source_sha256": "40bd765b943d1c9c0e9fb0383f882b2c2d0da7535145fb593140e061fb75eaf8",
-      "standalone_sha256": "76f2051a6541e7ff7b1cdc57f1f8a5e9fb6ffe72d25f43a199b147795e920a4d",
+      "standalone_sha256": "015822cc8fc3928e97c32fa074c5384f033ea94435a14e7038c1ec2c22ddad2d",
       "synced_source_sha256": "86d3790dac92ffbc198d19d8751d903771461f46ee86616d423518fee11154fa",
       "synced_from": "b834a12358bf1e1d0fc25dc2207a681a228d7263"
     },
@@ -32,25 +32,25 @@
       "path": "app/tools/community_activity_roles.py",
       "source": "app/tools/community_activity_roles.py",
       "source_sha256": "e73de2a783bc40e2e085890d9abd041432d52b62c9728a42db94f45d6297b0e0",
-      "standalone_sha256": "afa6d427f290843328f5a28b82f378d5ee920db3561910816a9555b30f2c60e1"
+      "standalone_sha256": "a54c44ea1595db9f79f5069237b5cd088e9c2a72457c9a30a08e8e4e771ffd94"
     },
     {
       "path": "app/tools/community_activity_transport.py",
       "source": "app/tools/community_activity_transport.py",
       "source_sha256": "52c87d8caa4520be0f19b23e237f8a13ec3727a314036bd8c9a0acd93b0499ba",
-      "standalone_sha256": "be8fdb20157c14bd48d949e901c9a9b0218c82987cc89ced2243bbe6238dc022"
+      "standalone_sha256": "34d7b32d4debeb9f075a3d7d7862e1b3d8b6259d1d703886a52b015620217009"
     },
     {
       "path": "app/tools/community_contract.py",
       "source": "app/tools/community_contract.py",
       "source_sha256": "9c7a8fee473663a9127a6ed34ccb78b3b8cdc3537d08f410b9c7821ecce3dde8",
-      "standalone_sha256": "987d4aacfa94ffc01b389d3eb066042fe93a5e1e3e341c1a3ea38b846243d9cb"
+      "standalone_sha256": "bdc1b89427bf46fcfac451c2202fcda7c65934a6e867661f2fa27fe11579b233"
     },
     {
       "path": "app/tools/community_credentials.py",
       "source": "app/tools/community_credentials.py",
       "source_sha256": "47e03f1dd7b20ec0f43c352d7eda6faf3ab9aa0a1cff6d92314b27226fdd6c5a",
-      "standalone_sha256": "f3508a1a4dcba928551711941e25eb2bcb973d97843e349ba52a2c5c411d7006"
+      "standalone_sha256": "6cfc472bdf6b02994e73bb58006462226f5d6c2dc83e3a567d276babb3420225"
     },
     {
       "path": "app/tools/community_sign_provider.py",
@@ -64,7 +64,7 @@
       "path": "app/tools/game_sign_result.py",
       "source": "app/tools/game_sign_result.py",
       "source_sha256": "e2c0bdaf5d29b2914c57ef2900cfc78869819f26b35650f4b94ebe9e605bbb89",
-      "standalone_sha256": "30b0089ad82439bcbf0f8b6e1f5ac00c2eba36953599ef95959d99ebc567a3d8",
+      "standalone_sha256": "d1459bdb6fb88aa44755d902627654ce5145bab241dde25ff7c0b2c6cc226dba",
       "synced_source_sha256": "1ae2771462d640fc41ce7fdc9571b534e80192bbfdc7f56772380c3dc9b96147",
       "synced_from": "b834a12358bf1e1d0fc25dc2207a681a228d7263"
     },
@@ -72,19 +72,19 @@
       "path": "app/tools/kuro.py",
       "source": "app/tools/kuro.py",
       "source_sha256": "332b582bc269fde4d60a987ea16ddfb1ef6b5386e301c09e260566eecf4970fc",
-      "standalone_sha256": "81e2f3a43173b47a88c64e6774f8f6ec32bd34e3ace9da1c43df859e9a2743e8"
+      "standalone_sha256": "f3ce0be7f0322201a6f03319e64e2d7d7408273a8e036ea890b7c452f6c2a84d"
     },
     {
       "path": "app/tools/miyoushe.py",
       "source": "app/tools/miyoushe.py",
       "source_sha256": "79a75e488aadf8d5d5bc1f486b8cfa627470099abba921d3e35f603b631d8955",
-      "standalone_sha256": "0431ba109b20f9676ad56b9cc686602764fa7ec02ea78c12e3d11e9bc0bb5457"
+      "standalone_sha256": "e18c901df4df21e2537203f62f6c5f7c2ac27f8a7518febabcae23e1d89df8d7"
     },
     {
       "path": "app/tools/miyoushe_qr.py",
       "source": "app/tools/miyoushe_qr.py",
       "source_sha256": "0cb281f2dee79625793bf05f99468bed3730e0ed0f31c1fb2c0330bfe15c6a9d",
-      "standalone_sha256": "c775b9242fe58d7566b65ac2303e73a97b33c048177cfeef0e2c60398b7c2ee7"
+      "standalone_sha256": "b526d2400478120bf902ae50bb1af1f756e098ceeaebb6e2908057d2bf9d63ad"
     },
     {
       "path": "app/tools/skland.py",
@@ -98,25 +98,25 @@
       "path": "app/tools/taygedo.py",
       "source": "app/tools/taygedo.py",
       "source_sha256": "c031dd3100ac85e0139f16c19d5a3dd8ac4046e4973c7cd353afa9e4dee40f48",
-      "standalone_sha256": "4d8964b087292a869639405926e25a1097797c6ab5742876ed972a4fe591a78c"
+      "standalone_sha256": "82ff78fe88360478b58680554e168612c0e1348d793d278f2d8aff619a2765d2"
     },
     {
       "path": "app/core/community_sign.py",
       "source": "app/core/community_sign.py",
       "source_sha256": "85ec89e3c2be3d454bea1f31bc40c7b39f99776fb1e63d5953ac8e4ced777f21",
-      "standalone_sha256": "ae6578dfd4e11204bc67a7c8fe141061aa28216b49dceb926521a54d23fd38df"
+      "standalone_sha256": "794b2f78cfd7bcfb4d96a820663f7e334afdb8dce2e9928e0a4ff7edcf424657"
     },
     {
       "path": "app/core/community_activity.py",
       "source": "app/core/community_activity.py",
       "source_sha256": "d64ee2ae1a4f007a444bdc20fec4e943304be5279a61aa8b93ae64d8462459d8",
-      "standalone_sha256": "bb0852fc1df986d85e293d81e0b71727b15f35a6b333de6e3880f8317ef93bcf"
+      "standalone_sha256": "2911a0c2aac427e0992e44789593586c50592613a7a10d43b7de0456382cc075"
     },
     {
       "path": "app/core/community_scheduler.py",
       "source": "app/core/community_scheduler.py",
       "source_sha256": "a9ec91f7af1d0dd5b5ae3a70f048e36cff87ad2d59176c5bb2e64957dd752dcc",
-      "standalone_sha256": "67f19df0bc48e2a3c624c223e924a81ab7b83d2c4218c5b6166db3eefa95bf2f"
+      "standalone_sha256": "17253c60017b5a29fd6278b708dfb916bd40d45581fd8de7ca5520d14b44210e"
     },
     {
       "path": "app/utils/security.py",
@@ -128,7 +128,7 @@
       "path": "frontend/src/views/gamesign/CommunityActivityView.vue",
       "source": "frontend/src/views/gamesign/CommunityActivityView.vue",
       "source_sha256": "4b22b898d7cd09a40751029d559180c92f956c24e8c750420531dabfb095d3a9",
-      "standalone_sha256": "d46eaa970708c9271efbb8f55bf58e7b02b46d022c08b047799befc4a3072820"
+      "standalone_sha256": "862335f6a0a58001f921248da3b24f99c58716ed53af7d91049e1a86ed5e309e"
     },
     {
       "path": "frontend/src/views/gamesign/communityActivityPresentation.ts",
@@ -190,14 +190,14 @@
       "source": "app/models/schema.py",
       "extraction": "copyright header and community-only schema definitions, then independent contracts",
       "source_sha256": "b1f460335976f4fed7488b8e069a74b0e64405e051ccf604f363dd56140c8f70",
-      "standalone_sha256": "c9d75a4d9c124646438ce17ec7a2ab509666953f9373a4619b553208431e346a"
+      "standalone_sha256": "8353761723bd9549fcac3af2b4c0c6039641f1621c278fca6048a28fe2966e4d"
     },
     {
       "path": "frontend/src/i18n/locales/zh-CN.ts",
       "source": "frontend/src/i18n/locales/zh-CN.ts",
       "extraction": "common and game community messages",
       "source_sha256": "6d799e444d5b2a017e9ac576b8e3e178dbe9f0b5f09d752b4282dc8cf3694272",
-      "standalone_sha256": "d1ba4ea5fea164753b52e657b65d0aaca3310f749113018c5b20bbbc23e4f0fb"
+      "standalone_sha256": "c3c25bc8778117b6351439948d1124db768bb4419a592bea3b31451f95975a89"
     },
     {
       "path": "frontend/src/views/gamesign/components/community-activity-card.css",
@@ -318,7 +318,7 @@
       "path": "app/tools/game_calendar_arknights.py",
       "origin": "Billtranscend/Priestess-bot plugins/game_calendar/arknights.py",
       "license": "MIT（Copyright (c) 2026 Billtranscend，全文见 docs/licenses/Priestess-bot.txt）",
-      "standalone_sha256": "c179b15d9dbf5b91dffa0b324fa216e5ac31f0923cc21c6d2bc6dbf09fbf2370",
+      "standalone_sha256": "91696ccc5b02085e0d650b2c9272eb601b19af94270b55a1fcf96021802f5458",
       "note": "移植游戏表拉取、缓存与日历行转换；上游的 PRTS 双源合并、横幅补齐与卡池配对未接入。"
     },
     {
@@ -332,7 +332,7 @@
       "path": "app/services/game_calendar.py",
       "origin": "无直接上游文件；明日方舟降级分支调用 Priestess-bot 的 arknights 日历移植（app/tools/game_calendar_arknights.py）",
       "license": "本文件 AGPL-3.0-or-later；所引用的 Priestess-bot 移植部分为 MIT",
-      "standalone_sha256": "cba7a534da3a09f68f184d6e39fd0d13b11001c4e99600d92c0e5146ebb4d7f0",
+      "standalone_sha256": "42f8a40c77e6050fd1003da2d67f86e0a6a4c1b5c89ec5af0cfb71f1c9e9191b",
       "note": "本机取数/缓存/契约行编排为独立实现，仅因文件头说明明日方舟来源而登记归属。"
     },
     {

@@ -43,6 +43,7 @@ from app.tools import (
 )
 from app.tools.akedata_client import AkedataError
 from app.tools.endfield_lookup import load_aliases
+from app.utils.atomic_io import atomic_write_text
 from app.utils.constants import UTC8
 from app.utils.logger import get_logger
 
@@ -109,17 +110,6 @@ def data_directory() -> Path:
     if configured:
         return Path(configured).expanduser()
     return Path(__file__).resolve().parents[2] / "data"
-
-
-def _atomic_write(path: Path, text: str) -> None:
-    """同目录临时文件 + os.replace，中断不会留下半份文件。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.tmp")
-    try:
-        temporary.write_text(text, encoding="utf-8")
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _read_json(path: Path) -> dict:
@@ -403,7 +393,7 @@ class WikiStore:
         stage = akedata_client.stage_stats(new_index)
         index_text = json.dumps(new_index, ensure_ascii=False)
         await self._write_storage(self.index_file, index_text, required=True)
-        _atomic_write(self.index_file, index_text)
+        atomic_write_text(self.index_file, index_text)
         self._index, self._stamp = None, None
         state_text = json.dumps(
             {
@@ -418,7 +408,7 @@ class WikiStore:
             ensure_ascii=False,
         )
         await self._write_storage(self.state_file, state_text, required=True)
-        _atomic_write(self.state_file, state_text)
+        atomic_write_text(self.state_file, state_text)
         added = endfield_changes.added(index, new_index)
         fresh = sum(len(names) for names in added.values())
         logger.info(
@@ -600,9 +590,10 @@ class WikiStore:
             )
         for pool in calendar.get("pools") or []:
             start, end = parse_moment(pool.get("open")), parse_moment(pool.get("close"))
+            # 卡池要开闭时间齐全：缺 open 的残缺条目会产出一行 startsAt 与状态都为空的
+            # 卡片，和活动分支（缺 open 直接跳过）的语义也不一致。
             if start is None or end is None or end.timestamp() < now.timestamp():
-                if end is None or (end and end.timestamp() < now.timestamp()):
-                    continue
+                continue
             up = pool.get("up") or []
             rows.append(
                 {

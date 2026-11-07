@@ -70,7 +70,14 @@ async def import_records(body: GachaImportIn) -> GachaUpdateOut:
         raise ValueError(
             "导入未完成，请检查文件格式、字段及存储空间；原记录已保留"
         ) from None
-    return GachaUpdateOut(added=added, fetched=fetched, warnings=warnings)
+    # 与 /fetch 的契约保持一致：有告警即部分成功。status 只描述本次调用结果，
+    # 客户端（含生成的 OutBase.code 判断）仍按 code 与 warnings 决定提示。
+    return GachaUpdateOut(
+        added=added,
+        fetched=fetched,
+        warnings=warnings,
+        status="partial" if warnings else "success",
+    )
 
 
 @router.get("/export", response_model=GachaExportOut, operation_id="exportGachaRecords")

@@ -12,6 +12,9 @@ export type CloudSyncOut = {
      * 操作状态
      */
     status?: string;
+    /**
+     * 操作消息
+     */
     message?: string;
     data?: Array<CloudSyncResult>;
 };

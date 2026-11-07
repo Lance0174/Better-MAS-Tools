@@ -6,6 +6,7 @@
 import asyncio
 import hashlib
 import json
+import math
 import secrets
 import time
 
@@ -25,23 +26,49 @@ class VerificationRequired(ValueError):
         self.challenge = challenge
 
 
+def _progress_count(value: object) -> int | None:
+    """把上游进度字段归一成整数，null、bool 与非数字文本视为未提供。"""
+
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if math.isfinite(value) else None
+    if isinstance(value, str):
+        try:
+            return int(float(value.strip()))
+        except ValueError:
+            return None
+    return None
+
+
 def mission_remaining(definitions: list[dict], states: list[dict]) -> dict[str, int]:
     """只执行上游明确声明的四种日常任务，不推测未知任务或完成状态。"""
-    progress = {str(item.get("mission_key")): item for item in states}
+    # 上游数组里可能混入 null 或非对象元素，逐项收窄，避免在 None 上取字段。
+    progress = (
+        {str(item.get("mission_key")): item for item in states if isinstance(item, dict)}
+        if isinstance(states, list)
+        else {}
+    )
     remaining = {}
-    for item in definitions:
+    for item in definitions if isinstance(definitions, list) else []:
+        if not isinstance(item, dict):
+            continue
         key = str(item.get("mission_key"))
         if key not in TASK_KEYS:
             continue
-        threshold = int(item.get("threshold", 0))
-        if not 1 <= threshold <= 20:
+        threshold = _progress_count(item.get("threshold"))
+        if threshold is None or not 1 <= threshold <= 20:
             raise ValueError("米游币任务目标异常，已停止自动执行")
-        current = progress.get(key, {})
-        remaining[key] = (
-            0
-            if current.get("is_get_award")
-            else max(0, threshold - int(current.get("happened_times", 0)))
-        )
+        current = progress.get(key)
+        if not isinstance(current, dict):
+            current = {}
+        if current.get("is_get_award"):
+            remaining[key] = 0
+            continue
+        happened = _progress_count(current.get("happened_times")) or 0
+        remaining[key] = max(0, threshold - happened)
     if not remaining:
         raise ValueError("未取得可识别的米游币任务定义")
     return remaining

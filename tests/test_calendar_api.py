@@ -5,6 +5,7 @@
 
 import json
 import sys
+import time
 from pathlib import Path
 
 import httpx
@@ -28,6 +29,7 @@ NOW_GAMES = (
     "wutheringwaves",
     "nte",
     "stellasora",
+    "infinitynikki",
 )
 ROW_FIELDS = {"game", "kind", "title", "subtitle", "startsAt", "endsAt", "banner", "status"}
 BASE = game_calendar.sra_activity.ACTIVITY_BASE
@@ -112,7 +114,7 @@ def _patch_network(monkeypatch, routes: dict[str, object]) -> None:
 
 
 def _all_routes(version: str = "test-1") -> dict[str, object]:
-    keys = ("end", "ak", "ys", "sr", "zzz", "ww", "nte", "xtlr")
+    keys = ("end", "ak", "ys", "sr", "zzz", "ww", "nte", "xtlr", "infinitynikki")
     return {f"{BASE}/{key}.json": _sample(version) for key in keys}
 
 
@@ -191,11 +193,12 @@ def test_calendar_all_uses_cache_when_upstream_fails(client, store, monkeypatch)
     _patch_network(monkeypatch, _all_routes())
     assert client.get("/api/wiki/calendar-all").status_code == 200
 
-    # 缓存过期 + 上游全挂：仍然返回上次成功的结果，只是说明里点出降级。
+    # 缓存过期（仍在 24 小时兜底窗内）+ 上游全挂：返回上次成功的结果，
+    # 只是说明里点出降级。
     for game in NOW_GAMES:
         path = game_calendar.cache_file(store.wiki_directory, game)
         payload = json.loads(path.read_text("utf-8"))
-        payload["fetched"] = 1.0
+        payload["fetched"] = time.time() - 3600.0
         _write(path, payload)
     game_calendar.clear_memory()
     _patch_network(monkeypatch, {})

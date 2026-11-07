@@ -54,7 +54,7 @@ import httpx
 from app.services.network import network
 
 from .community_activity_roles import (
-    TAYGEDO_NOTES_UNAVAILABLE_REASON,
+    TAYGEDO_PARTIAL_ROLES_REASON,
     CommunityActivityCapability,
     CommunityActivityRoleDiscovery,
     normalize_kuro_roles,
@@ -469,9 +469,7 @@ class CommunityActivityProvider:
         if self.platform == "库街区":
             return await self._request_kuro(request)
         if self.platform == "塔吉多":
-            # 塔吉多没有公开的资源便笺端点：能力在角色发现阶段已标成 limited，
-            # 正常流程不会走到这里；走到这里说明上游契约变了，明确报错而不是猜字段。
-            raise ValueError(TAYGEDO_NOTES_UNAVAILABLE_REASON)
+            return await self._request_taygedo(request)
         raise ValueError(f"{self.platform}活动 provider 尚未登记")
 
     async def discover_roles(
@@ -510,10 +508,10 @@ class CommunityActivityProvider:
         account_uid: str,
         account_name: str,
     ) -> CommunityActivityRoleDiscovery:
-        """读取塔吉多角色卡，只用于展示角色信息。
+        """读取塔吉多角色卡，作为异环名片请求的角色来源。
 
-        塔吉多没有公开的资源便笺接口，因此返回值的能力固定为 ``limited``：
-        上层不会为这些角色再发任何资源请求，卡片上直接说明原因。
+        能力固定为 ``ready``：角色列表读全了就正常请求名片，只读了一部分时
+        额外带上提示文案（请求照常进行，缺的角色只是没卡片）。
         """
 
         from .taygedo import (
@@ -547,11 +545,8 @@ class CommunityActivityProvider:
 
         discovery = normalize_taygedo_roles(
             roles,
-            reason=(
-                TAYGEDO_NOTES_UNAVAILABLE_REASON
-                if complete
-                else f"{TAYGEDO_NOTES_UNAVAILABLE_REASON}（部分角色读取失败）"
-            ),
+            # 读全了不带说明；没读全只提示"有角色没列出来"，请求照常进行。
+            reason="" if complete else TAYGEDO_PARTIAL_ROLES_REASON,
         )
         # 角色数是脱敏信息，便于排查"账号绑定了但便笺空"的情况。
         from app.utils.logger import get_logger
@@ -764,6 +759,45 @@ class CommunityActivityProvider:
         # 而不是把它当成请求失败。
         return normalize_kuro_roles({"data": roles}, game_id="3")
 
+    async def _request_json(
+        self,
+        request: CommunityActivityRequest,
+        call: Callable[[httpx.AsyncClient], Awaitable[httpx.Response]],
+        *,
+        platform: str,
+    ) -> Mapping[str, object]:
+        """发一次请求，把网络异常、响应解析与业务码错误统一成传输错误。
+
+        平台差异只在 `platform` 文案和 `call` 里怎么发请求，错误语义共用一份，
+        避免各平台分支的异常映射慢慢长得不一样。
+        """
+
+        try:
+            async with network.client(
+                proxy=self.proxy, trust_env=False
+            ) as client:
+                response = await call(client)
+        except httpx.TimeoutException as exc:
+            raise CommunityActivityTransportError(
+                f"{platform}{request.target.game}接口请求超时", status="failed"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise CommunityActivityTransportError(
+                f"{platform}{request.target.game}接口网络请求失败", status="failed"
+            ) from exc
+
+        payload = _response_json(
+            response,
+            platform=platform,
+            game=request.target.game,
+        )
+        _raise_business_error(
+            payload,
+            platform=platform,
+            game=request.target.game,
+        )
+        return payload
+
     async def _request_kuro(
         self, request: CommunityActivityRequest
     ) -> Mapping[str, object]:
@@ -775,79 +809,86 @@ class CommunityActivityProvider:
         headers = _kuro_request_headers(
             request.header_map, token, dev_code, distinct_id
         )
+
+        async def call(client: httpx.AsyncClient) -> httpx.Response:
+            return await client.post(
+                request.source,
+                headers=headers,
+                data=request.form_data,
+                timeout=request.timeout,
+            )
+
+        return await self._request_json(request, call, platform="库街区")
+
+    async def _request_taygedo(
+        self, request: CommunityActivityRequest
+    ) -> Mapping[str, object]:
+        """执行塔吉多异环名片 GET 请求。"""
+
+        from .taygedo import (
+            _taygedo_reason_is_auth_failure,
+            fetch_role_home,
+            parse_taygedo_credential,
+        )
+
+        credential = parse_taygedo_credential(self.raw_credential)
+        access_token = str(credential.get("accessToken") or "").strip()
+        uid = str(credential.get("uid") or "").strip()
+        if not access_token or not uid:
+            raise CommunityActivityTransportError(
+                "塔吉多凭据缺少访问令牌，请重新登录塔吉多", status="failed"
+            )
+        device_id = str(credential.get("deviceId") or "").strip()
         try:
             async with network.client(
                 proxy=self.proxy, trust_env=False
             ) as client:
-                response = await client.post(
-                    request.source,
-                    headers=headers,
-                    data=request.form_data,
-                    timeout=request.timeout,
+                return await fetch_role_home(
+                    access_token,
+                    request.target.role_uid,
+                    uid=uid,
+                    device_id=device_id,
+                    client=client,
                 )
         except httpx.TimeoutException as exc:
             raise CommunityActivityTransportError(
-                f"库街区{request.target.game}接口请求超时", status="failed"
+                f"塔吉多{request.target.game}名片请求超时", status="failed"
             ) from exc
         except httpx.HTTPError as exc:
             raise CommunityActivityTransportError(
-                f"库街区{request.target.game}接口网络请求失败", status="failed"
+                f"塔吉多{request.target.game}名片网络请求失败", status="failed"
             ) from exc
-
-        payload = _response_json(
-            response,
-            platform="库街区",
-            game=request.target.game,
-        )
-        _raise_business_error(
-            payload,
-            platform="库街区",
-            game=request.target.game,
-        )
-        return payload
+        except ValueError as exc:
+            # 会话失效要单独说清楚，否则用户只会看到"响应无法识别"。
+            if _taygedo_reason_is_auth_failure(str(exc)):
+                raise CommunityActivityTransportError(
+                    "塔吉多登录状态已失效，请重新登录塔吉多", status="failed"
+                ) from exc
+            raise CommunityActivityTransportError(
+                str(exc) or "塔吉多异环名片响应无法识别", status="unavailable"
+            ) from exc
 
     async def _request_skland(
         self, request: CommunityActivityRequest
     ) -> Mapping[str, object]:
-        try:
-            async with network.client(
-                proxy=self.proxy, trust_env=False
-            ) as client:
-                credential, device_id = await self._prepare_skland(
-                    request.target,
-                    client,
-                )
-                headers = self._skland_request_headers(
-                    request,
-                    credential=credential,
-                    device_id=device_id,
-                )
-                response = await client.get(
-                    request.source,
-                    params=request.query,
-                    headers=headers,
-                    timeout=request.timeout,
-                )
-        except httpx.TimeoutException as exc:
-            raise CommunityActivityTransportError(
-                f"森空岛{request.target.game}接口请求超时", status="failed"
-            ) from exc
-        except httpx.HTTPError as exc:
-            raise CommunityActivityTransportError(
-                f"森空岛{request.target.game}接口网络请求失败", status="failed"
-            ) from exc
+        async def call(client: httpx.AsyncClient) -> httpx.Response:
+            credential, device_id = await self._prepare_skland(
+                request.target,
+                client,
+            )
+            headers = self._skland_request_headers(
+                request,
+                credential=credential,
+                device_id=device_id,
+            )
+            return await client.get(
+                request.source,
+                params=request.query,
+                headers=headers,
+                timeout=request.timeout,
+            )
 
-        payload = _response_json(
-            response,
-            platform="森空岛",
-            game=request.target.game,
-        )
-        _raise_business_error(
-            payload,
-            platform="森空岛",
-            game=request.target.game,
-        )
-        return payload
+        return await self._request_json(request, call, platform="森空岛")
 
     async def _prepare_skland(
         self,

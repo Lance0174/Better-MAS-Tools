@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import draggable from 'vuedraggable'
 import { usePerformanceStore } from '@/stores/performance'
+import { errorMessage } from '@/composables/useCommunityApi'
 import { useCommunityActivityApi, type ActivitySnapshot } from './useCommunityActivityApi'
 import CommunityActivityCard from './components/CommunityActivityCard.vue'
 
@@ -12,7 +13,7 @@ const performanceStore = usePerformanceStore()
 const snapshots = ref<ActivitySnapshot[]>([])
 const loading = ref(false)
 const hasLoaded = ref(false)
-const errorMessage = ref('')
+const errorText = ref('')
 const lastUpdated = ref('')
 let requestId = 0
 let activityRequest: Promise<void> | null = null
@@ -34,15 +35,15 @@ const snapshotKey = (snapshot: ActivitySnapshot) =>
     .map(value => value || '-')
     .join(':')
 
-const loadActivity = () => {
+const loadActivity = (refresh = false) => {
   if (activityRequest) return activityRequest
 
   const currentRequestId = ++requestId
   loading.value = true
-  errorMessage.value = ''
+  errorText.value = ''
   const request = (async () => {
     try {
-      const data = await queryActivity()
+      const data = await queryActivity(null, refresh)
       if (currentRequestId !== requestId) return
 
       snapshots.value = data
@@ -53,8 +54,8 @@ const loadActivity = () => {
       lastUpdated.value = updatedValues.at(-1) || new Date().toISOString()
     } catch (error) {
       if (currentRequestId !== requestId) return
-      errorMessage.value =
-        error instanceof Error ? error.message : t('gamesign.activity.queryFailed')
+      // 与其它页面一致：只显示后端给出的中文说明，原始 Error/ApiError 文本不上屏。
+      errorText.value = errorMessage(error, t('gamesign.activity.queryFailed'))
     } finally {
       if (currentRequestId === requestId) {
         hasLoaded.value = true
@@ -79,6 +80,10 @@ const isEmpty = computed(() => hasLoaded.value && snapshots.value.length === 0)
 onMounted(() => {
   void loadActivity()
 })
+onUnmounted(() => {
+  // 卸载后作废在飞请求，避免继续写已销毁的 ref。
+  requestId += 1
+})
 </script>
 
 <template>
@@ -100,7 +105,7 @@ onMounted(() => {
           shape="circle"
           :loading="loading"
           :aria-label="t('gamesign.activity.refresh')"
-          @click="loadActivity"
+          @click="loadActivity(true)"
         >
           <ReloadOutlined />
         </a-button>
@@ -108,10 +113,10 @@ onMounted(() => {
     </header>
 
     <a-alert
-      v-if="errorMessage"
+      v-if="errorText"
       type="error"
       show-icon
-      :message="errorMessage"
+      :message="errorText"
       class="activity-alert"
     />
 

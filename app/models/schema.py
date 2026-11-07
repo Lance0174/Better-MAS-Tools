@@ -37,7 +37,10 @@ class OutBase(BaseModel):
 class GameSignAccountGroupConfig(BaseModel):
     """游戏社区账号组配置"""
 
-    Name: str | None = Field(default=None, description="账号组名称")
+    # 上限与存储模型 AccountData.Name（app/models/config.py）保持一致：请求模型
+    # 缺约束时，超长名称会落到存储模型的校验里，被 main.py 的 ValueError 处理器
+    # 当成业务错误回成 400 并带出 pydantic 原文。
+    Name: str | None = Field(default=None, max_length=80, description="账号组名称")
     Enabled: bool | None = Field(default=None, description="是否启用")
     MiyousheToken: str | None = Field(default=None, description="米游社登录凭证")
     MiyousheDeviceId: str | None = Field(
@@ -149,6 +152,8 @@ class SettingsOut(OutBase):
 
 class ActivityQueryIn(BaseModel):
     accountIds: list[str] | None = None
+    # 手动刷新显式绕过便笺缓存；自动进入页面仍走缓存，避免反复全量查询。
+    refresh: bool = False
 
 
 class SignDetailInfo(BaseModel):
@@ -365,7 +370,8 @@ class CloudAccountIn(BaseModel):
 class CloudSyncIn(BaseModel):
     """云端签到同步请求：本地把账号 token 与执行开关交给云端。"""
 
-    accounts: list[CloudAccountIn] = Field(default_factory=list)
+    # 每个账号都会在云端逐个发起签到，列表不设上限等于接受任意规模的扇出。
+    accounts: list[CloudAccountIn] = Field(default_factory=list, max_length=200)
     miyoushe_bbs: bool = True
 
 
@@ -383,8 +389,8 @@ class CloudSyncResult(BaseModel):
 
 
 class CloudSyncOut(OutBase):
+    # message 沿用 OutBase 的同名同默认字段，此处不再重复声明。
     data: list[CloudSyncResult] = Field(default_factory=list)
-    message: str = Field(default="操作成功")
 
 
 RelayCommandType = Literal["mas.snapshot", "mas.start", "mas.stop", "sign.run"]
@@ -479,7 +485,8 @@ class ClientLogIn(BaseModel):
 # 用空字符串或空列表，不用 None，避免前端渲染出 "null"。
 
 WikiEntryKind = Literal["character", "weapon", "equipSuit", "dungeon", "enemy"]
-# 日历覆盖的游戏，对应 SRA 的 end/ak/ys/sr/zzz/ww/nte/xtlr（见 app/tools/sra_activity.py）。
+# 日历覆盖的游戏，对应 SRA 的 end/ak/ys/sr/zzz/ww/nte/xtlr/infinitynikki
+# （见 app/tools/sra_activity.py）。
 # 终末地也在其中：它的权威数据是本机 AKEData 索引里的日历，SRA 只在索引缺活动时补位，
 # 降级顺序写在 app/services/game_calendar.py 与 WikiStore.calendar_outcomes。
 WikiCalendarGame = Literal[
@@ -491,6 +498,7 @@ WikiCalendarGame = Literal[
     "wutheringwaves",
     "nte",
     "stellasora",
+    "infinitynikki",
 ]
 
 

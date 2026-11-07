@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import re
 import time
 from datetime import datetime
@@ -34,6 +33,7 @@ from typing import NamedTuple, Sequence
 import httpx
 
 from app.tools import sra_activity
+from app.utils.atomic_io import atomic_write_text
 from app.utils.constants import UTC8
 from app.utils.logger import get_logger
 
@@ -45,6 +45,7 @@ __all__ = [
     "CALENDAR_GAMES",
     "GAME_NAMES",
     "SRA_SOURCES",
+    "STALE_MAX_SECONDS",
     "SUBTITLE_MAX",
     "CalendarOutcome",
     "aggregate",
@@ -67,6 +68,7 @@ SRA_SOURCES = {
     "wutheringwaves": "ww",
     "nte": "nte",
     "stellasora": "xtlr",
+    "infinitynikki": "infinitynikki",
 }
 CALENDAR_GAMES = tuple(SRA_SOURCES)
 # 展示名用中文常量，避免界面语言变化影响数据标识（与 AUTO-MAS 的做法一致）。
@@ -79,9 +81,13 @@ GAME_NAMES = {
     "wutheringwaves": "鸣潮",
     "nte": "异环",
     "stellasora": "星塔旅人",
+    "infinitynikki": "无限暖暖",
 }
 CACHE_SCHEMA = 1
 CACHE_TTL = 30 * 60.0  # 30 分钟：SRA 是静态站，不必每次访问都回源
+# 上游失败时最多兜底 24 小时。再旧的活动已经结束或与当前版本无关，继续展示比
+# 「暂无数据」更误导：用户看到的是一份三周前的时间表。
+STALE_MAX_SECONDS = 24 * 3600.0
 SUBTITLE_MAX = 60  # subtitle 是描述摘要，超长按字符截断
 # 进程内的缓存，避免同一进程内重复读盘（测试可用 clear_memory 复位）。
 _MEMORY: dict[tuple[str, str], dict] = {}
@@ -122,20 +128,6 @@ def cache_file(directory: Path, game: str) -> Path:
     return Path(directory) / f"calendar-{game}.json"
 
 
-def _atomic_write(path: Path, text: str) -> None:
-    """同目录临时文件 + os.replace，中断不会留下半份缓存。
-
-    与 `endfield_wiki._atomic_write` 同形：那边要调用本模块，为避免循环导入不共用。
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.tmp")
-    try:
-        temporary.write_text(text, encoding="utf-8")
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
 def load(wiki_directory: Path, game: str) -> dict:
     """读取本机缓存；文件缺失或损坏时按空缓存处理。"""
     if game not in CALENDAR_GAMES:
@@ -160,7 +152,7 @@ def save(wiki_directory: Path, game: str, payload: dict) -> None:
     """写入缓存；磁盘出错只记日志，不影响本次结果。"""
     path = cache_file(wiki_directory, game)
     try:
-        _atomic_write(path, json.dumps(payload, ensure_ascii=False))
+        atomic_write_text(path, json.dumps(payload, ensure_ascii=False))
     except OSError as error:
         logger.warning(f"活动日历缓存写入失败（{game}）：{type(error).__name__}")
         return
@@ -263,10 +255,13 @@ def to_calendar_rows(game: str, payload: dict, now: float | None = None) -> list
     return sorted(rows, key=lambda row: (row["startsAt"], row["title"]))
 
 
-def _outcome(game: str, payload: dict, source: str, message: str) -> CalendarOutcome:
+def _outcome(
+    game: str, payload: dict, source: str, message: str, now: float | None = None
+) -> CalendarOutcome:
     return CalendarOutcome(
         game=game,
-        rows=to_calendar_rows(game, payload),
+        # 状态文案必须与缓存判定用同一个时刻，否则注入的 now 只影响 TTL。
+        rows=to_calendar_rows(game, payload, now),
         message=message,
         source=source,
         version=str(payload.get("version") or ""),
@@ -292,7 +287,7 @@ async def fetch(
     cached = load(wiki_directory, game)
     if _usable(cached, moment):
         age = _age_text(moment - float(cached["fetched"]))
-        return _outcome(game, cached, "cache", f"本机缓存（{age}前）")
+        return _outcome(game, cached, "cache", f"本机缓存（{age}前）", moment)
     data = await sra_activity.fetch_activities(SRA_SOURCES[game], transport=transport)
     if data is not None:
         payload = {
@@ -306,13 +301,28 @@ async def fetch(
         message = f"已从 SRA 更新 {len(data['activities'])} 条"
         if data.get("versionName"):
             message += f"（当前版本 {data['versionName']}）"
-        return _outcome(game, data, "sra", message)
+        return _outcome(game, data, "sra", message, moment)
     # 只有结构正确的缓存才配叫"上次成功结果"：旧格式或损坏的文件不在此列。
     if cached.get("schema") == CACHE_SCHEMA and isinstance(cached.get("activities"), list):
-        age = _age_text(moment - float(cached.get("fetched") or 0))
-        return _outcome(
-            game, cached, "stale-cache", f"SRA 暂不可用，显示上次成功获取的数据（{age}前）"
-        )
+        fetched = cached.get("fetched")
+        age_seconds = moment - float(fetched) if isinstance(fetched, (int, float)) else None
+        if age_seconds is not None and 0 <= age_seconds <= STALE_MAX_SECONDS:
+            age = _age_text(age_seconds)
+            return _outcome(
+                game,
+                cached,
+                "stale-cache",
+                f"SRA 暂不可用，显示上次成功获取的数据（{age}前）",
+                moment,
+            )
+        if age_seconds is not None and age_seconds > STALE_MAX_SECONDS:
+            age = _age_text(age_seconds)
+            return CalendarOutcome(
+                game,
+                [],
+                f"SRA 暂不可用，上次成功数据已是 {age}前，超过 24 小时不再展示",
+                "none",
+            )
     return CalendarOutcome(game, [], "SRA 暂不可用，稍后重试", "none")
 
 

@@ -17,6 +17,13 @@ from app.services.cloud import CLOUD_SYNC_TIMEOUT_SECONDS
 
 router = APIRouter(prefix="/api/cloud", tags=["Cloud"])
 
+# 上传的 tokens 只允许覆盖凭据字段（AccountData 中 repr=False 的字段）：键来自
+# 请求体，写进模型前必须收窄，否则 Enabled（bool）这类非凭据字段会被字符串覆盖，
+# 而 AccountData 未开启 validate_assignment，赋值时不会再校验类型。
+_ALLOWED_TOKEN_FIELDS = frozenset(
+    name for name, field in AccountData.model_fields.items() if not field.repr
+)
+
 
 class _MemoryStore:
     """临时内存存储：云端同步执行不落盘，避免污染云端持久状态。"""
@@ -41,7 +48,7 @@ async def cloud_sync(body: CloudSyncIn) -> CloudSyncOut:
             Enabled=item.enabled,
         )
         for field, value in item.tokens.items():
-            if hasattr(account, field):
+            if field in _ALLOWED_TOKEN_FIELDS:
                 setattr(account, field, value)
         temp.data.accounts[item.uid] = account
 

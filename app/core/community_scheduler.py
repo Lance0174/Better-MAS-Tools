@@ -96,7 +96,6 @@ def should_run_community_for_source(
 
 __all__ = [
     "TASK_COMMUNITY_SOURCES",
-    "CommunityActivityInProgressError",
     "CommunityTriggerSource",
     "all_community_accounts_signed",
     "community_activity_flow",
@@ -105,19 +104,16 @@ __all__ = [
 ]
 
 
-class CommunityActivityInProgressError(RuntimeError):
-    """社区日常查询已在执行。"""
-
-
 _community_activity_lock = asyncio.Lock()
 
 
 @asynccontextmanager
 async def community_activity_flow():
-    """保护社区日常查询自身，不占用签到流程锁。"""
+    """串行化社区日常查询，不占用签到流程锁。
 
-    if _community_activity_lock.locked():
-        raise CommunityActivityInProgressError("社区日常查询正在执行，请稍后重试")
+    排队而不是直接报冲突：便笺查询带结果缓存，后到的请求等到锁后通常直接
+    命中缓存返回，没必要让前端弹一次「正在执行」。
+    """
 
     await _community_activity_lock.acquire()
     try:

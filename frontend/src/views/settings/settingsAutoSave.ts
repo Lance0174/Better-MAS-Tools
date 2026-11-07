@@ -20,6 +20,7 @@ export function createSettingsAutoSave(options: SettingsAutoSaveOptions) {
   let pending = false
   let attempts = 0
   let failureShown = false
+  let disposed = false
 
   const snapshot = () => JSON.parse(JSON.stringify(options.getSnapshot())) as SettingsData
   const clearTextTimer = () => {
@@ -27,6 +28,8 @@ export function createSettingsAutoSave(options: SettingsAutoSaveOptions) {
     textTimer = undefined
   }
   const persist = async (reason: SaveReason) => {
+    // 页面卸载后不再写后端，也不再上报失败（在飞的请求可能已失败）。
+    if (disposed) return
     if (saving) {
       pending = true
       return
@@ -39,10 +42,11 @@ export function createSettingsAutoSave(options: SettingsAutoSaveOptions) {
     } catch (error) {
       attempts += 1
       if (attempts >= MAX_ATTEMPTS) {
-        if (!failureShown) options.onFailure(error)
+        if (!failureShown && !disposed) options.onFailure(error)
         failureShown = true
       }
-      if (attempts < MAX_ATTEMPTS) retryTimer = setTimeout(() => void persist('change'), RETRY_DELAY)
+      if (attempts < MAX_ATTEMPTS && !disposed)
+        retryTimer = setTimeout(() => void persist('change'), RETRY_DELAY)
     } finally {
       saving = false
       if (pending) {
@@ -50,7 +54,7 @@ export function createSettingsAutoSave(options: SettingsAutoSaveOptions) {
         attempts = 0
         if (retryTimer) clearTimeout(retryTimer)
         retryTimer = undefined
-        void persist(reason)
+        if (!disposed) void persist(reason)
       }
     }
   }
@@ -71,8 +75,10 @@ export function createSettingsAutoSave(options: SettingsAutoSaveOptions) {
       void persist('blur')
     },
     dispose() {
+      disposed = true
       clearTextTimer()
       if (retryTimer) clearTimeout(retryTimer)
+      retryTimer = undefined
     },
   }
 }

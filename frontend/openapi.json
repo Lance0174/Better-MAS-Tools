@@ -1706,7 +1706,8 @@
                 "zenless",
                 "wutheringwaves",
                 "nte",
-                "stellasora"
+                "stellasora",
+                "infinitynikki"
               ],
               "type": "string",
               "title": "Game"
@@ -1961,6 +1962,11 @@
               }
             ],
             "title": "Accountids"
+          },
+          "refresh": {
+            "type": "boolean",
+            "title": "Refresh",
+            "default": false
           }
         },
         "type": "object",
@@ -2040,6 +2046,7 @@
               "$ref": "#/components/schemas/CloudAccountIn"
             },
             "type": "array",
+            "maxItems": 200,
             "title": "Accounts"
           },
           "miyoushe_bbs": {
@@ -2069,6 +2076,7 @@
           "message": {
             "type": "string",
             "title": "Message",
+            "description": "操作消息",
             "default": "操作成功"
           },
           "data": {
@@ -2715,7 +2723,8 @@
           "Name": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "maxLength": 80
               },
               {
                 "type": "null"
@@ -4327,7 +4336,8 @@
               "zenless",
               "wutheringwaves",
               "nte",
-              "stellasora"
+              "stellasora",
+              "infinitynikki"
             ],
             "title": "Game"
           },
@@ -4423,7 +4433,8 @@
               "zenless",
               "wutheringwaves",
               "nte",
-              "stellasora"
+              "stellasora",
+              "infinitynikki"
             ],
             "title": "Game"
           },

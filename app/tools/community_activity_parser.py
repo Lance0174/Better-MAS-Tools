@@ -35,6 +35,7 @@ from app.utils.constants import UTC8
 
 from .community_contract import ActivityState, CommunityActivitySnapshot
 from .kuro import parse_kuro_waves_widget
+from .taygedo import parse_taygedo_role_home
 
 __all__ = ["ACTIVITY_GAME_DEFINITIONS", "parse_activity_snapshot"]
 
@@ -1510,6 +1511,101 @@ def _parse_kuro_waves(
     return replace(snapshot, reason=reason) if reason else snapshot
 
 
+# 异环名片（塔吉多 roleHome）确认存在的字段：两项体力成对给出"当前/上限"，
+# 活跃度与周本次数是名片里唯一的进度值。没有恢复时间戳，也没有每日任务明细。
+_TAYGEDO_RESOURCE_FIELDS = (
+    ("本性像素", "staminaValue", "staminaMaxValue"),
+    ("都市活力", "citystaminaValue", "citystaminaMaxValue"),
+)
+_TAYGEDO_TASK_FIELDS = (
+    ("活跃度", "dayvalue", 100, "daily"),
+    # 周本次数按周重置，用 weekly 标记，不混进每日活跃度的总进度里。
+    ("周本次数", "weekcopiesremainCnt", 3, "weekly"),
+)
+_TAYGEDO_ROLE_HOME_SOURCE = "/apihub/awapi/yh/roleHome"
+
+
+def _taygedo_role_home_reason(parsed: Mapping[str, object]) -> str:
+    """拼出名片快照的说明：角色概况 + 为什么没有倒计时。"""
+
+    parts: list[str] = []
+    for label, key, suffix in (
+        ("等级", "level", ""),
+        ("世界等级", "worldLevel", ""),
+        ("大亨等级", "tycoonLevel", ""),
+        ("登录", "roleloginDays", "天"),
+    ):
+        value = _as_int(parsed.get(key))
+        if value is not None:
+            parts.append(f"{label}{value}{suffix}")
+    note = "官方名片接口不含恢复倒计时与每日任务明细"
+    summary = " · ".join(parts)
+    return f"名片快照（{summary}）；{note}" if summary else f"名片快照；{note}"
+
+
+def _parse_taygedo_role_home(
+    payload: Mapping[str, object],
+    account_uid: str,
+    account_name: str,
+    role: ActivityRole,
+) -> CommunityActivitySnapshot:
+    """解析塔吉多异环名片，输出与其它游戏一致的便笺快照。
+
+    名片只给当前值、不给恢复时间戳：资源因此只展示"当前/上限"，不会伪造倒计时；
+    每日任务明细也不在名片里，只保留活跃度与周本次数这两项可确认的进度。
+    """
+
+    parsed = parse_taygedo_role_home(payload)
+    resources: list[dict[str, object]] = []
+    for name, current_key, target_key in _TAYGEDO_RESOURCE_FIELDS:
+        current = _as_int(parsed.get(current_key))
+        target = _as_int(parsed.get(target_key))
+        if current is None or target is None:
+            continue
+        resource = _resource_item(name, {}, pair=(current, target))
+        if resource is not None:
+            resources.append(resource)
+
+    tasks: list[dict[str, object]] = []
+    for name, key, target, period in _TAYGEDO_TASK_FIELDS:
+        completed = _as_int(parsed.get(key))
+        if completed is None:
+            continue
+        tasks.append(
+            {
+                "name": name,
+                "completed": max(completed, 0),
+                "target": target,
+                "status": "已完成" if completed >= target else "未完成",
+                "period": period,
+            }
+        )
+
+    if not resources and not tasks:
+        return _failed_snapshot(
+            account_uid=account_uid,
+            account_name=account_name,
+            platform="塔吉多",
+            game="异环",
+            status="unavailable",
+            reason="异环名片未返回可识别的资源或活跃度字段",
+            role=role,
+            source=_TAYGEDO_ROLE_HOME_SOURCE,
+        )
+
+    snapshot = _build_snapshot(
+        account_uid=account_uid,
+        account_name=account_name,
+        platform="塔吉多",
+        game="异环",
+        items=tasks,
+        resources=resources,
+        role=role,
+        source=_TAYGEDO_ROLE_HOME_SOURCE,
+    )
+    return replace(snapshot, reason=_taygedo_role_home_reason(parsed))
+
+
 @dataclass(frozen=True)
 class ActivityGameDefinition:
     platform: str
@@ -1555,6 +1651,12 @@ ACTIVITY_GAME_DEFINITIONS = (
         game="鸣潮",
         parser=_parse_kuro_waves,
         source="/gamer/widget/game3/getData",
+    ),
+    ActivityGameDefinition(
+        platform="塔吉多",
+        game="异环",
+        parser=_parse_taygedo_role_home,
+        source=_TAYGEDO_ROLE_HOME_SOURCE,
     ),
 )
 

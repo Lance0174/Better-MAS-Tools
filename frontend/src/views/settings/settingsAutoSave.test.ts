@@ -33,4 +33,44 @@ describe('settings auto save', () => {
     expect(onFailure).toHaveBeenCalledTimes(1)
     vi.useRealTimers()
   })
+
+  it('stops writing to the backend after dispose', async () => {
+    vi.useFakeTimers()
+    const save = vi.fn().mockRejectedValue(new Error('failed'))
+    const onFailure = vi.fn()
+    const saver = createSettingsAutoSave({ getSnapshot: () => ({}), save, onFailure })
+    saver.changed()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(save).toHaveBeenCalledTimes(1)
+    saver.dispose()
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(save).toHaveBeenCalledTimes(1)
+    saver.changed()
+    saver.textChanged()
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(onFailure).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
+  it('does not retry a failure that lands after dispose', async () => {
+    vi.useFakeTimers()
+    let reject: (error: unknown) => void = () => {}
+    const save = vi.fn(
+      () =>
+        new Promise<void>((_resolve, rejectPromise) => {
+          reject = rejectPromise
+        })
+    )
+    const onFailure = vi.fn()
+    const saver = createSettingsAutoSave({ getSnapshot: () => ({}), save, onFailure })
+    saver.changed()
+    expect(save).toHaveBeenCalledTimes(1)
+    saver.dispose()
+    reject(new Error('late failure'))
+    await vi.advanceTimersByTimeAsync(5_000)
+    expect(save).toHaveBeenCalledTimes(1)
+    expect(onFailure).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
 })

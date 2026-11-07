@@ -7,7 +7,7 @@ import type { WikiCalendarRowOut } from './WikiCalendarRowOut';
  * 单个游戏的日历；某个游戏取不到数据时只影响它自己。
  */
 export type WikiCalendarGameOut = {
-    game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora';
+    game: 'endfield' | 'arknights' | 'genshin' | 'starrail' | 'zenless' | 'wutheringwaves' | 'nte' | 'stellasora' | 'infinitynikki';
     name?: string;
     /**
      * 数据来源：sra / cache（TTL 内缓存）/ stale-cache（回落到上次成功结果） / local（本机解包索引）/ none（无数据）

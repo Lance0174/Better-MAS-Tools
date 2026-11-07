@@ -4,5 +4,6 @@
 /* eslint-disable */
 export type ActivityQueryIn = {
     accountIds?: (Array<string> | null);
+    refresh?: boolean;
 };
 

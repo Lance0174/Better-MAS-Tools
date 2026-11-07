@@ -66,22 +66,20 @@ export function useTheme() {
     style.setProperty('--app-scanline', isDark.value ? 'rgba(0,179,164,0.06)' : 'rgba(0,179,164,0.05)')
     // 液态玻璃令牌（对齐 Kinara 音乐定稿的 E 稿）：深色玻璃底色更深、浅色更亮；
     // 高光带与顶部描边在浅色下更实，避免玻璃在浅色底上"发灰"。
+    // 与 --app-glass-blur-pref 同理，这里只写"用户偏好"，最终变量由 style.css
+    // 派生（.glass-lite / 不支持 backdrop-filter / android-local / 减少动态效果
+    // 都能继续覆写）。直接写最终变量会成为 <html> 内联样式，压过这些降级规则。
     const dark = isDark.value
-    style.setProperty('--app-glass-tint', dark ? 'rgba(25,35,57,0.38)' : 'rgba(255,255,255,0.32)')
-    style.setProperty('--app-glass-tint-strong', dark ? 'rgba(20,28,46,0.66)' : 'rgba(255,255,255,0.62)')
-    style.setProperty('--app-glass-tint-soft', dark ? 'rgba(25,35,57,0.26)' : 'rgba(255,255,255,0.24)')
-    style.setProperty(
-      '--app-glass-border-top',
-      dark ? 'rgba(200,238,255,0.70)' : 'rgba(255,255,255,0.95)'
-    )
-    style.setProperty(
-      '--app-glass-border-body',
-      dark ? 'rgba(160,220,245,0.24)' : 'rgba(255,255,255,0.62)'
-    )
-    style.setProperty('--app-glass-highlight', dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.46)')
-    style.setProperty('--app-glass-shadow', dark ? 'rgba(0,0,0,0.48)' : 'rgba(6,30,42,0.20)')
-    style.setProperty('--app-glass-vignette', dark ? 'rgba(0,0,0,0.42)' : 'rgba(6,30,42,0.08)')
-    style.setProperty('--app-glass-saturate', dark ? '140%' : '160%')
+    const glass = (name: string, value: string) => style.setProperty(`--app-glass-${name}-pref`, value)
+    glass('tint', dark ? 'rgba(25,35,57,0.38)' : 'rgba(255,255,255,0.32)')
+    glass('tint-strong', dark ? 'rgba(20,28,46,0.66)' : 'rgba(255,255,255,0.62)')
+    glass('tint-soft', dark ? 'rgba(25,35,57,0.26)' : 'rgba(255,255,255,0.24)')
+    glass('border-top', dark ? 'rgba(200,238,255,0.70)' : 'rgba(255,255,255,0.95)')
+    glass('border-body', dark ? 'rgba(160,220,245,0.24)' : 'rgba(255,255,255,0.62)')
+    glass('highlight', dark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.46)')
+    glass('shadow', dark ? 'rgba(0,0,0,0.48)' : 'rgba(6,30,42,0.20)')
+    glass('vignette', dark ? 'rgba(0,0,0,0.42)' : 'rgba(6,30,42,0.08)')
+    glass('saturate', dark ? '140%' : '160%')
   })
   return { themeConfig, isDark, glassEnabled }
 }

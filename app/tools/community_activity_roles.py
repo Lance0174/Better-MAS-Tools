@@ -41,7 +41,7 @@ from .community_activity_transport import CommunityActivityTarget
 
 __all__ = [
     "ACTIVITY_COMMUNITY_DEFINITIONS",
-    "TAYGEDO_NOTES_UNAVAILABLE_REASON",
+    "TAYGEDO_PARTIAL_ROLES_REASON",
     "CommunityActivityProviderDefinition",
     "CommunityActivityCapability",
     "CommunityActivityRole",
@@ -55,9 +55,10 @@ __all__ = [
 
 ActivityCommunity = Literal["森空岛", "米游社", "库街区", "塔吉多"]
 
-# 塔吉多（异环/幻塔）只有角色与签到类接口，没有公开的"资源便笺"端点；
-# 便笺因此只展示角色信息，并在卡片上说明原因，不猜测字段、不发请求。
-TAYGEDO_NOTES_UNAVAILABLE_REASON = "塔吉多社区未公开资源便笺接口，仅展示角色信息"
+# 异环名片（塔吉多 roleHome）已接入便笺：塔吉多能力因此是 ready，卡片会真的去查
+# 数据。唯一需要带说明的是"角色列表本身没读全"——那属于发现阶段的问题，不该让
+# 全部角色退化成只能看名字的卡片。
+TAYGEDO_PARTIAL_ROLES_REASON = "部分异环角色读取失败，未列出的角色需重新登录塔吉多后刷新"
 
 
 @dataclass(frozen=True)
@@ -288,11 +289,6 @@ _MIYOUSHE_GAME_NAMES = {
 }
 
 
-_KURO_GAME_NAMES = {
-    "3": "鸣潮",
-}
-
-
 def normalize_kuro_roles(
     payload: Mapping[str, object],
     *,
@@ -382,18 +378,18 @@ def normalize_taygedo_roles(
     roles: Iterable[Mapping[str, object]],
     *,
     game: str = "异环",
-    reason: str = TAYGEDO_NOTES_UNAVAILABLE_REASON,
+    reason: str = "",
 ) -> CommunityActivityRoleDiscovery:
     """把塔吉多角色卡归一化成便笺的角色发现结果。
 
     输入是 ``taygedo`` 已归一化的角色字典（gameId/gameName/roleId/roleName）。
-    塔吉多没有公开的资源便笺接口，所以这里把能力标记成 ``limited``：上层据此
-    只为每个角色渲染一张"只有角色信息"的卡片，不会再去请求不存在的资源接口。
+    异环名片接口已接入，能力固定为 ``ready``：上层会为每个角色真的发起一次
+    名片请求，而不是渲染"只有角色信息"的占位卡片。
 
     Args:
         roles: 塔吉多角色卡列表；缺少 gameId 或 roleId 的条目会被丢弃。
         game: 只保留属于该游戏的已确认角色，默认异环。
-        reason: 卡片上说明"为什么没有资源数据"的文案。
+        reason: 发现阶段需要提示用户时的说明（如角色列表没读全）；为空表示无异常。
     """
 
     items: list[CommunityActivityRole] = []
@@ -415,5 +411,5 @@ def normalize_taygedo_roles(
     return CommunityActivityRoleDiscovery(
         "塔吉多",
         _deduplicate_roles(items),
-        CommunityActivityCapability(status="limited", reason=reason),
+        CommunityActivityCapability(status="ready", reason=reason),
     )

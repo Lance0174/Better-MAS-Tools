@@ -134,7 +134,7 @@ async def manual_sign() -> OutBase:
     "/activity", response_model=CommunityActivityOut, operation_id="queryActivity"
 )
 async def query_activity(body: ActivityQueryIn) -> CommunityActivityOut:
-    snapshots = await runtime.activity(body.accountIds)
+    snapshots = await runtime.activity(body.accountIds, refresh=body.refresh)
     return CommunityActivityOut(
         data=[
             CommunityActivitySnapshotOut(

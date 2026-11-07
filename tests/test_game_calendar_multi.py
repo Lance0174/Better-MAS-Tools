@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -107,6 +108,7 @@ def test_game_enumeration_matches_sra_sources():
         "wutheringwaves",
         "nte",
         "stellasora",
+        "infinitynikki",
     )
     assert game_calendar.SRA_SOURCES == {
         "endfield": "end",
@@ -117,6 +119,7 @@ def test_game_enumeration_matches_sra_sources():
         "wutheringwaves": "ww",
         "nte": "nte",
         "stellasora": "xtlr",
+        "infinitynikki": "infinitynikki",
     }
     assert set(game_calendar.GAME_NAMES) == set(game_calendar.CALENDAR_GAMES)
     assert endfield_wiki.CALENDAR_GAMES == game_calendar.CALENDAR_GAMES
@@ -199,22 +202,64 @@ async def test_fetch_writes_cache_and_reuses_it(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_fetch_status_uses_injected_now(tmp_path, monkeypatch):
+    """now 必须同时决定状态文案；只影响缓存判定会让注入时间半生效。"""
+    store = _store(tmp_path)
+    url = game_calendar.sra_activity.ACTIVITY_BASE + "/zzz.json"
+    _patch_network(monkeypatch, {url: _sample()})
+    later = (NOW + timedelta(days=365)).timestamp()
+
+    fresh = await game_calendar.fetch("zenless", store.wiki_directory, now=later)
+    assert fresh.source == "sra"
+    # 样本的活动相对真实时钟在 -2~+10 天之间，注入一年后应全部结束。
+    assert {row["status"] for row in fresh.rows} == {"已结束"}
+
+    # 缓存分支同样要按注入的时刻出状态。
+    cached = await game_calendar.fetch(
+        "zenless", store.wiki_directory, now=later + 60
+    )
+    assert cached.source == "cache"
+    assert {row["status"] for row in cached.rows} == {"已结束"}
+
+
+@pytest.mark.asyncio
 async def test_fetch_falls_back_to_last_successful_result(tmp_path, monkeypatch):
     store = _store(tmp_path)
     url = game_calendar.sra_activity.ACTIVITY_BASE + "/ww.json"
     _patch_network(monkeypatch, {url: _sample()})
     assert (await game_calendar.fetch("wutheringwaves", store.wiki_directory)).source == "sra"
 
-    # 让缓存过期再断网：结果是上次成功的那份，并在 message 里说明。
+    # 让缓存过期（超过 TTL 但仍在 24 小时兜底窗内）再断网：
+    # 结果是上次成功的那份，并在 message 里说明。
     path = game_calendar.cache_file(store.wiki_directory, "wutheringwaves")
     stale = json.loads(path.read_text("utf-8"))
-    stale["fetched"] = 1.0
+    stale["fetched"] = time.time() - 3600.0
     _write(path, stale)
     game_calendar.clear_memory()
     _patch_network(monkeypatch, {})
     outcome = await game_calendar.fetch("wutheringwaves", store.wiki_directory)
     assert outcome.source == "stale-cache" and len(outcome.rows) == 2
     assert "SRA 暂不可用" in outcome.message and "上次成功" in outcome.message
+
+
+@pytest.mark.asyncio
+async def test_fetch_discards_stale_cache_older_than_a_day(tmp_path, monkeypatch):
+    """超过 24 小时的兜底数据不再展示：三周前的时间表比"暂无数据"更误导。"""
+    store = _store(tmp_path)
+    url = game_calendar.sra_activity.ACTIVITY_BASE + "/zzz.json"
+    _patch_network(monkeypatch, {url: _sample()})
+    assert (await game_calendar.fetch("zenless", store.wiki_directory)).source == "sra"
+
+    path = game_calendar.cache_file(store.wiki_directory, "zenless")
+    stale = json.loads(path.read_text("utf-8"))
+    stale["fetched"] = time.time() - game_calendar.STALE_MAX_SECONDS - 60.0
+    _write(path, stale)
+    game_calendar.clear_memory()
+    _patch_network(monkeypatch, {})
+
+    outcome = await game_calendar.fetch("zenless", store.wiki_directory)
+    assert outcome.source == "none" and outcome.rows == []
+    assert "24 小时" in outcome.message
 
 
 @pytest.mark.asyncio
@@ -266,6 +311,20 @@ async def test_aggregate_isolates_failures(tmp_path, monkeypatch):
     assert len(by_game["genshin"].rows) == 2 and by_game["genshin"].source == "sra"
     assert by_game["starrail"].rows == [] and by_game["starrail"].source == "none"
     assert by_game["nte"].rows == [] and by_game["nte"].source == "sra"  # 上游确实没有活动
+
+
+def test_endfield_calendar_skips_pool_without_open(tmp_path):
+    """缺开始时间的卡池不能产出 startsAt 与状态都为空的残行。"""
+    store = _store(tmp_path)
+    index = _index_around_now()
+    index["calendar"]["pools"][0].pop("open")
+    _write(store.index_file, index)
+
+    rows = store.endfield_calendar()
+
+    assert any(row["kind"] == "activity" for row in rows)
+    assert not any(row["kind"] == "gacha" for row in rows)
+    assert all(row["startsAt"] and row["status"] for row in rows)
 
 
 @pytest.mark.asyncio
@@ -351,7 +410,8 @@ async def test_store_calendar_all_covers_every_game(tmp_path, monkeypatch):
     _write(store.index_file, _index_around_now())
     base = game_calendar.sra_activity.ACTIVITY_BASE
     routes = {
-        f"{base}/{key}.json": _sample() for key in ("ak", "ys", "sr", "zzz", "ww", "nte", "xtlr")
+        f"{base}/{key}.json": _sample()
+        for key in ("ak", "ys", "sr", "zzz", "ww", "nte", "xtlr", "infinitynikki")
     }
     _patch_network(monkeypatch, routes)
     outcomes = await store.calendar_outcomes_all()

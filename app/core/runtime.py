@@ -3,11 +3,13 @@
 import asyncio
 from datetime import datetime
 
-from app.core.community_activity import collect_configured_community_activity
-from app.core.community_scheduler import community_activity_flow
+from app.core.community_activity import query_configured_community_activity
 from app.core.community_sign import community_sign_flow, run_community_sign_in
 from app.core.state import state
-from app.tools.community_contract import CommunitySignInProgressError
+from app.tools.community_contract import (
+    CommunitySignInProgressError,
+    is_community_sign_completed,
+)
 from app.tools.community_sign_provider import has_community_credentials
 from app.utils.constants import UTC8
 from app.utils.logger import get_logger
@@ -43,9 +45,7 @@ class CommunityRuntime:
                     capture(results)
                     await state.save_results(results)
                 completed = sum(
-                    item.get("status") in ("成功", "已签到")
-                    or bool(item.get("_completed"))
-                    for item in results
+                    is_community_sign_completed(item) for item in results
                 )
                 logger.info(
                     f"签到执行结束：共{len(results)}项，完成{completed}项，其余{len(results) - completed}项"
@@ -101,15 +101,14 @@ class CommunityRuntime:
         )
         return results
 
-    async def activity(self, account_ids: list[str] | None):
-        if not state.data.settings.ActivityEnabled:
-            return ()
-        async with community_activity_flow():
-            self.activity_running = True
-            try:
-                return await collect_configured_community_activity(account_ids)
-            finally:
-                self.activity_running = False
+    async def activity(self, account_ids: list[str] | None, *, refresh: bool = False):
+        self.activity_running = True
+        try:
+            return await query_configured_community_activity(
+                account_ids, refresh=refresh
+            )
+        finally:
+            self.activity_running = False
 
     async def auto_loop(self) -> None:
         startup = True

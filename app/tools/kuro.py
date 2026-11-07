@@ -336,12 +336,6 @@ GAME_CONFIG = {
     "3": {"name": "鸣潮"},
 }
 
-# 鸣潮结晶波片小组件：gameId=3 固定对应鸣潮，taskType/sizeType 沿用上游确认值。
-WAVES_GAME_ID = "3"
-WAVES_WIDGET_URL = "https://api.kurobbs.com/gamer/widget/game3/getData"
-WAVES_WIDGET_TASK_TYPE = "2"
-WAVES_WIDGET_SIZE_TYPE = "1"
-
 # 上游提醒：库洛服务器时间可能不准，偏差超过该秒数时改用本地时间纠正回满时间。
 WAVES_SERVER_TIME_TOLERANCE_SECONDS = 600
 
@@ -972,60 +966,6 @@ def parse_kuro_waves_widget(
         "server_time_corrected": corrected,
         "reason": "；".join(reason_parts),
     }
-
-
-async def fetch_kuro_waves_note(
-    token: str,
-    *,
-    role_id: str,
-    server_id: str,
-    proxy: str | None = None,
-    local_timestamp: int | None = None,
-) -> dict[str, object]:
-    """请求鸣潮结晶波片小组件，返回可直接交给解析器的 JSON 对象。
-
-    Args:
-        token: 库街区凭据（Token 或完整登录凭据 JSON）。
-        role_id: 鸣潮角色 ID，来自角色发现结果。
-        server_id: 鸣潮服务器 ID，来自角色发现结果。
-        proxy: 代理地址；缺省时沿用全局网络设置。
-        local_timestamp: 用于时间纠正的秒级本地时间戳，缺省取当前时间。
-
-    Returns:
-        上游原始 JSON 对象（含 code/msg/data）。
-
-    Raises:
-        ValueError: 凭据、角色参数或上游响应本身不可用。
-    """
-
-    if not str(token or "").strip():
-        raise ValueError("库街区 Token 为空")
-    token_value, dev_code, distinct_id = parse_kuro_credential(str(token))
-    role_value = str(role_id or "").strip()
-    if not role_value:
-        raise ValueError("鸣潮便笺缺少 roleId")
-    server_value = str(server_id or "").strip()
-
-    resolved_proxy = proxy if proxy is not None else network.proxy
-    # 小组件是 WebView 接口：沿用签到使用的 GAME_HEADERS（origin、
-    # source=android、Kuro/<版本> UA 与表单 content-type 由模板提供）。
-    headers = _kuro_request_headers(GAME_HEADERS, token_value, dev_code, distinct_id)
-    async with network.client(proxy=resolved_proxy, trust_env=False) as client:
-        response = await client.post(
-            WAVES_WIDGET_URL,
-            headers=headers,
-            data={
-                "gameId": WAVES_GAME_ID,
-                "roleId": role_value,
-                "serverId": server_value,
-                "type": WAVES_WIDGET_TASK_TYPE,
-                "sizeType": WAVES_WIDGET_SIZE_TYPE,
-            },
-            timeout=30.0,
-        )
-    payload = _safe_json(response)
-    _raise_kuro_response_error(response, payload, "获取鸣潮结晶波片")
-    return payload
 
 
 async def _do_sign(

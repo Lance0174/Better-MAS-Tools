@@ -138,7 +138,6 @@ const fetchRecords = async () => {
     message.error(errorMessage(cause, t('standalone.gachaFetchFailed')))
   } finally {
     importing.value = false
-    source.value = ''
   }
 }
 const importFile = async (event: Event) => {

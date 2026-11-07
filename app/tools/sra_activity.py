@@ -21,13 +21,17 @@
   sr 15 条缺 5、zzz 12 条缺 7、ww 12 条缺 1、nte 9 条缺 3、xtlr 5 条全缺，
   只有 ys 8 条齐全。前端必须自己准备占位图。
 * 各游戏条数（2026-10-16）：end 14、sr 15、ys 8、zzz 12、ww 12、nte 9、ak 5、
-  xtlr 5。
+  xtlr 5。infinitynikki（无限暖暖）为后续补充的源：2026-11-05 实测 2 条，条目带
+  `kind`（如「限时联动活动」）与 cover，顶层 version 2.11 / versionName「时光缝合的扉页」。
 
 本模块只做平台协议与纯转换：不发通知、不落盘、不抛异常，取不到数据一律返回
 `None`，由 services 层决定走缓存还是降级。
 """
 
 from __future__ import annotations
+
+import asyncio
+import time
 
 import httpx
 
@@ -37,17 +41,51 @@ from app.utils.logger import get_logger
 __all__ = [
     "ACTIVITY_BASE",
     "BEIJING_OFFSET",
+    "FAILURE_RETRY_SECONDS",
+    "MAX_ATTEMPTS",
     "REQUEST_TIMEOUT",
+    "RETRY_DELAY_SECONDS",
+    "TOTAL_TIMEOUT",
     "USER_AGENT",
+    "WARNING_INTERVAL_SECONDS",
     "beijing_time",
     "fetch_activities",
     "normalize",
+    "reset_failure_state",
 ]
 
 logger = get_logger("活动日历")
 
-# 对方是静态站，正常几百毫秒就回来了；超时给宽一点，别让接口那头干等。
-REQUEST_TIMEOUT = 15.0
+# 游戏的失败冷却与上次告警时刻（monotonic 秒）。只存进程内状态，不落盘。
+_cooldown_until: dict[str, float] = {}
+_warned_at: dict[str, float] = {}
+
+
+def reset_failure_state() -> None:
+    """清空失败冷却与告警节流记录；测试或手动刷新时使用。"""
+    _cooldown_until.clear()
+    _warned_at.clear()
+
+
+def _retryable(error: Exception) -> bool:
+    """只有网络层故障与上游临时错误值得重试；4xx 与结构错误重试也没用。"""
+    if isinstance(error, (httpx.TransportError, TimeoutError)):
+        return True
+    return isinstance(error, httpx.HTTPStatusError) and (
+        error.response.status_code in (408, 429) or error.response.status_code >= 500
+    )
+
+# 弱网下允许重试，但整批尝试共用一个总时限，别让日历接口长时间干等（上游 #1599）。
+TOTAL_TIMEOUT = 15.0
+# 单次请求的时限：总时限内可以重试 3 次，每次单独算超时。
+REQUEST_TIMEOUT = 5.0
+MAX_ATTEMPTS = 3
+# 指数退避：0.5s、1s。
+RETRY_DELAY_SECONDS = 0.5
+# 失败后 1 分钟内不再回源：上游挂掉时避免每个请求都重试一轮。
+FAILURE_RETRY_SECONDS = 60.0
+# 同一游戏的失败日志每小时最多一条，避免日历页每 30 分钟刷新都刷屏。
+WARNING_INTERVAL_SECONDS = 3600.0
 # 与仓库其它社区请求一致：只认本进程的代理设置，不读环境代理变量。
 USER_AGENT = "Better-MAS-Tools/1.0 (independent community toolkit; activity calendar)"
 ACTIVITY_BASE = "https://starrailassistant.top/api/v1/activity"
@@ -121,8 +159,13 @@ async def fetch_activities(
 
     Returns:
         :func:`normalize` 的结果；超时、非 2xx、JSON 解析失败或结构不对时返回
-        ``None``（只记一条警告日志，不上抛），由调用方决定降级方式。
+        ```None``（不上抛），由调用方决定走本机缓存还是空列表。弱网时会重试
+        最多 :data:`MAX_ATTEMPTS` 次（共用 :data:`TOTAL_TIMEOUT` 总时限）；失败过的
+        游戏在 :data:`FAILURE_RETRY_SECONDS` 内直接返回 ``None``，不再回源。
     """
+    if _cooldown_until.get(game, 0.0) > time.monotonic():
+        # 冷却期内不回源：调用方会立刻落到本机缓存或空列表，日历页不会因此变慢。
+        return None
     options: dict = {
         "trust_env": False,
         "headers": {"User-Agent": USER_AGENT, "Accept": "application/json"},
@@ -133,14 +176,43 @@ async def fetch_activities(
         options["transport"] = transport  # 测试注入；生产路径不传。
     url = f"{ACTIVITY_BASE}/{game}.json"
     try:
-        async with network.client(**options) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            payload = response.json()
+        async with asyncio.timeout(TOTAL_TIMEOUT):
+            data = await _fetch_with_retry(url, options)
     except Exception as error:  # 上游是附带信息：静默降级，只留一条日志
-        logger.warning(f"取 SRA 活动数据失败（{game}）：{type(error).__name__}")
+        _record_failure(game, error)
         return None
+    _cooldown_until.pop(game, None)
+    _warned_at.pop(game, None)
+    return data
+
+
+async def _fetch_with_retry(url: str, options: dict) -> dict:
+    """按指数退避重试取数并解析；坏数据当异常处理，交给 ``fetch_activities`` 兜底。"""
+    async with network.client(**options) as client:
+        for attempt in range(MAX_ATTEMPTS):
+            try:
+                response = await client.get(url)
+                response.raise_for_status()
+                break
+            except httpx.HTTPError as error:
+                if not _retryable(error) or attempt == MAX_ATTEMPTS - 1:
+                    raise
+                await asyncio.sleep(RETRY_DELAY_SECONDS * 2**attempt)
+        payload = response.json()
     normalized = normalize(payload)
     if normalized is None:
-        logger.warning(f"SRA 活动数据格式不正确（{game}）：{type(payload).__name__}")
+        # 结构不对不会因为重试变好，直接当失败，走 60 秒冷却。
+        raise ValueError(f"活动数据结构不正确：{type(payload).__name__}")
     return normalized
+
+
+def _record_failure(game: str, error: Exception) -> None:
+    """记冷却并按小时节流写一条日志；响应体一律不进日志。"""
+    now = time.monotonic()
+    _cooldown_until[game] = now + FAILURE_RETRY_SECONDS
+    # 非可重试错误（结构错误、4xx）说明上游可能变了，每次都值得记；弱网失败按小时节流。
+    last_warned = _warned_at.get(game)
+    if _retryable(error) and last_warned is not None and now - last_warned < WARNING_INTERVAL_SECONDS:
+        return
+    _warned_at[game] = now
+    logger.warning(f"取 SRA 活动数据失败（{game}）：{type(error).__name__}: {error}")
