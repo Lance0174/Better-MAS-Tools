@@ -37,11 +37,31 @@ python scripts/changelog.py release --version 0.1.5
 3. 提交并推送：`git add -A && git commit -m "chore(release): 发布 v0.1.5。" && git push origin main`；
 4. 打 tag 并推送：`git tag v0.1.5 && git push origin v0.1.5`。
 
+### 预发布（公测）版
+
+公测版在版本号后加 `-beta.N`，其余流程完全一致：
+
+```markdown
+## 0.2.0-beta.1（未发布）
+```
+
+```bash
+python scripts/changelog.py release --version 0.2.0-beta.1
+git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1
+```
+
+脚本按各生态的规则分别落盘，不要手改：
+
+- `pyproject.toml` / `uv.lock` 保持 `0.2.0-beta.1`；PEP 440 本身接受这种写法并按 `0.2.0b1` 归一，`uv` 若把 lock 里的版本改写成 `0.2.0b1`，守门校验会按归一形式比较，不会误报。
+- `frontend/package.json`、`app/version.py`、Android `versionName` 用原样字符串（npm 只认 semver 的 `0.2.0-beta.1`）。
+- Android `versionCode` 由脚本换算：`主×100000 + 次×1000 + 修订×10 + 阶段位`，正式版阶段位为 9、公测版为 beta 序号减一（`beta.1` → 0），因此 `0.2.0-beta.1`(2000) 一定小于 `0.2.0`(2009)，装过公测版的用户能正常升级到正式版。
+- CI 检测到版本号带 `-` 时，创建 Release 会加 `--prerelease --latest=false`：公测版不会被标成“最新版本”，正式版发布前 `Latest` 仍指向上一稳定版。
+
 ## CI 自动化
 
 推送 `v*` 标签后触发两条发布流水线（`windows-release.yml`、`android-release.yml`）：
 
-1. **guard 守门**：`changelog.py guard --tag` 校验 tag 与 CHANGELOG 版本一致、五处版本生成物一致（pyproject / package.json / app/version.py / uv.lock / android versionName）、`changelog.d` 已清空；
+1. **guard 守门**：`changelog.py guard --tag` 校验 tag 与 CHANGELOG 版本一致、六处版本生成物一致（pyproject / package.json / app/version.py / uv.lock / android versionName / android versionCode）、`changelog.d` 已清空；
 2. **构建**：Windows 走 `scripts/build-desktop.ps1 -Zip`，脚本本身只做 `uv sync`（锁定依赖）、`yarn install --immutable` + `yarn typecheck` + `yarn build`、PyInstaller 打包后端、`electron-builder` 出产物；`ruff`、`pytest`、`verify_upstream.py`、`yarn lint`、`yarn test` 与 `scripts/verify-desktop.py` 由同一次运行里的“Check source and desktop runtime”步骤单独执行，不在构建脚本内。Android 走 `prepare-android.py` + `./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug`；
 3. **草稿 Release**：按 `changelog.py release-note` 生成的版本段正文创建 **draft** Release，上传产物；
 4. **转正**：资产上传成功后 `--draft=false` 发布。失败时 Release 保持草稿，可在 GitHub Releases 页面人工处理。

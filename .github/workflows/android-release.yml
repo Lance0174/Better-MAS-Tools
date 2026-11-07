@@ -101,13 +101,17 @@ jobs:
         run: |
           set -euo pipefail
           tag="$GITHUB_REF_NAME"
-          python scripts/changelog.py release-note --version "${tag#v}" --output release-note.md
+          version="${tag#v}"
+          # 预发布（0.2.0-beta.1）标成 prerelease 且不抢 latest，正式版的“最新版本”不受影响。
+          pre_args=()
+          if [[ "$version" == *-* ]]; then pre_args=(--prerelease --latest=false); fi
+          python scripts/changelog.py release-note --version "$version" --output release-note.md
           apk="$(ls android/app/build/outputs/apk/debug/BMT-*-android.apk)"
           sums="android/app/build/outputs/apk/debug/SHA256SUMS-android.txt"
           exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
           if [ -z "$exists" ]; then
             # Windows 与 Android 可能先后触发同一 tag；创建失败后再确认一次，避免竞态直接失败。
-            gh release create "$tag" --draft --verify-tag --title "BMT $tag" --notes-file release-note.md || true
+            gh release create "$tag" --draft --verify-tag --title "BMT $tag" --notes-file release-note.md "${pre_args[@]}" || true
             exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
             if [ -z "$exists" ]; then
               echo "无法创建或找到 tag $tag 的 Release" >&2

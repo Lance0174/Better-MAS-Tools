@@ -85,13 +85,17 @@ jobs:
           # `gh release view` 在 Release 不存在时返回非零，这是预期分支；不能让它升级成终止错误。
           $PSNativeCommandUseErrorActionPreference = $false
           $tag = $env:GITHUB_REF_NAME
-          & .venv/Scripts/python.exe scripts/changelog.py release-note --version $tag.TrimStart('v') --output release-note.md
+          $version = $tag.TrimStart('v')
+          # 预发布（0.2.0-beta.1）标成 prerelease 且不抢 latest，正式版的“最新版本”不受影响。
+          $releaseFlags = @()
+          if ($version -match '-') { $releaseFlags = @('--prerelease', '--latest=false') }
+          & .venv/Scripts/python.exe scripts/changelog.py release-note --version $version --output release-note.md
           if ($LASTEXITCODE -ne 0) { throw 'Could not render the release note.' }
 
           $releaseId = (gh release view $tag --json id --jq .id 2>&1 | Out-String).Trim()
           if ($LASTEXITCODE -ne 0 -or -not $releaseId) {
             # Android 流水线可能同时触发同一 tag；创建失败后再确认一次，避免竞态直接失败。
-            gh release create $tag --draft --verify-tag --title "BMT $tag" --notes-file release-note.md
+            gh release create $tag --draft --verify-tag --title "BMT $tag" --notes-file release-note.md @releaseFlags
             $releaseId = (gh release view $tag --json id --jq .id 2>&1 | Out-String).Trim()
             if (-not $releaseId) { throw 'Could not create the draft release.' }
           }

@@ -1,7 +1,8 @@
 """从 CHANGELOG 与 changelog.d 碎片驱动版本与发版产物，不读取 MAS 的版本配置。
 
 CHANGELOG 顶部版本段格式固定为 `## X.Y.Z（未发布|YYYY-MM-DD）`，
-分类标题使用中文（新增/变更/优化/修复/安全），条目为单行 `- 内容`。
+预发布版本写作 `## X.Y.Z-beta.N`（公测版）；分类标题使用中文
+（新增/变更/优化/修复/安全），条目为单行 `- 内容`。
 changelog.d 碎片文件名为 `<id>.<类型>.md`，类型映射到上述分类。
 """
 
@@ -30,8 +31,56 @@ CATEGORIES = {
     "security": "安全",
 }
 CATEGORY_ORDER = ["新增", "变更", "优化", "修复", "安全"]
-VERSION_LINE = re.compile(r"^## (\d+\.\d+\.\d+)（(未发布|\d{4}-\d{2}-\d{2})）\s*$")
+VERSION_LINE = re.compile(
+    r"^## (\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.]*)?)（(未发布|\d{4}-\d{2}-\d{2})）\s*$"
+)
+# 预发布段后缀 → PEP 440 缩写；uv.lock 里 uv 会把 0.2.0-beta.1 归一成 0.2.0b1，
+# 守门校验必须按归一后的形式比较，否则发预发布版时 uv 一跑 guard 就红。
+PRERELEASE_ALIASES = {
+    "a": "a",
+    "alpha": "a",
+    "b": "b",
+    "beta": "b",
+    "c": "rc",
+    "pre": "rc",
+    "preview": "rc",
+    "rc": "rc",
+}
+PRERELEASE_SUFFIX = re.compile(r"^([A-Za-z]+)\.?(\d+)$")
 PROJECT_NAME = "better-mas-tools"
+
+
+def is_prerelease(version: str) -> bool:
+    """带 -beta.N 之类后缀的版本视为预发布。"""
+    return "-" in version
+
+
+def normalize_pep440(version: str) -> str:
+    """把 0.2.0-beta.1 归一成 0.2.0b1；认不出的形如原样返回。"""
+    base, separator, suffix = version.partition("-")
+    match = PRERELEASE_SUFFIX.match(suffix) if separator else None
+    if not match:
+        return version
+    alias = PRERELEASE_ALIASES.get(match[1].lower())
+    if not alias:
+        return version
+    return f"{base}{alias}{int(match[2])}"
+
+
+def android_version_code(version: str) -> int:
+    """Android versionCode：主.次.修订 各占一段，末位留给发布阶段。
+
+    稳定版末位为 9；预发布按 beta 序号占 0-8（beta.1 → 0），
+    这样 0.2.0-beta.1 一定小于 0.2.0，用户能从公测版正常升级到正式版。
+    """
+    base, separator, suffix = version.partition("-")
+    major, minor, patch = (int(part) for part in base.split("."))
+    stage = 9
+    if separator:
+        match = PRERELEASE_SUFFIX.match(suffix)
+        ordinal = int(match[2]) if match else 1
+        stage = min(max(ordinal - 1, 0), 8)
+    return major * 100000 + minor * 1000 + patch * 10 + stage
 
 
 def fail(message: str) -> None:
@@ -117,8 +166,7 @@ def sync(version: str) -> list[str]:
 
     build_gradle = ROOT / "android/app/build.gradle.kts"
     if build_gradle.is_file():
-        major, minor, patch = (int(part) for part in version.split("."))
-        version_code = major * 10000 + minor * 100 + patch
+        version_code = android_version_code(version)
         rewrite(
             build_gradle,
             r"versionCode = \d+",
@@ -277,8 +325,10 @@ def cmd_guard(args) -> None:
             + "、".join(path.name for path, _k, _t in fragments)
         )
 
+    expected_pep440 = normalize_pep440(version)
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    if f'version = "{version}"' not in pyproject:
+    pyproject_match = re.search(r'^version = "([^"]+)"$', pyproject, flags=re.M)
+    if not pyproject_match or normalize_pep440(pyproject_match[1]) != expected_pep440:
         problems.append(f"pyproject.toml 版本与 CHANGELOG（{version}）不一致，请执行 sync")
     package = json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))
     if package.get("version") != version:
@@ -287,13 +337,19 @@ def cmd_guard(args) -> None:
     if f'VERSION = "{version}"' not in version_py.read_text(encoding="utf-8"):
         problems.append("app/version.py 版本与 CHANGELOG 不一致，请执行 sync")
     uvlock = (ROOT / "uv.lock").read_text(encoding="utf-8")
-    if f'name = "{PROJECT_NAME}"\nversion = "{version}"' not in uvlock:
+    uvlock_match = re.search(rf'name = "{PROJECT_NAME}"\nversion = "([^"]+)"', uvlock)
+    if not uvlock_match or normalize_pep440(uvlock_match[1]) != expected_pep440:
         problems.append("uv.lock 根包版本与 CHANGELOG 不一致，请执行 sync")
     build_gradle = ROOT / "android/app/build.gradle.kts"
-    if build_gradle.is_file() and f'versionName = "{version}"' not in build_gradle.read_text(
-        encoding="utf-8"
-    ):
-        problems.append("android versionName 与 CHANGELOG 不一致，请执行 sync")
+    if build_gradle.is_file():
+        gradle_text = build_gradle.read_text(encoding="utf-8")
+        if f'versionName = "{version}"' not in gradle_text:
+            problems.append("android versionName 与 CHANGELOG 不一致，请执行 sync")
+        if f"versionCode = {android_version_code(version)}" not in gradle_text:
+            problems.append(
+                f"android versionCode 应为 {android_version_code(version)}"
+                f"（{version}），请执行 sync"
+            )
 
     if problems:
         print("发布前检查未通过：", file=sys.stderr)
