@@ -1,6 +1,6 @@
 [project]
 name = "better-mas-tools"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 description = "MAS 游戏社区扩展工具包"
 requires-python = ">=3.12,<3.13"
 license = { file = "LICENSE" }
@@ -30,6 +30,11 @@ captcha = [
     "numpy>=2.2,<3",
     "pillow>=12.1,<13",
 ]
+
+[tool.pytest.ini_options]
+# 只收集 tests/：local/ 下放的是临时探针和参考仓库的浅克隆，它们自带的用例
+# 会连带跑起来，甚至在收集阶段 sys.exit 掉整个 pytest。
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py312"
