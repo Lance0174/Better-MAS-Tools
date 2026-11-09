@@ -332,7 +332,7 @@
       "path": "app/tools/gacha_heybox.py",
       "origin": "Billtranscend/Priestess-bot plugins/heybox_import/plan.py",
       "license": "MIT（Copyright (c) 2026 Billtranscend，全文见 docs/licenses/Priestess-bot.txt）",
-      "standalone_sha256": "62c563118aa6f7c250a5e31a19b1d93b97a3ba2b7a446080b72dab1fb53f5dd9",
+      "standalone_sha256": "6e98cf1808146d9931a31c01f8e9c5c754104209c7004a0d188140df0676b9c0",
       "note": "移植小黑盒 overview 响应的聚合口径与重建规则（六星真实记录 + 四星占位 + 五星补名），按本仓的 GachaRecord 存储模型重写，去掉浏览器运行时依赖。"
     },
     {
