@@ -1,17 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { ReloadOutlined } from '@ant-design/icons-vue'
 import type { WikiCalendarGameOut } from '@/api'
 import { errorMessage } from '@/composables/useCommunityApi'
-import { useCalendarApi } from '@/composables/useCalendarApi'
+import { useCalendarStore } from '@/stores/calendar'
+import CalendarCarousel from '@/components/CalendarCarousel.vue'
 import { filterAndSortActivities } from './calendarFilter'
 
 const { t, locale } = useI18n()
-const calendarApi = useCalendarApi()
-const loading = ref(false)
-const message = ref('')
-const games = ref<WikiCalendarGameOut[]>([])
+const calendar = useCalendarStore()
+const { games, loading } = storeToRefs(calendar)
+const message = computed(() =>
+  calendar.failure
+    ? errorMessage(calendar.failure, t('standalone.calendarFailed'))
+    : calendar.notice
+)
+const bannerGame = ref('')
 const activeGame = ref<string>('all')
 const statusFilter = ref<string>('all')
 const sortBy = ref<'endsAt' | 'startsAt' | 'title'>('endsAt')
@@ -45,11 +51,15 @@ const visibleGames = computed(() =>
       }
     })
     // 有可见条目就展示；整组没有数据但后端给了说明时也保留，用来解释这个游戏为什么是空的。
-    .filter(group => group.activities.length > 0 || (group.rawCount === 0 && Boolean(group.message)))
+    .filter(
+      group => group.activities.length > 0 || (group.rawCount === 0 && Boolean(group.message))
+    )
 )
 
 // 有数据但被筛掉时要说「无匹配」，不能和「后端没有数据」共用一个空态。
-const hasAnyActivity = computed(() => selectedGames.value.some(group => (group.activities ?? []).length > 0))
+const hasAnyActivity = computed(() =>
+  selectedGames.value.some(group => (group.activities ?? []).length > 0)
+)
 
 const gameTabs = computed(() => games.value.filter(item => item.name))
 
@@ -80,7 +90,8 @@ const statusColor = (status: string) => {
 
 // 来源提示：缓存与兜底数据要能看出来，避免把过期数据当成实时结果。
 const sourceTag = (source: string) => {
-  if (source === 'stale-cache') return { color: 'orange', label: t('standalone.calendarSourceStale') }
+  if (source === 'stale-cache')
+    return { color: 'orange', label: t('standalone.calendarSourceStale') }
   if (source === 'cache') return { color: 'default', label: t('standalone.calendarSourceCache') }
   if (source === 'local') return { color: 'cyan', label: t('standalone.calendarSourceLocal') }
   return null
@@ -91,6 +102,7 @@ const formatTime = (value: string) => {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleString(locale.value, {
+    timeZone: 'Asia/Shanghai',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -99,31 +111,36 @@ const formatTime = (value: string) => {
 }
 
 const load = async () => {
-  loading.value = true
-  message.value = ''
-  try {
-    // 一次性取全部游戏，避免 8 个串行请求。
-    const response = await calendarApi.all()
-    games.value = (response.data as WikiCalendarGameOut[]) ?? []
-    message.value = response.message ?? ''
-    // 游戏列表随版本变化：刷新后选中的游戏可能已不在列表里，复位到第一个可用游戏（没有就回「全部」）。
-    if (activeGame.value !== 'all' && !games.value.some(item => item.game === activeGame.value))
-      activeGame.value = games.value[0]?.game ?? 'all'
-  } catch (cause) {
-    games.value = []
-    message.value = errorMessage(cause, t('standalone.calendarFailed'))
-  } finally {
-    loading.value = false
-  }
+  await calendar.load()
+  if (activeGame.value !== 'all' && !games.value.some(item => item.game === activeGame.value))
+    activeGame.value = 'all'
 }
+const visibleEvents = computed(() => visibleGames.value.flatMap(group => group.activities))
+const stateCounts = computed(() =>
+  ['进行中', '即将开始', '常驻'].map(name => ({
+    name,
+    count: visibleEvents.value.filter(item => item.status === name).length,
+  }))
+)
+const endingSoon = computed(() =>
+  visibleEvents.value
+    .filter(item => item.status === '进行中' && item.endsAt)
+    .sort((a, b) => a.endsAt!.localeCompare(b.endsAt!))
+    .slice(0, 3)
+)
 
 onMounted(load)
 </script>
 
 <template>
   <section class="calendar-page">
+    <CalendarCarousel
+      v-if="selectedGames.length"
+      v-model:game="bannerGame"
+      :groups="selectedGames"
+      :autoplay="activeGame === 'all'"
+    />
     <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.calendar') }}</h1>
       <a-space wrap>
         <a-radio-group v-model:value="activeGame" size="small" button-style="solid">
           <a-radio-button value="all">{{ t('standalone.calendarAll') }}</a-radio-button>
@@ -145,7 +162,9 @@ onMounted(load)
       </a-select>
       <a-select v-model:value="sortBy" size="small" class="calendar-filter-field">
         <a-select-option value="endsAt">{{ t('standalone.calendarSortEndsAt') }}</a-select-option>
-        <a-select-option value="startsAt">{{ t('standalone.calendarSortStartsAt') }}</a-select-option>
+        <a-select-option value="startsAt">{{
+          t('standalone.calendarSortStartsAt')
+        }}</a-select-option>
         <a-select-option value="title">{{ t('standalone.calendarSortTitle') }}</a-select-option>
       </a-select>
       <a-checkbox v-model:checked="hidePermanent">
@@ -164,59 +183,84 @@ onMounted(load)
       :message="message"
     />
 
-    <a-spin :spinning="loading">
-      <a-empty
-        v-if="!visibleGames.length && !loading"
-        :description="t(hasAnyActivity ? 'standalone.calendarEmptyFiltered' : 'standalone.calendarEmpty')"
-      />
-      <section v-for="group in visibleGames" :key="group.game" class="calendar-group">
-        <header class="calendar-group-header">
-          <h2 class="section-title">{{ group.name || group.game }}</h2>
-          <a-space>
-            <a-tag v-if="group.versionName" color="cyan">{{ group.versionName }}</a-tag>
-            <a-tag v-else-if="group.version" color="cyan">{{ group.version }}</a-tag>
-            <a-tag
-              v-if="sourceTag(group.source ?? '')"
-              :color="sourceTag(group.source ?? '')?.color"
-            >
-              {{ sourceTag(group.source ?? '')?.label }}
-            </a-tag>
-          </a-space>
-        </header>
-        <a-alert
-          v-if="group.message && !(group.activities ?? []).length"
-          type="warning"
-          show-icon
-          class="calendar-hint"
-          :message="group.message"
-        />
-        <ul v-else class="calendar-list">
-          <li v-for="(item, index) in group.activities ?? []" :key="rowKey(group, item, index)">
-            <article class="calendar-card glass-surface">
-              <img v-if="item.banner" :src="item.banner" alt="" loading="lazy" />
-              <div v-else class="calendar-card-placeholder" aria-hidden="true">
-                {{ (item.title || '?').slice(0, 1) }}
-              </div>
-              <div class="calendar-card-body">
-                <header>
-                  <strong>{{ item.title }}</strong>
-                  <a-tag v-if="item.status" :color="statusColor(item.status)">{{ item.status }}</a-tag>
-                </header>
-                <p v-if="item.subtitle">{{ item.subtitle }}</p>
-                <footer>
-                  <span v-if="item.endsAt">{{
-                    t('standalone.calendarUntil', { time: formatTime(item.endsAt) })
-                  }}</span>
-                  <span v-else-if="item.startsAt">{{
-                    t('standalone.calendarFrom', { time: formatTime(item.startsAt) })
-                  }}</span>
-                </footer>
-              </div>
-            </article>
-          </li>
-        </ul>
-      </section>
-    </a-spin>
+    <div class="calendar-layout">
+      <div>
+        <a-spin :spinning="loading">
+          <a-empty
+            v-if="!visibleGames.length && !loading"
+            :description="
+              t(hasAnyActivity ? 'standalone.calendarEmptyFiltered' : 'standalone.calendarEmpty')
+            "
+          />
+          <section v-for="group in visibleGames" :key="group.game" class="calendar-group">
+            <header class="calendar-group-header">
+              <h2 class="section-title">{{ group.name || group.game }}</h2>
+              <a-space>
+                <a-tag v-if="group.versionName" color="cyan">{{ group.versionName }}</a-tag>
+                <a-tag v-else-if="group.version" color="cyan">{{ group.version }}</a-tag>
+                <a-tag
+                  v-if="sourceTag(group.source ?? '')"
+                  :color="sourceTag(group.source ?? '')?.color"
+                >
+                  {{ sourceTag(group.source ?? '')?.label }}
+                </a-tag>
+              </a-space>
+            </header>
+            <a-alert
+              v-if="group.message && !(group.activities ?? []).length"
+              type="warning"
+              show-icon
+              class="calendar-hint"
+              :message="group.message"
+            />
+            <ul v-else class="calendar-list">
+              <li v-for="(item, index) in group.activities ?? []" :key="rowKey(group, item, index)">
+                <article class="calendar-card glass-surface">
+                  <img v-if="item.banner" :src="item.banner" alt="" loading="lazy" />
+                  <div v-else class="calendar-card-placeholder" aria-hidden="true">
+                    {{ (item.title || '?').slice(0, 1) }}
+                  </div>
+                  <div class="calendar-card-body">
+                    <header>
+                      <strong>{{ item.title }}</strong>
+                      <a-tag v-if="item.status" :color="statusColor(item.status)">{{
+                        item.status
+                      }}</a-tag>
+                    </header>
+                    <p v-if="item.subtitle">{{ item.subtitle }}</p>
+                    <footer>
+                      <span v-if="item.endsAt">{{
+                        t('standalone.calendarUntil', { time: formatTime(item.endsAt) })
+                      }}</span>
+                      <span v-else-if="item.startsAt">{{
+                        t('standalone.calendarFrom', { time: formatTime(item.startsAt) })
+                      }}</span>
+                    </footer>
+                  </div>
+                </article>
+              </li>
+            </ul>
+          </section>
+        </a-spin>
+      </div>
+      <aside class="calendar-summary">
+        <section>
+          <h2>{{ t('standalone.calendarOverview') }}</h2>
+          <div v-for="state in stateCounts" :key="state.name" class="summary-row">
+            <span>{{ state.name }}</span
+            ><strong class="mono">{{ state.count }}</strong>
+          </div>
+        </section>
+        <section>
+          <h2>{{ t('standalone.calendarEndingSoon') }}</h2>
+          <article v-for="(item, index) in endingSoon" :key="index">
+            <strong>{{ item.title }}</strong>
+            <p class="mono">{{ formatTime(item.endsAt || '') }}</p>
+          </article>
+          <p v-if="!endingSoon.length">{{ t('standalone.calendarNoEnding') }}</p>
+        </section>
+      </aside>
+    </div>
   </section>
 </template>
 
@@ -237,7 +281,7 @@ onMounted(load)
   flex-wrap: wrap;
   margin-bottom: 16px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: 3px;
 }
 .calendar-filter-field {
   min-width: 132px;
@@ -266,22 +310,24 @@ onMounted(load)
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 .calendar-card {
   display: flex;
+  flex-direction: column;
+  min-width: 0;
   gap: 12px;
   height: 100%;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 3px;
 }
 .calendar-card img,
 .calendar-card-placeholder {
-  width: 72px;
-  height: 72px;
+  width: 100%;
+  height: 88px;
   flex: 0 0 auto;
-  border-radius: 10px;
+  border-radius: 3px;
   object-fit: cover;
 }
 .calendar-card-placeholder {
@@ -300,6 +346,7 @@ onMounted(load)
 }
 .calendar-card-body header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -323,5 +370,65 @@ onMounted(load)
   font-family: 'JetBrains Mono', 'Consolas', monospace;
   font-size: 12px;
   color: var(--ant-color-text-tertiary);
+}
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 24px;
+}
+.calendar-summary section {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--ant-color-border);
+  background: var(--ant-color-bg-container);
+}
+.calendar-summary h2 {
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.calendar-summary article {
+  padding: 12px 0;
+  border-top: 1px solid var(--ant-color-border-secondary);
+  font-size: 12px;
+}
+.calendar-summary p {
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+}
+@media (max-width: 1180px) {
+  .calendar-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 16px;
+  }
+}
+@media (max-width: 900px) {
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .calendar-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@media (max-width: 700px) {
+  .calendar-summary {
+    display: block;
+  }
+  .calendar-filters {
+    padding: 12px 0;
+  }
+  .calendar-filter-field {
+    min-width: 120px;
+  }
 }
 </style>

@@ -33,7 +33,13 @@ export const router = createRouter({
       component: () => import('@/views/gacha/index.vue'),
       meta: { title: 'standalone.gacha' },
     },
-    { path: '/', redirect: '/sign' },
+    { path: '/', redirect: '/home' },
+    {
+      path: '/home',
+      name: 'Home',
+      component: () => import('@/views/home/index.vue'),
+      meta: { title: 'standalone.home' },
+    },
     {
       path: '/sign',
       name: 'CommunitySign',
@@ -43,7 +49,7 @@ export const router = createRouter({
     {
       path: '/activity',
       name: 'CommunityActivity',
-      component: () => import('@/views/gamesign/CommunityActivityView.vue'),
+      component: () => import('@/views/home/ActivityOverview.vue'),
       meta: { title: 'standalone.activity' },
     },
     {

@@ -168,7 +168,7 @@ onUnmounted(() => {
 <template>
   <section>
     <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.remote') }}</h1>
+
       <a-space>
         <a-button :loading="busy" @click="loadNodes">{{ t('standalone.refresh') }}</a-button>
         <a-button type="primary" :loading="busy" @click="refreshMas">{{ t('standalone.relay.refresh') }}</a-button>

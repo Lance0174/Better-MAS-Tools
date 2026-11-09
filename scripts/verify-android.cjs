@@ -34,7 +34,9 @@ app.whenReady().then(async () => {
     const workerPolicy = "default-src 'none'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; connect-src 'self'";
     return new Response(fs.readFileSync(file), { headers: { 'Content-Type': type, 'Content-Security-Policy': uri.pathname === '/runtime/engine-worker.js' ? workerPolicy : mainPolicy } });
   });
-  window = new BrowserWindow({ show: false, width: 390, height: 844, useContentSize: true, webPreferences: { sandbox: true, contextIsolation: true } });
+  window = new BrowserWindow({ show: false, width: 390, height: 844, useContentSize: true, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false } });
+  // 隔离的校验 profile 也会留下旧引导标记；每次首启用例先清空它，重启阶段再验证保留。
+  await window.webContents.session.clearStorageData({ storages: ['localstorage'] });
   window.webContents.setUserAgent(window.webContents.getUserAgent() + ' BMAT-Android/1');
   window.webContents.session.webRequest.onBeforeRequest((details, callback) => {
     const allowed = details.url.startsWith(origin + '/') || details.url.startsWith('blob:') || details.url.startsWith('data:');
@@ -68,15 +70,15 @@ app.whenReady().then(async () => {
   await installMock();
   const result = await window.webContents.executeJavaScript(`(async () => {
     const wait = async predicate => { for (let i = 0; i < 150; i++) { if (predicate()) return; if (document.querySelector('.page-state .ant-alert-error')) break; await new Promise(r => setTimeout(r, 400)); } throw new Error('UI did not become ready: ' + document.body.innerText.slice(0,300)); };
-    await wait(() => !document.querySelector('.app-content > .page-state'));
+    await wait(() => !document.querySelector('.page-frame > .page-state'));
     await wait(() => !!document.querySelector('.onboarding-actions'));
     const skip = Array.from(document.querySelectorAll('.onboarding-actions button')).find(button => button.textContent.replace(/\\s/g, '') === '跳过');
     if (!skip) throw new Error('First-run skip control missing');
     skip.click();
     await wait(() => JSON.parse(probe.state || '{}').settings?.OnboardingDismissed === true);
     const check = name => ({ name, width: innerWidth, scrollWidth: document.documentElement.scrollWidth, text: document.body.innerText.slice(0, 1500) });
-    const pages = [check('sign')];
-    for (const route of ['activity', 'gacha', 'logs', 'settings']) {
+    const pages = [check('home')];
+    for (const route of ['sign', 'activity', 'calendar', 'gacha', 'logs', 'settings']) {
       location.hash = '#/' + route;
       await new Promise(r => setTimeout(r, 900));
       pages.push(check(route));
@@ -149,7 +151,7 @@ app.whenReady().then(async () => {
   await installMock('{"accounts":"fixture-invalid-state"}');
   result.failure = await window.webContents.executeJavaScript(`(async () => {
     for (let i = 0; i < 150; i++) {
-      if (document.querySelector('.app-content > .page-state .ant-alert-error') && probe.calls.includes('engine.failed')) {
+      if (document.querySelector('.page-frame > .page-state .ant-alert-error') && probe.calls.includes('engine.failed')) {
         const text = document.body.innerText;
         if (!text.includes('原数据已保留')) throw new Error('Startup failure reason was lost');
         if (text.includes('fixture-invalid-state') || probe.logs.some(line => line.includes('fixture-invalid-state'))) throw new Error('Invalid state leaked into diagnostic output');

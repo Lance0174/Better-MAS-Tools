@@ -2,33 +2,29 @@ import { computed, onScopeDispose, ref, watchEffect } from 'vue'
 import { theme } from 'ant-design-vue'
 import { useSettingsStore } from '@/stores/settings'
 
-/**
- * 纸面印刷（方案 A）调色板：浅色为纸、深色为墨。
- * 主色是出版黄 #ffe100 —— 它只能做「实心块 + 深色字」，不能当正文或链接色，
- * 因此正文走 ink，链接另给 colorLink，报错文字由 style.css 的 --app-danger-ink 承担。
- */
+/** 审核方案 B：深浅主题共享细线、适度密度和黄色操作强调。 */
 const PAPER = {
   light: {
-    canvas: '#e3e3df',
-    raised: '#f5f5f2',
-    bright: '#fbfbf9',
-    ink: '#151515',
-    ink2: '#5c5c55',
-    ink3: '#66665f',
-    line: '#cbcbc4',
-    lineSoft: '#deded8',
+    canvas: '#eceeea',
+    raised: '#fafbf7',
+    bright: '#f0f2ed',
+    ink: '#242a28',
+    ink2: '#5e6964',
+    ink3: '#5e6964',
+    line: '#c8cec5',
+    lineSoft: '#e0e4dc',
     link: '#7a6100',
   },
   dark: {
-    canvas: '#19191b',
-    raised: '#242427',
-    bright: '#2b2c2f',
-    ink: '#eeeeee',
-    ink2: '#a6a6ac',
-    ink3: '#94949b',
-    line: '#3a3a3f',
-    lineSoft: '#303034',
-    link: '#ffe100',
+    canvas: '#191b1e',
+    raised: '#222529',
+    bright: '#2a2d31',
+    ink: '#edf0f2',
+    ink2: '#a0a7b0',
+    ink3: '#a0a7b0',
+    line: '#393d42',
+    lineSoft: '#2d3136',
+    link: '#f5d747',
   },
 } as const
 
@@ -62,8 +58,8 @@ export function useTheme() {
     algorithm: isDark.value ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
       // 出版黄只做实心块：按钮/开关上的文字必须是深色，否则白字压黄只有 1.2:1。
-      colorPrimary: '#ffe100',
-      colorTextLightSolid: '#151515',
+      colorPrimary: '#f5d747',
+      colorTextLightSolid: '#242a28',
       colorLink: palette.value.link,
       colorSuccess: '#1f7a48',
       colorError: '#c8321a',
@@ -77,11 +73,11 @@ export function useTheme() {
       colorTextTertiary: palette.value.ink3,
       colorBorder: palette.value.line,
       colorBorderSecondary: palette.value.lineSoft,
-      // 纸面印刷没有圆角：所有控件统一直角，与书脊、表格线一致。
-      borderRadius: 0,
-      fontSize: 13,
+      // 小圆角只用于容器与控件，保持审核方案的细线布局。
+      borderRadius: 3,
+      fontSize: 14,
       fontFamily: "'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif",
-      controlHeight: 30,
+      controlHeight: 35,
     },
   }))
   // 液态玻璃：关闭后（或用户设置 GlassEffect=false）退化为半透明实色材质，不做背景模糊。
@@ -105,6 +101,7 @@ export function useTheme() {
     const style = document.documentElement.style
     style.setProperty('--ant-color-bg-container', String(tokens.colorBgContainer))
     style.setProperty('--ant-color-bg-layout', String(tokens.colorBgLayout))
+    style.setProperty('--ant-color-bg-elevated', String(tokens.colorBgElevated))
     style.setProperty('--ant-color-border', String(tokens.colorBorder))
     style.setProperty('--ant-color-border-secondary', String(tokens.colorBorderSecondary))
     style.setProperty('--ant-color-error', String(tokens.colorError))
@@ -116,9 +113,9 @@ export function useTheme() {
     style.setProperty('--ant-color-text-secondary', String(tokens.colorTextSecondary))
     style.setProperty('--ant-color-text-tertiary', String(tokens.colorTextTertiary))
     style.setProperty('--ant-color-warning', String(tokens.colorWarning))
-    // 纸面网格：24px 细格，浅色用墨线、深色用白线，强度都压到 5% 以下不抢内容。
+    // 32px 细格随主题切换，强度压到 5% 以下，保持内容可读。
     const dark = isDark.value
-    style.setProperty('--app-grid-line', dark ? 'rgba(255,255,255,0.045)' : 'rgba(21,21,21,0.048)')
+    style.setProperty('--app-grid-line', dark ? 'rgba(255,255,255,0.018)' : 'rgba(0,0,0,0.025)')
     style.setProperty('--app-panel', dark ? 'rgba(255,225,0,0.10)' : 'rgba(255,225,0,0.16)')
     style.setProperty('--app-panel-border', dark ? 'rgba(255,225,0,0.34)' : 'rgba(21,21,21,0.24)')
     style.setProperty('--app-tick', dark ? 'rgba(255,255,255,0.25)' : 'rgba(21,21,21,0.22)')
@@ -126,9 +123,10 @@ export function useTheme() {
     style.setProperty('--app-scanline', dark ? 'rgba(255,225,0,0.04)' : 'rgba(21,21,21,0.03)')
     // 报错文字专用色：危险实心色上的白字要 5:1，当文字又要 4.5:1，一个红做不到两件事。
     style.setProperty('--app-danger-ink', dark ? '#ff9088' : '#b5341f')
-    style.setProperty('--app-accent', '#ffe100')
+    style.setProperty('--app-accent', '#f5d747')
     // 液态玻璃令牌：纸面皮肤下玻璃更接近"蒙版纸"——底色近乎不透明，只留一点模糊湿度。
-    const glass = (name: string, value: string) => style.setProperty(`--app-glass-${name}-pref`, value)
+    const glass = (name: string, value: string) =>
+      style.setProperty(`--app-glass-${name}-pref`, value)
     glass('tint', dark ? 'rgba(34,34,38,0.86)' : 'rgba(252,252,250,0.86)')
     glass('tint-strong', dark ? 'rgba(28,28,32,0.94)' : 'rgba(255,255,252,0.94)')
     glass('tint-soft', dark ? 'rgba(34,34,38,0.7)' : 'rgba(252,252,250,0.7)')

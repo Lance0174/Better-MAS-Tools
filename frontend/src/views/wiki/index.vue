@@ -146,7 +146,7 @@ onUnmounted(() => {
 <template>
   <section class="wiki-page">
     <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.wiki') }}</h1>
+
       <a-space>
         <a-tag v-if="status.ready" color="green">{{ status.version || t('standalone.wikiReady') }}</a-tag>
         <a-tag v-else color="orange">{{ t('standalone.wikiNotReady') }}</a-tag>

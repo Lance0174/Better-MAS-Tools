@@ -126,7 +126,7 @@ const sign = async () => {
 <template>
   <section class="community-sign-page">
     <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.sign') }}</h1>
+
       <a-space wrap>
         <a-button :loading="loading" @click="load"
           ><ReloadOutlined />{{ t('standalone.refresh') }}</a-button

@@ -161,12 +161,13 @@ onBeforeUnmount(() => {
     </div>
     <a-table
       v-else
+      class="logs-table"
+      table-layout="fixed"
       :columns="columns"
       :data-source="filtered"
       row-key="id"
       size="small"
       :pagination="{ pageSize: 50, showSizeChanger: false }"
-      :scroll="{ x: 960 }"
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'time'">{{
@@ -194,6 +195,13 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+/* 滚动只归内容容器，避免尺寸观察回调在同一帧反复改写空表宽度。 */
+.logs-table :deep(.ant-table-content) {
+  overflow-x: auto;
+}
+.logs-table :deep(.ant-table-content > table) {
+  min-width: 960px;
 }
 .mobile-log {
   padding: 12px 0;

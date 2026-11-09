@@ -342,7 +342,7 @@ const changePage = (value: { current?: number }) => {
 <template>
   <section class="gacha-page">
     <header class="page-toolbar">
-      <h1 class="page-title">{{ t('standalone.gacha') }}</h1>
+
       <a-space wrap>
         <a-button :disabled="importing || !data.total" @click="exportFile('bmasc')">{{
           t('standalone.gachaExport')
@@ -435,12 +435,13 @@ const changePage = (value: { current?: number }) => {
     </a-spin>
     <a-table
       v-else
+      class="gacha-table"
+      table-layout="fixed"
       :columns="columns"
       :data-source="data.data"
       :row-key="keyOf"
       :loading="loading || importing"
       :pagination="{ current: page, pageSize: 50, total: data.total, showSizeChanger: false }"
-      :scroll="{ x: 800 }"
       @change="changePage"
     >
       <template #bodyCell="{ column, record }">
@@ -666,6 +667,13 @@ const changePage = (value: { current?: number }) => {
 </template>
 
 <style scoped>
+/* 保留表内横向滚动与外部分页，避免空表测量反复触发尺寸通知。 */
+.gacha-table :deep(.ant-table-content) {
+  overflow-x: auto;
+}
+.gacha-table :deep(.ant-table-content > table) {
+  min-width: 800px;
+}
 .gacha-filters {
   display: flex;
   flex-wrap: wrap;

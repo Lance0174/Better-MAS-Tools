@@ -40,7 +40,7 @@ const stop = (task: MasTaskOut) => Modal.confirm({
 
 <template>
   <section>
-    <header class="page-toolbar"><h1 class="page-title">{{ t('standalone.mas') }}</h1><a-button type="primary" :disabled="!settings.localConnections" :loading="busy" @click="connect">{{ t('standalone.masConnect') }}</a-button></header>
+    <header class="page-toolbar"><a-button type="primary" :disabled="!settings.localConnections" :loading="busy" @click="connect">{{ t('standalone.masConnect') }}</a-button></header>
     <a-alert type="info" show-icon :message="t(settings.localConnections ? 'standalone.masHint' : 'standalone.workerLocalUnavailable')" class="page-alert" />
     <p>{{ t('standalone.masAddress') }}：{{ settings.data?.MasBaseUrl }}</p>
     <a-alert v-if="error" type="error" show-icon :message="error" class="page-alert" />
