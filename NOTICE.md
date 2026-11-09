@@ -22,13 +22,15 @@
 | [bhaoo/endfield-gacha](https://github.com/bhaoo/endfield-gacha) | `72c526d49136fd23271f77e9ef33549de3721283` | 终末地角色/武器寻访协议参考，未复制实现源码 |
 | [TomyJan/Yunzai-Kuro-Plugin](https://github.com/TomyJan/Yunzai-Kuro-Plugin) | `93699159c1730a7453f28be73f5207830ed5d7d2` | 库街区鸣潮结晶波片便笺（`gamer/widget/game3/getData`）公开接口协议参考：端点、表单字段与响应字段名。**仅参考其公开接口协议，未复制其源代码**；本项目按自身的工具/解析分层重写，未修改或分发该插件代码，因此不产生 MPL-2.0 的文件级义务 |
 
+米游社「用登录态换抽卡 authkey」的协议（`genAuthKey`、请求体与 DS 盐版本线）在 2026-11 对照下列仍在维护的开源实现核对，均为**公开接口协议参考，未复制其实现源码**：[BTMuli/TeyvatGuide](https://github.com/BTMuli/TeyvatGuide)（MIT）、[Genshin-bots/gsuid_core](https://github.com/Genshin-bots/gsuid_core)（MIT）、[CMHopeSunshine/LittlePaimon](https://github.com/CMHopeSunshine/LittlePaimon)（MIT）、[ZZZure/ZZZ-Plugin](https://github.com/ZZZure/ZZZ-Plugin)（MIT）、[SnapHutaoRemasteringProject/Snap.Hutao.Remastered](https://github.com/SnapHutaoRemasteringProject/Snap.Hutao.Remastered)（MIT）。该链路尚未用真实账号验收，米游社换版本线后需同步更新 `_SALT_LINES`。
+
 云码按 [官方317文档](https://www.jfbym.com/test/317.html) 的30332图片坐标接口独立适配；返回坐标不等于完整极验票据。本项目不隶属于上述项目、极验或云码。
 
 Cloudflare 集成使用官方 workers-py/runtime SDK；实现核对 workers-py `940847dbbc250f982ccb03a5ba667aa5d70d81cb` 与 cloudflare-docs `72c81248ba0863139348650dd24be5d390d40681`，未复制其运行器源码。相关依赖继续适用各自许可证。
 
 ## 终末地资料库与活动日历（Priestess-bot）
 
-终末地资料库的索引构建、检索解析与数据体检移植自 [Billtranscend/Priestess-bot](https://github.com/Billtranscend/Priestess-bot)（MIT，Copyright (c) 2026 Billtranscend），来源文件为 `plugins/endfield_wiki/` 下的 `data.py`、`lookup.py`、`changes.py` 与 `aliases.json`；明日方舟活动日历移植自 `plugins/game_calendar/arknights.py`。上游的 NoneBot 命令、出图与群功能未移植，只保留与机器人框架无关的数据与解析部分，并按本项目的工具/服务/接口分层重写。MIT 许可全文见 [Priestess-bot.txt](docs/licenses/Priestess-bot.txt)。
+终末地资料库的索引构建、检索解析与数据体检移植自 [Billtranscend/Priestess-bot](https://github.com/Billtranscend/Priestess-bot)（MIT，Copyright (c) 2026 Billtranscend），来源文件为 `plugins/endfield_wiki/` 下的 `data.py`、`lookup.py`、`changes.py` 与 `aliases.json`；明日方舟活动日历移植自 `plugins/game_calendar/arknights.py`。终末地「小黑盒抽卡补录」的聚合口径与重建规则移植自 `plugins/heybox_import/plan.py`（六星用真实名字与秒级时间、其余抽数铺成四星占位行、五星补名），按本项目的 `GachaRecord` 存储模型重写。上游的 NoneBot 命令、出图与群功能未移植，只保留与机器人框架无关的数据与解析部分，并按本项目的工具/服务/接口分层重写。MIT 许可全文见 [Priestess-bot.txt](docs/licenses/Priestess-bot.txt)。
 
 游戏数据在运行期从下列来源下载，**不随本仓库分发**；本仓库因此不构成对这些数据的再分发：
 

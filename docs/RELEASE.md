@@ -59,6 +59,8 @@ git tag v0.2.0-beta.1 && git push origin v0.2.0-beta.1
 
 ## CI 自动化
 
+当前发布范围为 Windows 与 Android。Cloudflare 远端部署暂缓，不作为版本交付能力或验收项；`deploy-cf.yml` 仅保留独立手动入口，不由 push、tag 或 Release 触发。恢复前需重新验收部署、持久化、鉴权与依赖锁。
+
 推送 `v*` 标签后触发两条发布流水线（`windows-release.yml`、`android-release.yml`）：
 
 1. **guard 守门**：`changelog.py guard --tag` 校验 tag 与 CHANGELOG 版本一致、六处版本生成物一致（pyproject / package.json / app/version.py / uv.lock / android versionName / android versionCode）、`changelog.d` 已清空；

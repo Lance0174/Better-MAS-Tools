@@ -44,6 +44,24 @@ def test_android_build_bundles_tool_data():
     )
 
 
+def test_desktop_bundle_includes_tray_icon():
+    """托盘图标必须随包进 resources：轻量模式靠它唤回窗口。"""
+
+    config = (ROOT / "frontend" / "electron-builder.cjs").read_text(encoding="utf-8")
+    assert "community.ico" in config, "electron-builder.cjs 未把托盘图标放进 extraResources"
+    assert "to: 'community.ico'" in config or 'to: "community.ico"' in config, (
+        "托盘图标没有落到 resources 根目录，main.cts 的 trayIconPath() 找不到它"
+    )
+
+
+def test_light_mode_refuses_to_hide_without_tray_icon():
+    """托盘图标不可用时不能进入轻量模式：窗口销毁后就没有唤回入口了。"""
+
+    main = (ROOT / "frontend" / "electron" / "main.cts").read_text(encoding="utf-8")
+    assert "trayHasIcon" in main, "main.cts 没有记录托盘图标是否可用"
+    assert "无法进入轻量模式" in main, "托盘图标缺失时应拒绝进入轻量模式并提示"
+
+
 def test_desktop_verifier_checks_bundled_data():
     """发行校验要能在打包漏文件时失败，而不是等用户发现搜不到。"""
 
@@ -51,3 +69,4 @@ def test_desktop_verifier_checks_bundled_data():
     assert "endfield_aliases.json" in script, (
         "verify-desktop.py 未校验随包数据文件"
     )
+    assert "community.ico" in script, "verify-desktop.py 未校验托盘图标是否随包"

@@ -292,9 +292,56 @@ class GachaImportIn(BaseModel):
     payload: SecretStr = Field(min_length=2, max_length=20_000_000)
 
 
+class GachaHeyboxIn(BaseModel):
+    """小黑盒「抽卡分析」响应文本：只做纯转换，不联网、不保存原始内容。"""
+
+    game: Literal["endfield"] = "endfield"
+    # 与前端校验、app/tools/gacha_heybox.py 的 HEYBOX_ID_PATTERN 保持一致。
+    heyboxId: str = Field(
+        min_length=4, max_length=12, pattern=r"^[0-9]{4,12}$", description="小黑盒 ID"
+    )
+    playerUid: str = Field(min_length=1, max_length=120, description="游戏 UID")
+    # 与 GachaImportIn 的上限同量级；小黑盒单账号 overview 通常不到 1MB。
+    payload: SecretStr = Field(min_length=2, max_length=2_000_000)
+
+
+class GachaCookieFetchIn(BaseModel):
+    """米游社 Cookie 换 authkey 的读取入参；cookie 只在本次请求内使用。"""
+
+    game: Literal["genshin", "starrail", "zzz"]
+    accountId: str = Field(
+        default="", description="账号组 ID；cookie 留空时从这里取已绑定的米游社凭据"
+    )
+    playerUid: str = Field(
+        min_length=1, max_length=120, description="游戏 UID（纯数字）"
+    )
+    # 与 GachaFetchIn 的 source 同一上限；只在内存里用于换 authkey，不落盘。
+    cookie: SecretStr = Field(
+        default=SecretStr(""),
+        max_length=16000,
+        description="米游社 Cookie；留空则用账号组里保存的那份",
+    )
+    region: str = Field(
+        default="",
+        max_length=32,
+        description="区域，如 cn_gf01/prod_gf_cn；留空按 UID 推断",
+    )
+    timezone: int = Field(default=8, ge=-12, le=14)
+    maxPages: int = Field(default=100, ge=1, le=500)
+
+
 class GachaUpdateOut(OutBase):
     added: int = 0
     fetched: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class GachaHeyboxOut(OutBase):
+    """小黑盒补录结果：added 是新增、replaced 是被替换的旧补录行。"""
+
+    added: int = 0
+    replaced: int = 0
+    skipped: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 

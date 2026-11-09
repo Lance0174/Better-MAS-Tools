@@ -19,8 +19,10 @@ router = APIRouter(prefix="/api/mas", tags=["Mas"])
 async def snapshot() -> MasSnapshotOut:
     try:
         return MasSnapshotOut(**await mas.snapshot(state.data.settings.MasBaseUrl))
+    except ValueError:
+        raise
     except Exception:
-        raise ValueError("无法连接本机 MAS，请确认地址是否正确和 MAS 是否已启动") from None
+        raise ValueError("无法连接本机 MAS MCP，请确认地址和服务状态，稍后重试") from None
 
 
 @router.post("/start", response_model=MasStartOut, operation_id="startMasTask")

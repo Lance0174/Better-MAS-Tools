@@ -7,8 +7,14 @@ body,
   font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
 body {
-  background: var(--ant-color-bg-container);
+  /* 纸面皮肤：画布用 layout 色（纸），卡片用 container 色（抬起的纸）。 */
+  background: var(--ant-color-bg-layout);
   color: var(--ant-color-text);
+}
+/* 等宽读数：方案 A 里所有坐标、编号、时间戳都用它。 */
+.mono {
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
 }
 /* 终末地工业风：页面衬底淡网格，强化"工程终端"质感；不覆盖卡片内容。 */
 body {
@@ -51,12 +57,12 @@ body {
 .page-title {
   position: relative;
   display: inline-block;
-  font-size: 20px;
-  line-height: 1.5;
+  font-size: 24px;
+  line-height: 1.1;
   margin: 0;
-  letter-spacing: 0.04em;
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-weight: 900;
   padding-left: 14px;
 }
 /* 标题左侧斜切刻度条，强化工业仪表读数感 */
@@ -67,7 +73,8 @@ body {
   top: 50%;
   transform: translateY(-50%);
   width: 6px;
-  height: 70%;
+  height: 88%;
+  background: var(--app-accent, #ffe100);
   background: var(--ant-color-primary);
   clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
 }
@@ -141,9 +148,13 @@ html.android-local #app::before {
   --app-glass-shadow: var(--app-glass-shadow-pref, rgba(6, 30, 42, 0.2));
   /* 暗角只压四周：浅色下过重会把整个画布压成灰色，玻璃反而失去景深。 */
   --app-glass-vignette: var(--app-glass-vignette-pref, rgba(6, 30, 42, 0.08));
-  --app-glass-radius: 14px;
+  --app-glass-radius: 0;
+  /* 报错文字专用色，避免用危险实心色当文字（对比度不足）。 */
+  --app-danger-ink: #b5341f;
+  --app-accent: #ffe100;
 }
 html.dark {
+  --app-danger-ink: #ff9088;
   --app-glass-saturate: var(--app-glass-saturate-pref, 140%);
   --app-glass-tint: var(--app-glass-tint-pref, rgba(25, 35, 57, 0.38));
   --app-glass-tint-strong: var(--app-glass-tint-strong-pref, rgba(20, 28, 46, 0.64));
@@ -336,4 +347,60 @@ html.android-local .glass-depth i {
   to {
     transform: translate3d(4vw, 3vh, 0) scale(1.12);
   }
+}
+
+/* ---------------------------------------------------------------------------
+   纸面印刷（方案 A）：出版物的规矩——直角、细线、重标题、等宽读数。
+   AntD 令牌已经把主色 / 圆角 / 背景交过来了，这里只补令牌覆盖不到的表层：
+   卡片标题的 2px 墨线、表头的宽字距小字、主按钮的深色字。
+--------------------------------------------------------------------------- */
+html .ant-btn,
+html .ant-input,
+html .ant-input-affix-wrapper,
+html .ant-select .ant-select-selector,
+html .ant-card,
+html .ant-modal-content,
+html .ant-drawer-content,
+html .ant-table,
+html .ant-table-container,
+html .ant-tag,
+html .ant-alert,
+html .ant-segmented,
+html .ant-segmented-item,
+html .ant-upload-drag,
+html .ant-collapse,
+html .ant-collapse-header,
+html .ant-progress-inner,
+html .ant-popover-inner,
+html .ant-dropdown-menu {
+  border-radius: 0;
+}
+/* 卡片标题：2px 墨线压住内容，标题加粗加字距——纸面版式的栏目头。 */
+html .ant-card > .ant-card-head {
+  border-bottom: 2px solid var(--ant-color-text);
+  min-height: 40px;
+}
+html .ant-card > .ant-card-head .ant-card-head-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+/* 表头：小号大写 + 宽字距，与正文拉开层级。 */
+html .ant-table-thead > tr > th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: var(--ant-color-bg-layout);
+}
+/* 主按钮落在出版黄上，字必须是墨色——AntD 默认白字只有 1.2:1。 */
+html .ant-btn-primary {
+  color: #151515;
+}
+html .ant-btn-primary:not(:disabled):hover {
+  color: #151515;
+}
+/* 表格与输入框的等宽读数：坐标、时间戳、数字都按位对齐。 */
+html .ant-table-tbody > tr > td .mono,
+html .ant-statistic-content {
+  font-variant-numeric: tabular-nums;
 }

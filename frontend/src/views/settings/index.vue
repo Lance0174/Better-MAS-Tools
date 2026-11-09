@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { message } from 'ant-design-vue'
+import { message, Modal } from 'ant-design-vue'
 import type { SettingsData } from '@/api'
 import { useSettingsStore } from '@/stores/settings'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { isAndroidLocal } from '@/services/android'
 import { isDesktop } from '@/services/desktop'
+import { applyLightModeChange } from './settingsLightMode'
 import { createSettingsAutoSave } from './settingsAutoSave'
 
 const { t } = useI18n()
@@ -37,6 +38,29 @@ const autoSave = createSettingsAutoSave({
   onFailure: cause => message.error(errorMessage(cause, t('standalone.saveFailed'))),
 })
 const changed = () => autoSave.changed()
+const lightModeConfirmPending = ref(false)
+// 轻量模式开启前确认：开启后窗口会被销毁、任务栏不再显示，只能从托盘或再次启动程序唤回。
+const lightModeChanged = (enabled: boolean) => {
+  if (lightModeConfirmPending.value) return
+  lightModeConfirmPending.value = true
+  void applyLightModeChange(enabled, {
+    setEnabled: value => {
+      draft.value.LightMode = value
+    },
+    confirm: () =>
+      new Promise<boolean>(resolve => {
+        Modal.confirm({
+          title: t('standalone.lightModeConfirmTitle'),
+          content: t('standalone.lightModeConfirmContent'),
+          okText: t('standalone.lightModeConfirmOk'),
+          cancelText: t('standalone.lightModeConfirmCancel'),
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        })
+      }),
+    onChange: changed,
+  }).finally(() => { lightModeConfirmPending.value = false })
+}
 const textChanged = () => autoSave.textChanged()
 const textBlurred = () => autoSave.textBlurred()
 onBeforeUnmount(autoSave.dispose)
@@ -100,7 +124,7 @@ onBeforeUnmount(autoSave.dispose)
             name="LightMode"
             :label="t('standalone.lightMode')"
             :extra="t('standalone.lightModeHint')"
-            ><a-switch v-model:checked="draft.LightMode" @change="changed"
+            ><a-switch v-model:checked="draft.LightMode" :disabled="lightModeConfirmPending" @change="lightModeChanged"
           /></a-form-item>
           <a-form-item name="ActivityEnabled" :label="t('standalone.activityEnabled')"
             ><a-switch v-model:checked="draft.ActivityEnabled" @change="changed"
@@ -171,7 +195,7 @@ onBeforeUnmount(autoSave.dispose)
             :label="t('standalone.cloudBaseUrl')"
             :extra="t('standalone.cloudBaseUrlHint')"
           >
-            <a-input v-model:value="draft.CloudBaseUrl" :disabled="!draft.CloudMode" placeholder="https://community.example.workers.dev" autocomplete="off" @update:value="textChanged" @blur="textBlurred" />
+            <a-input v-model:value="draft.CloudBaseUrl" :disabled="!draft.CloudMode" placeholder="https://community.example.com" autocomplete="off" @update:value="textChanged" @blur="textBlurred" />
           </a-form-item>
           <a-form-item
             name="CloudPassword"

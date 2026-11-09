@@ -20,7 +20,10 @@
 | `/api/login/kuro/sms/cancel` | 取消会话和正在运行的自动验证 |
 | `/api/gacha` | GET按game、playerUid、pool、page、pageSize查询记录及统计 |
 | `/api/gacha/fetch` | POST读取官方记录；source只在本次请求使用 |
+| `/api/gacha/fetch-cookie` | POST用米游社Cookie换取authkey后读取官方记录；cookie留空则用账号组已绑定凭据，仅原神/崩铁/绝区零，尚未用真实账号验收 |
 | `/api/gacha/import` | POST game＋payload（JSON字符串）导入，原数据合并去重 |
+| `/api/gacha/heybox` | POST heyboxId、playerUid、payload导入小黑盒「抽卡分析」响应；六星用真实记录，其余抽数补四星占位行与五星补名 |
+| `/api/gacha/heybox` | DELETE按playerUid撤销该 UID 的小黑盒补录行；官方六星记录不受影响 |
 | `/api/gacha/export` | GET game、playerUid、fileFormat=bmasc或uigf，返回filename/content |
 | `/api/accounts/reorder` | POST保存拖动顺序order；签到或便笺执行中返回409 |
 | `/api/activity` | POST按accountIds查询日常便笺快照，含任务、资源、角色与服务 |
@@ -36,9 +39,9 @@
 | `/api/relay/nodes` | GET列出执行节点及在线状态 |
 | `/api/relay/commands/{command_id}` | GET查询单条指令的状态与结果 |
 | `/api/cloud/sync` | POST提交accounts、miyoushe_bbs，在云端临时内存执行签到并返回结果，不落盘 |
-| `/api/mas/snapshot` | GET读取本机MAS运行快照：队列与任务 |
+| `/api/mas/snapshot` | GET 经本机 MAS 的 `/mcp` 读取队列与运行快照 |
 | `/api/mas/start` | POST提交taskId、mode（AutoProxy或CycleRun）请求MAS启动，返回taskId |
-| `/api/mas/stop` | POST提交taskId请求MAS停止任务 |
+| `/api/mas/stop` | POST提交taskId，经 MAS MCP 请求停止任务 |
 | `/api/miyoushe/verification` | GET列出待人工处理的米游币验证会话 |
 | `/api/miyoushe/verification/submit` | POST提交sessionId＋verification，验证后继续该次执行 |
 | `/api/login/{provider}/qr/create` | POST创建扫码二维码；provider为miyoushe或skland |
@@ -46,7 +49,11 @@
 | `/api/login/{provider}/qr/save` | POST按accountUid、cookie、scanCode保存登录凭据 |
 | `/api/login/taygedo` | POST按accountId、phone、password一次性登录并保存凭据 |
 
-抽卡game枚举为`genshin`、`starrail`、`zzz`、`wuthering`、`arknights`、`endfield`。米家三游戏支持Starward/UIGF文件；鸣潮使用官方链接或请求JSON；明日方舟使用森空岛accountId与playerUid；终末地仍需粘贴官方记录链接中的u8_token，未实现从森空岛自动取得该链接。
+抽卡 game 枚举为 `genshin`、`starrail`、`zzz`、`wuthering`、`arknights`、`endfield`。米家三游戏优先通过米游社 Cookie 换取临时 authkey，也可使用官方链接、UIGF/Starward JSON；只有网页 cookie_token 而没有 stoken 的凭据暂不支持换取。鸣潮使用官方链接或请求 JSON。明日方舟、终末地优先使用森空岛 accountId 与 playerUid；终末地也可传含 u8_token 的官方链接。六款游戏均可导入本工具的 BMASC JSON。终末地另可粘贴小黑盒「抽卡分析」overview 响应补录历史：六星保留原始时间，五星补名与四星占位是推算记录，明确标识并可撤销；被跳过卡池的旧补录不被删除。Cookie、临时授权和 overview 响应不落盘。
+
+MAS 接入仅调用 `/mcp` 的 Streamable HTTP 入口，完成初始化、工具发现后调用队列查询、运行快照、启动和停止四个工具。不绕过 MCP 回退到 REST，也不开放任意工具调用。MAS 启动初期可能尚未挂载 MCP，404 时提示稍后重试；任务变更不自动重试，启动成功只表示已受理。仅接受环回服务地址，禁止跳转到外部地址。
+
+`SettingsData.OnboardingDismissed` 默认为 false，完成或跳过引导后置为 true 并随配置保存。旧设置草稿不能将 true 回写为 false；设置页仍可手动重新查看引导。浏览器本地标记仅用于旧版迁移，不作为桌面随机端口下唯一的持久化来源。
 
 签到结果的`games[].status`保留游戏与社区的合并完成状态。新版库街区结果另外提供`details`，每项包含`kind`（`game`或`community`）、`status`、`reward`和`reason`，用于分别展示游戏签到与库洛币签到；账号共享的社区签到只附在一条游戏结果中，统计时只计算一次。旧记录没有分项数据，`details`为空，不应据此推断游戏或社区单独成功；各分项的执行时间沿用所属结果的`signedAt`。
 

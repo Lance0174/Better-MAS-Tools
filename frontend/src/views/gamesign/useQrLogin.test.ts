@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError } from '@/api'
 import { useQrLogin } from './useQrLogin'
 
 const createQr = vi.fn()
@@ -307,11 +308,39 @@ describe('useQrLogin', () => {
     await vi.advanceTimersByTimeAsync(2000)
 
     expect(qr.status.value).toBe('error')
-    expect(qr.statusText.value).toBe('扫码成功，但保存 Token 失败')
-    expect(showError).toHaveBeenCalledWith('扫码成功，但保存 Token 失败')
+    // 后端给了业务文案就用它：原来一律显示本地兜底，用户看不到失败原因。
+    expect(qr.statusText.value).toBe('写库失败')
+    expect(showError).toHaveBeenCalledWith('写库失败')
     expect(showSuccess).not.toHaveBeenCalled()
     // 失败后不该留着自动关闭定时器
     await vi.advanceTimersByTimeAsync(2000)
     expect(qr.visible.value).toBe(true)
+  })
+
+  it('保存请求抛出 400 时显示后端写的原因', async () => {
+    createQr.mockReturnValueOnce(cancelable(CREATED))
+    checkQr.mockReturnValueOnce(cancelable({ code: 200, status: 'Confirmed', cookies_str: 'ck' }))
+    // 生成客户端在 4xx 上抛 ApiError：body 才是后端真正的中文说明。
+    const failure = new ApiError(
+      { method: 'POST', url: '/api/login/skland/qr/save' },
+      {
+        url: '/api/login/skland/qr/save',
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        body: { message: '本机 DNS 把 zonai.skland.com 解析到 Fake-IP，请设为直连后重试' },
+      },
+      'Bad Request'
+    )
+    // 必须在调用时才构造 rejected promise，提前建好会在没人 await 的瞬间报未处理拒绝。
+    saveQr.mockImplementationOnce(() => failing(failure))
+    const qr = setup()
+
+    await qr.start()
+    await vi.advanceTimersByTimeAsync(2000)
+
+    expect(qr.status.value).toBe('error')
+    expect(qr.statusText.value).toContain('Fake-IP')
+    expect(showError).toHaveBeenCalledWith(expect.stringContaining('Fake-IP'))
   })
 })

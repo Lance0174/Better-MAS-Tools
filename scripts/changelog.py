@@ -189,7 +189,8 @@ def sync(version: str) -> list[str]:
     uvlock = ROOT / "uv.lock"
     rewrite(
         uvlock,
-        rf'(name = "{PROJECT_NAME}"\nversion = )"[\d.]+"',
+        # 版本号含预发布后缀（0.2.0-beta.2），不能只匹配数字与点。
+        rf'(name = "{PROJECT_NAME}"\nversion = )"[^"]+"',
         rf'\g<1>"{version}"',
         "uv.lock",
     )

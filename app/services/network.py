@@ -6,6 +6,7 @@ from time import monotonic
 
 import httpx
 
+from app.services.community_dns import CommunityHTTPTransport
 from app.utils.logger import get_logger
 from app.utils.security import sanitize_log_message
 
@@ -25,8 +26,12 @@ class DiagnosticClient(httpx.AsyncClient):
         except Exception as error:
             elapsed = int((monotonic() - started) * 1000)
             if isinstance(error, httpx.HTTPError):
+                # 只写异常类型名时，DNS 污染、代理握手失败、证书错误在日志里长得
+                # 一模一样（都是 ConnectError），排障无从下手，所以带上原因。
+                reason = sanitize_log_message(str(error))[:200]
                 logger.warning(
                     f"{method} {endpoint} {type(error).__name__} 耗时={elapsed}ms"
+                    + (f" 原因={reason}" if reason else "")
                 )
             else:
                 logger.exception(f"{method} {endpoint} 请求异常 耗时={elapsed}ms")
@@ -71,6 +76,13 @@ class CommunityNetwork:
             if options.get("proxy"):
                 raise ValueError("纯 Cloudflare 版不支持本机代理")
             options.setdefault("transport", self.transport_factory())
+            return DiagnosticClient(**options)
+        # 直连失败时换加密 DNS 解析出的 IP 重试（安卓版走原生桥，不经过这里）。
+        # httpx 0.28 的 _init_transport 见到 transport 就直接返回，proxy 参数会被
+        # 静默忽略，所以代理必须并进 transport，不能同时传。
+        proxy = options.pop("proxy", None)
+        if "transport" not in options:
+            options["transport"] = CommunityHTTPTransport(proxy)
         return DiagnosticClient(**options)
 
 

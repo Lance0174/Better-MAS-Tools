@@ -3,7 +3,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ open: boolean }>()
-const emit = defineEmits<{ close: []; done: [] }>()
+const emit = defineEmits<{ close: []; done: []; skip: [] }>()
 const { t } = useI18n()
 const step = ref(0)
 const STEPS = 4
@@ -26,6 +26,8 @@ const finish = () => {
   emit('done')
   emit('close')
 }
+// 跳过只上报意图：由 App 统一写标记并关闭，保证完成与跳过的落点一致。
+const skip = () => emit('skip')
 </script>
 
 <template>
@@ -37,7 +39,7 @@ const finish = () => {
     :mask-closable="false"
     :keyboard="false"
     centered
-    @cancel="emit('close')"
+    @cancel="skip"
   >
     <a-steps :current="step" size="small" class="onboarding-steps">
       <a-step :title="t('onboarding.step1Title')" />
@@ -99,7 +101,7 @@ const finish = () => {
           t('onboarding.next')
         }}</a-button>
         <a-button v-else type="primary" @click="finish">{{ t('onboarding.finish') }}</a-button>
-        <a-button @click="emit('close')">{{ t('onboarding.skip') }}</a-button>
+        <a-button @click="skip">{{ t('onboarding.skip') }}</a-button>
       </a-space>
     </div>
   </a-modal>

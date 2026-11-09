@@ -230,7 +230,18 @@ class CommunityState:
         await self.mutate(reorder)
 
     async def update_settings(self, settings: SettingsData) -> None:
-        await self.mutate(lambda candidate: setattr(candidate, "settings", settings))
+        def update(candidate: SavedState) -> None:
+            # 旧客户端或尚未刷新的设置草稿不能把已跳过的引导重新打开。
+            candidate.settings = settings.model_copy(
+                update={
+                    "OnboardingDismissed": (
+                        candidate.settings.OnboardingDismissed
+                        or settings.OnboardingDismissed
+                    )
+                }
+            )
+
+        await self.mutate(update)
 
     async def save_results(
         self, results: list[dict[str, object]], *, replace_accounts: bool = True

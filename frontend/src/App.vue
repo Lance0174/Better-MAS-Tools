@@ -2,10 +2,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
 import { connectSession, LoginRequiredError } from '@/services/session'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { useSettingsStore } from '@/stores/settings'
 import { useTheme } from '@/composables/useTheme'
+import { useOnboarding } from '@/composables/useOnboarding'
 import { isAndroidLocal, markAndroidReady, retryAndroidEngine } from '@/services/android'
 import { setDesktopLightMode } from '@/services/desktop'
 import OnboardingWizard from '@/components/OnboardingWizard.vue'
@@ -23,11 +25,9 @@ import {
 } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 
-const ONBOARDING_KEY = 'bmat-onboarding-done'
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const navigate = (item: { key: string | number }) => router.push(String(item.key))
 const settings = useSettingsStore()
 const { themeConfig } = useTheme()
 const ready = ref(false)
@@ -37,28 +37,38 @@ const loginRequired = ref(false)
 const password = ref('')
 const loginError = ref('')
 const startupStage = ref('')
-const onboardingOpen = ref(false)
-const openOnboarding = () => {
-  onboardingOpen.value = true
-}
-// 设置页“重新查看引导”通过此事件重开首启向导。
+const {
+  open: onboardingOpen,
+  show: openOnboarding,
+  hide: closeOnboarding,
+  complete: completeOnboarding,
+  skip: skipOnboarding,
+  maybeShow: maybeOpenOnboarding,
+} = useOnboarding({
+  isDone: () => settings.data?.OnboardingDismissed === true,
+  saveDone: async () => {
+    if (settings.data) await settings.save({ ...settings.data, OnboardingDismissed: true })
+  },
+  onFailure: cause => message.error(errorMessage(cause, t('standalone.onboardingSaveFailed'))),
+})
+// 设置页“重新查看引导”通过此事件重开首启向导，不影响“已跳过”标记。
 window.addEventListener('bmat-open-onboarding', openOnboarding)
-const markOnboardingDone = () => {
-  try {
-    localStorage.setItem(ONBOARDING_KEY, '1')
-  } catch {
-    /* 存储不可用时每次启动都显示，不影响使用 */
-  }
-}
-const maybeOpenOnboarding = () => {
-  let done = false
-  try {
-    done = localStorage.getItem(ONBOARDING_KEY) === '1'
-  } catch {
-    done = false
-  }
-  if (!done) openOnboarding()
-}
+// 左侧书脊导航（方案 A）：编号由 CSS 计数器生成，顺序即阅读顺序。
+const navItems = computed(() => [
+  { path: '/sign', label: t('standalone.sign') },
+  ...(settings.data?.ActivityEnabled !== false
+    ? [{ path: '/activity', label: t('standalone.activity') }]
+    : []),
+  { path: '/gacha', label: t('standalone.gacha') },
+  { path: '/wiki', label: t('standalone.wiki') },
+  { path: '/calendar', label: t('standalone.calendar') },
+  ...(isAndroidLocal ? [] : [{ path: '/mas', label: t('standalone.mas') }]),
+  ...(settings.data?.CloudMode ? [{ path: '/remote', label: t('standalone.remote') }] : []),
+])
+const footItems = computed(() => [
+  { path: '/logs', label: t('standalone.logs') },
+  { path: '/settings', label: t('standalone.settings') },
+])
 // 底部导航：游戏社区为主入口 + 系统工具；功能页在左侧可收起侧边栏。
 const mobileItems = computed(() => [
   { path: '/sign', label: t('standalone.sign'), icon: CalendarOutlined },
@@ -147,64 +157,43 @@ onBeforeUnmount(() => {
       <a-layout class="app-body">
         <nav
           v-if="!isAndroidLocal"
-          class="navigation glass-surface"
+          class="navigation spine"
           :aria-label="t('standalone.navigation')"
         >
           <div class="brand-block">
-            <span class="brand-hex" aria-hidden="true"><i /></span>
-            <span class="brand-name">{{ t('standalone.title') }}</span>
-            <span class="brand-coord">N31.23° E121.47°</span>
+            <span class="brand-mark" aria-hidden="true" />
+            <span class="brand-stack">
+              <span class="brand-name">{{ t('standalone.title') }}</span>
+              <span class="brand-sub">BETTER MAS TOOLS</span>
+            </span>
           </div>
-          <div class="nav-tick" aria-hidden="true" />
-          <a-menu
-            mode="inline"
-            :selected-keys="[route.path]"
-            class="navigation-main"
-            @click="navigate"
-          >
-            <a-menu-item key="/sign"
-              ><template #icon><CalendarOutlined /></template
-              >{{ t('standalone.sign') }}</a-menu-item
-            >
-            <a-menu-item v-if="settings.data?.ActivityEnabled !== false" key="/activity"
-              ><template #icon><DashboardOutlined /></template
-              >{{ t('standalone.activity') }}</a-menu-item
-            >
-            <a-menu-item key="/gacha"
-              ><template #icon><GiftOutlined /></template>{{ t('standalone.gacha') }}</a-menu-item
-            >
-            <a-menu-item key="/wiki"
-              ><template #icon><BookOutlined /></template>{{ t('standalone.wiki') }}</a-menu-item
-            >
-            <a-menu-item key="/calendar"
-              ><template #icon><ScheduleOutlined /></template>{{
-                t('standalone.calendar')
-              }}</a-menu-item
-            >
-            <a-menu-item v-if="!isAndroidLocal" key="/mas"
-              ><template #icon><LinkOutlined /></template>{{ t('standalone.mas') }}</a-menu-item
-            >
-            <a-menu-item v-if="settings.data?.CloudMode" key="/remote"
-              ><template #icon><ControlOutlined /></template>{{
-                t('standalone.remote')
-              }}</a-menu-item
-            >
-          </a-menu>
-          <a-menu
-            mode="inline"
-            :selected-keys="[route.path]"
-            class="navigation-footer"
-            @click="navigate"
-          >
-            <a-menu-item key="/logs"
-              ><template #icon><FileTextOutlined /></template
-              >{{ t('standalone.logs') }}</a-menu-item
-            >
-            <a-menu-item key="/settings"
-              ><template #icon><SettingOutlined /></template
-              >{{ t('standalone.settings') }}</a-menu-item
-            >
-          </a-menu>
+          <p class="spine-kicker">SECTIONS / 功能</p>
+          <ul class="spine-list">
+            <li v-for="item in navItems" :key="item.path">
+              <router-link
+                :to="item.path"
+                class="spine-item"
+                :class="{ on: route.path === item.path }"
+                :aria-current="route.path === item.path ? 'page' : undefined"
+                >{{ item.label }}</router-link
+              >
+            </li>
+          </ul>
+          <ul class="spine-list spine-list--foot">
+            <li v-for="item in footItems" :key="item.path">
+              <router-link
+                :to="item.path"
+                class="spine-item"
+                :class="{ on: route.path === item.path }"
+                :aria-current="route.path === item.path ? 'page' : undefined"
+                >{{ item.label }}</router-link
+              >
+            </li>
+          </ul>
+          <div class="spine-meta">
+            <span class="mono">{{ ready ? 'SIGNAL OK' : 'CONNECTING' }}</span>
+            <span class="mono">{{ route.path }}</span>
+          </div>
         </nav>
         <a-layout-content class="app-content">
           <div v-if="isAndroidLocal && ready" class="android-topbar">
@@ -297,8 +286,9 @@ onBeforeUnmount(() => {
     </a-drawer>
     <OnboardingWizard
       :open="onboardingOpen && ready"
-      @close="onboardingOpen = false"
-      @done="markOnboardingDone"
+      @close="closeOnboarding"
+      @done="completeOnboarding"
+      @skip="skipOnboarding"
     />
   </a-config-provider>
 </template>
@@ -321,127 +311,138 @@ onBeforeUnmount(() => {
   flex-direction: row;
   background: transparent;
 }
+/* 书脊：深色竖排导航（方案 A）——编号由计数器给出，选中项左侧 3px 强调条。 */
 .navigation {
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 196px;
+  flex: 0 0 212px;
   min-height: 0;
-  /* 侧栏是常驻玻璃面板：只保留右侧描边，避免整窗一圈玻璃边。 */
+  counter-reset: nav;
+  background: #1b1c1e;
+  color: #f4f4f0;
   border: 0;
-  border-right: 1px solid var(--app-glass-border-body);
-  padding: 0 8px 12px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0;
   border-radius: 0;
+  overflow: hidden;
 }
-/* 侧栏底部 HUD 角标：斜切三角 + 坐标刻度 */
-.navigation::after {
-  content: '';
-  position: absolute;
-  right: -1px;
-  bottom: 0;
-  width: 14px;
-  height: 14px;
-  background: var(--app-corner);
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
-  opacity: 0.6;
+html.dark .navigation {
+  background: #2b2c2f;
 }
 .brand-block {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 12px 14px;
-  border-bottom: 1px solid var(--app-panel-border);
-  /* 右上角斜切，营造工业面板切割感 */
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-  background: linear-gradient(180deg, var(--app-panel), transparent);
-}
-.brand-hex {
+  padding: 16px 14px 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   flex: 0 0 auto;
-  width: 30px;
-  height: 34px;
-  position: relative;
-  background: var(--ant-color-primary);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  display: grid;
-  place-items: center;
 }
-.brand-hex i {
-  width: 12px;
-  height: 12px;
-  background: var(--ant-color-bg-container);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+.brand-mark {
+  width: 10px;
+  height: 26px;
+  flex: 0 0 auto;
+  background: var(--app-accent, #ffe100);
+}
+.brand-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 .brand-name {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-weight: 700;
   font-size: 14px;
-  letter-spacing: 0.06em;
-  color: var(--ant-color-text);
-}
-.brand-coord {
-  position: absolute;
-  right: 14px;
-  top: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--app-corner);
-  opacity: 0.8;
-}
-/* 导航刻度条 */
-.nav-tick {
-  height: 4px;
-  margin: 0 12px;
-  background: repeating-linear-gradient(
-    90deg,
-    var(--app-tick) 0 1px,
-    transparent 1px 8px
-  );
-  opacity: 0.7;
-}
-.navigation :deep(.ant-menu) {
-  border: 0;
-  background: transparent;
-}
-.navigation-main {
-  overflow-y: auto;
-  padding-top: 6px;
-}
-.navigation .navigation-footer {
-  flex-shrink: 0;
-  margin-top: auto;
-  padding-top: 12px;
-  border-top: 1px solid var(--ant-color-border-secondary);
-}
-.navigation :deep(.ant-menu-item) {
-  margin: 2px 0;
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
-  font-size: 13px;
-  letter-spacing: 0.02em;
-  transition: background-color 200ms ease;
-}
-/* 菜单选中：左侧六边形角标 + 斜切底 */
-.navigation :deep(.ant-menu-item-selected) {
   font-weight: 700;
-  color: var(--ant-color-primary);
-  background: var(--app-panel);
-  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+  color: inherit;
 }
-.navigation :deep(.ant-menu-item-selected)::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 9px;
-  background: var(--ant-color-primary);
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+.brand-sub {
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  color: rgba(255, 255, 255, 0.6);
+}
+.spine-kicker {
+  margin: 0;
+  padding: 9px 14px 8px;
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.6);
+  flex: 0 0 auto;
+}
+.spine-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+.spine-list--foot {
+  flex: 0 0 auto;
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding-top: 8px;
+}
+.spine-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 36px;
+  padding: 0 12px 0 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.66);
+  text-decoration: none;
+  white-space: nowrap;
+  border-left: 3px solid transparent;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.spine-item::before {
+  counter-increment: nav;
+  content: counter(nav, decimal-leading-zero);
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  width: 15px;
+  flex: 0 0 auto;
+  opacity: 0.85;
+}
+.spine-item:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.04);
+}
+.spine-item.on {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.065);
+  border-left-color: var(--app-accent, #ffe100);
+}
+.spine-item.on::before {
+  color: var(--app-accent, #ffe100);
+  opacity: 1;
+}
+.spine-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 13px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.58);
+  flex: 0 0 auto;
+}
+.spine-meta .mono {
+  font-family: 'Cascadia Mono', 'Consolas', monospace;
+  letter-spacing: 0.04em;
 }
 .app-content {
   position: relative;
-  padding: 28px 32px;
+  padding: 20px 24px;
   overflow-y: auto;
   min-width: 0;
   /* 内容画布透明，景深直接可见；具体面板各自使用玻璃或实色材质。 */
@@ -553,10 +554,58 @@ onBeforeUnmount(() => {
   background: var(--ant-color-primary-bg);
   color: var(--ant-color-primary);
 }
+/* 窄屏把书脊折叠成顶部横向导航条：144px 宽的书脊会吃掉近四成内容宽度。 */
 @media (max-width: 700px) {
+  .app-body {
+    flex-direction: column;
+  }
   .navigation {
-    flex-basis: 144px;
-    padding-inline: 0;
+    flex: 0 0 auto;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 8px;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .navigation::-webkit-scrollbar {
+    display: none;
+  }
+  .brand-block {
+    padding: 8px 10px 8px 4px;
+    border-bottom: 0;
+  }
+  .brand-mark {
+    height: 18px;
+  }
+  .brand-sub,
+  .spine-kicker,
+  .spine-meta {
+    display: none;
+  }
+  .spine-list {
+    flex-direction: row;
+    padding: 0;
+    overflow: visible;
+  }
+  .spine-list--foot {
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+  }
+  .spine-item {
+    height: 42px;
+    padding: 0 10px;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+  }
+  .spine-item.on {
+    border-bottom-color: var(--app-accent, #ffe100);
+  }
+  .spine-item::before {
+    display: none;
   }
   .app-content {
     padding: 16px;

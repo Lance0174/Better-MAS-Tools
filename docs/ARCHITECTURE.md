@@ -34,7 +34,11 @@ API 使用 `X-Community-Session` 请求；桌面模式通过同源握手建立�
 
 `app/core/gacha.py` 编排读取、去重与统计；`app/tools/gacha.py` 仅处理六游戏协议与导入转换，按官方主机白名单重建请求，临时授权链接不入库。抽卡数据独立于签到结果，保留字符串ID与角色、卡池边界。
 
-纯 Workers 的 `deploy/worker/src/entry.py` 将 API 交给固定名称的单用户 Durable Object，复用相同 ASGI 应用。`FetchTransport` 将 HTTPX 请求交给 Workers Fetch；`DurableStorage` 将整份状态压缩加密，在 SQLite 事务中分块替换。状态上限8MB；多个使用者应部署独立实例。Cron每5分钟检查北京时间计划，运行前持久化当日尝试标记；不提供桌面“启动时签到”的语义。详见 [部署说明](DEPLOYMENT.md)。
+`app/services/mas.py` 连接本机 MAS 自带的 Streamable HTTP MCP，先协商协议并发现工具，再读取队列、运行快照或发送启停请求。只开放所需的四个工具，不访问 MAS 的账号文件或私有状态；变更请求超时不自动重试，受理不代表任务完成。
+
+首次引导的已处理状态保存在后端设置中，完成、跳过、关闭均持久化；兼容迁移旧浏览器标记，避免桌面随机端口变化导致重复弹出。轻量模式开启前确认，主进程只在状态变化时销毁窗口，托盘与第二次启动可重建界面。
+
+Cloudflare 部署暂缓，以下 Workers 结构仅为保留实现，不列入当前发布交付。`deploy/worker/src/entry.py` 将 API 交给固定名称的单用户 Durable Object，复用相同 ASGI 应用。`FetchTransport` 将 HTTPX 请求交给 Workers Fetch；`DurableStorage` 将整份状态压缩加密，在 SQLite 事务中分块替换。状态上限8MB；多个使用者应部署独立实例。Cron每5分钟检查北京时间计划，运行前持久化当日尝试标记；不提供桌面“启动时签到”的语义。详见 [部署说明](DEPLOYMENT.md)。
 
 桌面外壳没有 MAS 运行环境下载器、专项脚本、插件市场、管理员提权、Sentry、组织发布和自动更新配置。通知模块经用户确认不在独立版首期范围。原协议中的云游戏通知确认、结果附加标记仍保留，因为它们参与奖励领取和结果转换。
 

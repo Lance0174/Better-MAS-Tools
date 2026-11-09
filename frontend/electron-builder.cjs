@@ -7,6 +7,8 @@ module.exports = {
   files: ['dist-electron/**/*', 'package.json', '!node_modules/**/*'],
   extraResources: [
     { from: '../build/backend/community-backend', to: 'backend' },
+    // 托盘图标必须随包进 resources：轻量模式靠它唤回窗口，只嵌进 exe 不够。
+    { from: 'assets/community.ico', to: 'community.ico' },
     { from: 'dist', to: 'renderer' },
     { from: '../LICENSE', to: 'LICENSE' },
     { from: '../NOTICE.md', to: 'NOTICE.md' },

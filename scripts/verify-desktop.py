@@ -28,6 +28,8 @@ def verify(directory: Path) -> None:
         directory / "resources/docs/upstream-files.json",
         directory / "resources/community-notes-ATTRIBUTION.md",
         directory / "resources/community-notes-manifest.json",
+        # 轻量模式只有托盘一个入口：图标缺失时窗口销毁后无法唤回，必须在打包时就拦住。
+        directory / "resources/community.ico",
     ):
         if not path.is_file():
             raise ValueError(f"发行包缺少文件：{path.name}")

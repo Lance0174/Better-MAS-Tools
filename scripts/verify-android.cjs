@@ -69,6 +69,11 @@ app.whenReady().then(async () => {
   const result = await window.webContents.executeJavaScript(`(async () => {
     const wait = async predicate => { for (let i = 0; i < 150; i++) { if (predicate()) return; if (document.querySelector('.page-state .ant-alert-error')) break; await new Promise(r => setTimeout(r, 400)); } throw new Error('UI did not become ready: ' + document.body.innerText.slice(0,300)); };
     await wait(() => !document.querySelector('.app-content > .page-state'));
+    await wait(() => !!document.querySelector('.onboarding-actions'));
+    const skip = Array.from(document.querySelectorAll('.onboarding-actions button')).find(button => button.textContent.replace(/\\s/g, '') === '跳过');
+    if (!skip) throw new Error('First-run skip control missing');
+    skip.click();
+    await wait(() => JSON.parse(probe.state || '{}').settings?.OnboardingDismissed === true);
     const check = name => ({ name, width: innerWidth, scrollWidth: document.documentElement.scrollWidth, text: document.body.innerText.slice(0, 1500) });
     const pages = [check('sign')];
     for (const route of ['activity', 'gacha', 'logs', 'settings']) {
@@ -76,7 +81,7 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 900));
       pages.push(check(route));
     }
-    return { pages, nativeCalls: probe.calls, nativeLogs: probe.logs };
+    return { pages, nativeCalls: probe.calls, nativeLogs: probe.logs, onboardingDismissed: true };
   })()`);
   fs.writeFileSync(path.join(output, 'settings-light.png'), (await window.webContents.capturePage()).toPNG());
   await window.webContents.executeJavaScript(`location.hash = '#/gacha'`);
@@ -93,6 +98,10 @@ app.whenReady().then(async () => {
     const wait = async predicate => { for (let i = 0; i < 60; i++) { if (predicate()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('UI operation timeout'); };
     const clickText = (selector, text) => { const node = Array.from(document.querySelectorAll(selector)).find(item => item.textContent.replace(/\\s/g, '') === text); if (!node) throw new Error('Control missing: ' + text); node.click(); };
     const item = { game: 'genshin', playerUid: '100000001', id: '12345678901234567890', poolType: '301', poolName: '合成卡池', name: '合成测试角色', itemId: '1', itemType: '角色', rarity: 5, time: '2026-09-14 12:00:00' };
+    // 文件入口移入统一来源弹窗后，按用户实际流程打开它，再注入合成文件。
+    clickText('button', '读取官方记录');
+    await wait(() => !!document.querySelector('.ant-modal input[type=file]'));
+    clickText('.ant-radio-button-wrapper', '文件导入');
     const transfer = new DataTransfer();
     transfer.items.add(new File([JSON.stringify({ records: [item] })], 'fixture.json', { type: 'application/json' }));
     const input = document.querySelector('input[type=file]');
@@ -120,7 +129,11 @@ app.whenReady().then(async () => {
   await installMock(savedState);
   result.restored = await window.webContents.executeJavaScript(`(async () => {
     for (let i = 0; i < 150; i++) {
-      if (document.body.innerText.includes('合成测试角色') && document.documentElement.classList.contains('dark')) return true;
+      if (document.body.innerText.includes('合成测试角色') && document.documentElement.classList.contains('dark')) {
+        const guide = document.querySelector('.onboarding-actions');
+        if (guide && guide.getClientRects().length) throw new Error('Skipped onboarding appeared after restart');
+        return true;
+      }
       await new Promise(r => setTimeout(r, 100));
     }
     throw new Error('State did not survive engine restart');

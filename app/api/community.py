@@ -29,6 +29,7 @@ from app.models.schema import (
     StatusOut,
     TaygedoLoginIn,
 )
+from app.services.community_dns import CommunityConnectionError
 from app.services.network import network
 from app.utils.constants import UTC8
 
@@ -200,6 +201,11 @@ async def save_qr(provider: Literal["miyoushe", "skland"], body: QrSaveIn) -> Ou
         await login.save_qr(
             provider, body.account_uid, cookie=body.cookie, scan_code=body.scan_code
         )
+    except CommunityConnectionError as error:
+        # 连不上社区域名（DNS 污染、TUN/Fake-IP、代理握手失败）时，transport 已经
+        # 写好了能照着做的中文原因，别再把它盖成「请检查账号及登录状态」。
+        detail = str(error).strip()
+        raise ValueError(detail or "登录凭据保存失败，请检查网络后重试") from None
     except Exception:
         raise ValueError("登录凭据保存失败，请检查账号及登录状态") from None
     return OutBase(message="登录凭据已保存")

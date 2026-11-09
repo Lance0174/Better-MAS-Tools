@@ -2,8 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { GachaCookieFetchIn } from '../models/GachaCookieFetchIn';
 import type { GachaExportOut } from '../models/GachaExportOut';
 import type { GachaFetchIn } from '../models/GachaFetchIn';
+import type { GachaHeyboxIn } from '../models/GachaHeyboxIn';
+import type { GachaHeyboxOut } from '../models/GachaHeyboxOut';
 import type { GachaImportIn } from '../models/GachaImportIn';
 import type { GachaRecordsOut } from '../models/GachaRecordsOut';
 import type { GachaUpdateOut } from '../models/GachaUpdateOut';
@@ -63,6 +66,26 @@ export class GachaService {
         });
     }
     /**
+     * Fetch Records By Cookie
+     * 用米游社登录态换 authkey 读取官方记录；cookie 留空则用账号组已绑定的凭据。
+     * @param requestBody
+     * @returns GachaUpdateOut Successful Response
+     * @throws ApiError
+     */
+    public static fetchGachaRecordsByCookie(
+        requestBody: GachaCookieFetchIn,
+    ): CancelablePromise<GachaUpdateOut> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/gacha/fetch-cookie',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
      * Import Records
      * @param requestBody
      * @returns GachaUpdateOut Successful Response
@@ -76,6 +99,48 @@ export class GachaService {
             url: '/api/gacha/import',
             body: requestBody,
             mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Import Heybox
+     * @param requestBody
+     * @returns GachaHeyboxOut Successful Response
+     * @throws ApiError
+     */
+    public static importGachaHeybox(
+        requestBody: GachaHeyboxIn,
+    ): CancelablePromise<GachaHeyboxOut> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/gacha/heybox',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Revoke Heybox
+     * @param playerUid
+     * @param game
+     * @returns GachaUpdateOut Successful Response
+     * @throws ApiError
+     */
+    public static revokeGachaHeybox(
+        playerUid: string,
+        game: string = 'endfield',
+    ): CancelablePromise<GachaUpdateOut> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/gacha/heybox',
+            query: {
+                'game': game,
+                'playerUid': playerUid,
+            },
             errors: {
                 422: `Validation Error`,
             },

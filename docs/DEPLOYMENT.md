@@ -51,6 +51,8 @@ Linux源码启动使用`bash scripts/start-source.sh`。对外监听时传`--hos
 
 ## 纯 Cloudflare Workers
 
+> **暂时搁置（2026-11）**：按项目安排，Cloudflare Workers 与 Tunnel 暂不列入发布交付；下面步骤仅供恢复时参考。本轮不配置凭据、不部署，桌面版与自建 Linux 后端继续维护。
+
 先在`frontend`完成`yarn install --immutable`和`yarn build`，然后在项目根目录执行：
 
 ```bash
@@ -92,7 +94,9 @@ npm run deploy
 
 ### GitHub Actions 一键部署
 
-仓库已提供 `.github/workflows/deploy-cf.yml`，推送到 `main` 且改动相关源码，或手动在 Actions 页触发 `Deploy Cloudflare Workers` 工作流，即可完成构建并发布到 Workers。工作流执行 DEPLOYMENT.md 的同一命令链：构建前端、`install-worker-deps.py` 安装 Pyodide 依赖、`prepare-worker.py` 同步资源、`npm ci` 安装 wrangler、注入公开来源、dry-run 校验，最后 `wrangler deploy`。
+> **暂时搁置（2026-11）**：远端部署已从发布流程摘除，`.github/workflows/deploy-cf.yml` 不再随推送自动运行，只保留手动 `workflow_dispatch`；仓库也不再维护 `CLOUDFLARE_*` 凭据。下面内容仅作恢复时的参考。
+
+仓库已提供 `.github/workflows/deploy-cf.yml`，手动在 Actions 页触发 `Deploy Cloudflare Workers` 工作流，即可完成构建并发布到 Workers。工作流执行 DEPLOYMENT.md 的同一命令链：构建前端、`install-worker-deps.py` 安装 Pyodide 依赖、`prepare-worker.py` 同步资源、`npm ci` 安装 wrangler、注入公开来源、dry-run 校验，最后 `wrangler deploy`。
 
 首次使用前，在 GitHub 仓库配置以下内容：
 
@@ -104,9 +108,9 @@ npm run deploy
 | Secret | `CLOUDFLARE_ENCRYPTION_KEY` | 32 字节随机密钥的 Base64，可用 `python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"` 生成 |
 | Variable | `CLOUDFLARE_PUBLIC_ORIGIN` | HTTPS 公开来源，如 `https://community.example.com` |
 
-工作流会把 `CLOUDFLARE_PUBLIC_ORIGIN` 写入 `wrangler.jsonc` 的 `vars`，并把两个密钥用 `wrangler secret put` 设置为 Worker 加密 secret。`wrangler.jsonc` 中的 `name` 决定分配的 `*.workers.dev` 子域。密钥只存在于 GitHub Secrets 与 Cloudflare，不会写入仓库。
+工作流通过 `--var COMMUNITY_PUBLIC_ORIGIN` 注入 `CLOUDFLARE_PUBLIC_ORIGIN`，不改写 `wrangler.jsonc`；两个密钥通过 `wrangler secret put` 设置为 Worker 加密 secret。`wrangler.jsonc` 中的 `name` 决定分配的 `*.workers.dev` 子域。密钥只存在于 GitHub Secrets 与 Cloudflare，不会写入仓库。
 
-`deploy-cf.yml` 由 `main` 分支推送或手动 `workflow_dispatch` 触发；`push` 只在改动命中 `paths` 时运行，当前包含 `app/**`、`frontend/**`、`scripts/install-worker-deps.py`、`scripts/prepare-worker.py`、`deploy/worker/**` 与 `docs/DEPLOYMENT.md`。只改其他文件（例如仅动 `README.md`）不会自动部署，此时在 Actions 页运行 `Deploy Cloudflare Workers → Run workflow`。
+`deploy-cf.yml` 目前只保留独立的手动 `workflow_dispatch` 入口，不由 push、tag 或 Release 触发。恢复部署需另行安排并先重新验收流程。
 
 每个部署是一个固定名称的单用户实例，多名使用者应分开部署。数据在Durable Object的SQLite中压缩加密，整份未压缩状态上限8MB；大型抽卡档案建议用Linux完整后端。保留原加密密钥，并使用Cloudflare提供的持久存储恢复能力备份状态；抽卡页可另行导出JSON。更换密钥不会自动重加密已有数据。
 

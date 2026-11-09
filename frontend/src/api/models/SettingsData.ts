@@ -19,6 +19,10 @@ export type SettingsData = {
     CloudPassword?: string;
     RelayEnabled?: boolean;
     LightMode?: boolean;
+    /**
+     * 已完成或跳过首次引导；更换桌面端口后仍然生效
+     */
+    OnboardingDismissed?: boolean;
     GlassEffect?: boolean;
 };
 

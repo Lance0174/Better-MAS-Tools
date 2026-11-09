@@ -1,6 +1,6 @@
 # 更好的MAS工具包
 
-Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社区功能的扩展，支持 Windows 桌面、Linux Web 后端与 Cloudflare Workers。项目由 AUTO-MAS 的游戏社区功能拆出，**独立于 AUTO-MAS 团队，不代表原团队发布**。原代码版权、AGPL-3.0-or-later 许可及第三方致谢保留在 [LICENSE](LICENSE)、[NOTICE.md](NOTICE.md) 和 [来源清单](docs/upstream-files.json) 中。
+Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社区功能的扩展，支持 Windows 桌面、Android 与 Linux Web 后端。Cloudflare 部署暂缓，不在当前发布范围内。项目由 AUTO-MAS 的游戏社区功能拆出，**独立于 AUTO-MAS 团队，不代表原团队发布**。原代码版权、AGPL-3.0-or-later 许可及第三方致谢保留在 [LICENSE](LICENSE)、[NOTICE.md](NOTICE.md) 和 [来源清单](docs/upstream-files.json) 中。
 
 ## 当前范围
 
@@ -11,15 +11,15 @@ Better-MAS-Tools（更好的MAS工具包）目前提供 MAS 已集成游戏社�
 | 签到 | 库街区、森空岛、米游社游戏签到、塔吉多及云游戏签到，保留奖励、已签、失败和时长上限等结果 |
 | 米游币 | 米游社日常任务执行与验证码人工复核，按账号合并进签到结果 |
 | 日常便笺 | 明日方舟、终末地、原神、星穹铁道、绝区零、鸣潮；按游戏显示资源和日常，不显示经验 |
-| 抽卡记录 | 原神、崩铁、绝区零、鸣潮、明日方舟和终末地；全平台 BMASC JSON 导入导出，米家三游戏兼容 Starward/UIGF |
+| 抽卡记录 | 米家三游戏优先用 Cookie 获取，明日方舟/终末地优先用森空岛授权；支持官方链接、BMASC JSON、米家 Starward/UIGF 和终末地小黑盒补录 |
 | 自动签到 | 启动时签到、每天按北京时间定时签到；失败后可手动重试 |
 | 过码 | 免费本地滑块、人工验证与云码（付费）三种方式，密钥在“设置”中配置 |
-| 远端 | Docker Compose 部署、Cloudflare Tunnel 叠加、纯 Cloudflare Workers 版本，支持 Linux |
-| MAS 接入 | 保留本地 AUTO-MAS 接口入口，可在“MAS”页连接并控制本机 MAS |
+| 远端 | 自建 Linux/Docker 后端；Cloudflare 部署暂缓 |
+| MAS 接入 | 经 AUTO-MAS 自带的 MCP 查询队列、启动和停止任务 |
 | 资料库 | 终末地干员、武器、装备套装、关卡与敌人资料卡；支持昵称、简称、同音字与模糊匹配；同步后本机保存索引，并给出数据体检结果 |
 | 活动日历 | 终末地、明日方舟、原神、星穹铁道、绝区零、鸣潮、异环与星塔旅人的活动列表与起止时间 |
 | 外观 | 浅色、深色、跟随系统；液态玻璃材质（背景模糊、斜向高光与玻璃厚度描边），可在“设置 → 外观与查询”关闭或按系统条件自动降级 |
-| 内置教程 | 首次启动自动弹出分步引导，可在“设置 → 重新查看引导”再次打开 |
+| 内置教程 | 首次启动自动弹出，完成或跳过后不再自动出现；可在“设置 → 重新查看引导”打开 |
 | 诊断日志 | 程序内查询、级别筛选、日志编号关联和导出；终端与文件同步记录阶段、耗时和失败调用栈 |
 
 塔吉多日常便笺未接入。鸣潮便笺取自库街区小组件，只显示结晶波片；体力已满（上游返回 `refreshTimeStamp <= 0`）时不显示倒计时，库洛服务器时间异常时按本地时间纠正回满时间。本期按需求不包含通知模块。
@@ -167,7 +167,7 @@ APK 输出在 `android/app/build/outputs/apk/debug/app-debug.apk`。`scripts/pre
 
 ## 部署到远端与 Linux
 
-除 Windows 桌面包外，同一后端支持 Linux 服务器与 Cloudflare 远端运行；非环回监听一律要求访问密码认证。
+除桌面包外，同一后端支持自建 Linux 服务；非环回监听一律要求访问密码认证。
 
 ### Docker Compose（Linux/Windows）
 
@@ -178,38 +178,15 @@ cd deploy
 docker compose up -d --build
 ```
 
-数据保存在 `community-data` 卷中，Linux 上使用 AES-GCM 加密，密钥由首次启动自动生成并保存在卷内；不要删除卷，否则无法解密原有账号数据。需要通过 Cloudflare 暴露时，在同一 `deploy/.env` 填入自己的 `CLOUDFLARE_TUNNEL_TOKEN`，执行：
+数据保存在 `community-data` 卷中，Linux 上使用 AES-GCM 加密，密钥由首次启动自动生成并保存在卷内；不要删除卷，否则无法解密原有账号数据。
 
-```bash
-docker compose -f compose.yml -f compose.cloudflare.yml up -d --build
-```
+### Cloudflare 部署暂缓
 
-### 纯 Cloudflare Workers
-
-前端与 Python 后端一起运行于 Workers，Durable Object 保存加密状态，Cron 检查每日计划。需要单独准备 WASM 依赖：
-
-```bash
-# 项目根目录；先在 frontend 完成 yarn build
-uv run --no-project --python 3.13 --with uv==0.12.12 python scripts/install-worker-deps.py
-uv run --no-project --python 3.13 python scripts/prepare-worker.py
-cd deploy/worker
-npm ci
-# 按 .dev.vars.example 创建本地测试配置后启动
-npm run dev
-```
-
-Workers 包含免费滑块、人工验证和库街区云码适配；云码需要用户填写密钥并承担识别费用。单实例整份状态限制 8 MB，不能连接访问者电脑上的 MAS 或 Clash。完整配置、密钥、发布与备份步骤见 [部署说明](docs/DEPLOYMENT.md)，开发接口见 [API 说明](docs/API.md)。本文不承诺适用 Cloudflare 免费套餐，部署前应核对当时的 Python Workers 资源限制。
-
-### GitHub Actions 一键部署
-
-仓库提供 `.github/workflows/deploy-cf.yml`：推送到 `main` 且改动相关源码，或在 Actions 页手动触发 `Deploy Cloudflare Workers`，会自动完成构建并发布到 Workers。首次使用前在 GitHub 仓库配置：
-
-- Secrets：`CLOUDFLARE_API_TOKEN`（Workers Scripts: Edit 权限）、`CLOUDFLARE_ACCOUNT_ID`、`CLOUDFLARE_ACCESS_PASSWORD`（至少 12 字符）、`CLOUDFLARE_ENCRYPTION_KEY`（32 字节随机密钥的 Base64）。
-- Variable：`CLOUDFLARE_PUBLIC_ORIGIN`（HTTPS 公开来源，如 `https://community.example.com`）。
-
-工作流执行与 [部署说明](docs/DEPLOYMENT.md) 相同的命令链：构建前端 → 安装 Pyodide 依赖 → 同步 Worker 资源 → 注入公开来源 → dry-run 校验 → 写入密钥 → `wrangler deploy`。密钥只存在 GitHub Secrets 与 Cloudflare，不落仓库。
+Workers 与 Tunnel 暂不作为当前版本的交付能力。部署工作流不随推送或发版执行；历史实现与恢复参考保留在 [部署说明](docs/DEPLOYMENT.md)，本轮不执行远端部署。
 
 ## 验证与后续开发
+
+本仓协作入口为 [AGENTS.md](AGENTS.md)，具体写法见 [代码规范](docs/CODE-STANDARDS.md)。新 UI 改版先提供独立原型，审核通过后再接入正式页面。
 
 后端代码检查使用 `.venv\Scripts\ruff.exe check app main.py scripts`；在 `frontend` 执行 `yarn lint`、`yarn typecheck`、`yarn test`。Python 回归用 `.venv\Scripts\python.exe -m pytest -q`，用例在 `tests/`；前端单测是 `frontend/src` 下与源码同目录的 `*.test.ts`。两者都不进入发布包。拆分结构与边界见 [架构说明](docs/ARCHITECTURE.md)。
 

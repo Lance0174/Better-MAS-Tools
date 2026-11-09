@@ -15,6 +15,7 @@ import { message } from 'ant-design-vue'
 import { translate } from '@/i18n'
 import QRCode from 'qrcode'
 import type { CancelablePromise, OutBase, QrCheckOut, QrCreateOut } from '@/api'
+import { errorMessage } from '@/composables/useCommunityApi'
 import type { AppLogger } from '@/utils/logger'
 import { useGameSignApi } from './useGameSignApi'
 
@@ -253,11 +254,14 @@ export function useQrLogin({ getAccountId, onSaved, logger, provider }: QrLoginO
         if (!isCurrentSession(id)) return
       } catch (error) {
         if (!isCurrentSession(id) || isQrAbortError(error)) return
-        const errorMsg = error instanceof Error ? error.message : String(error)
+        // 连不上社区域名时后端会在 400 的 body 里写清原因（DNS 污染、TUN 的
+        // Fake-IP、代理握手失败），生成客户端的 message 只有 Bad Request，
+        // 这里必须取 body.message，否则用户永远只看到一句「保存失败」。
+        const errorMsg = errorMessage(error, t('gamesign.qr.scannedButSaveFailed'))
         logger.error(`扫码保存 Token 失败: ${errorMsg}`)
-        message.error(t('gamesign.qr.scannedButSaveFailed'))
+        message.error(errorMsg)
         status.value = 'error'
-        statusText.value = t('gamesign.qr.scannedButSaveFailed')
+        statusText.value = errorMsg
         return
       }
     }

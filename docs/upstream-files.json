@@ -146,7 +146,7 @@
       "path": "frontend/src/views/gamesign/useQrLogin.ts",
       "source": "frontend/src/views/gamesign/useQrLogin.ts",
       "source_sha256": "66d587c4e193e45378df1ee46986daeca61074d07ed1ebc988fbffcc74035409",
-      "standalone_sha256": "7271f73290cabada1fb3902f17aaa9e633873df82d98f475f514e7c5d6883409"
+      "standalone_sha256": "e35b4458e87d1ad57ca1e0d68199f7dc2857b9c94de6a5fc4f3ab82ab7e69010"
     },
     {
       "path": "frontend/src/views/gamesign/components/CommunityActivityCard.vue",
@@ -164,7 +164,7 @@
       "path": "frontend/src/views/gamesign/useQrLogin.test.ts",
       "source": "frontend/src/views/gamesign/useQrLogin.test.ts",
       "source_sha256": "0849147a7e613633ce8c355c7caf2254e6efd87b7d6ecdb28a8c0cf5cc623359",
-      "standalone_sha256": "0849147a7e613633ce8c355c7caf2254e6efd87b7d6ecdb28a8c0cf5cc623359"
+      "standalone_sha256": "e16df460cd539d964e946d56469437bcfcaaaf39912d6814c38309a617198ea7"
     },
     {
       "path": "frontend/tsconfig.app.json",
@@ -190,7 +190,7 @@
       "source": "app/models/schema.py",
       "extraction": "copyright header and community-only schema definitions, then independent contracts",
       "source_sha256": "b1f460335976f4fed7488b8e069a74b0e64405e051ccf604f363dd56140c8f70",
-      "standalone_sha256": "cfc7d9942c6aa9b0bb9d1c978d0ea2d728cc264ff3af289ee57f0b668f9ee4dd"
+      "standalone_sha256": "29938d18322f36ab75ce97890a4435937295976eceb1ffed773482fe523e8982"
     },
     {
       "path": "frontend/src/i18n/locales/zh-CN.ts",
@@ -327,6 +327,13 @@
       "license": "MIT（Copyright (c) 2026 Billtranscend，全文见 docs/licenses/Priestess-bot.txt）",
       "standalone_sha256": "ba3863d5d193f258966e76c5b42ce8efc70c8b9a6451bf962dae7778cf321a5b",
       "note": "沿用上游干员昵称、简称与专武别名表，仅补本仓的来源说明字段。"
+    },
+    {
+      "path": "app/tools/gacha_heybox.py",
+      "origin": "Billtranscend/Priestess-bot plugins/heybox_import/plan.py",
+      "license": "MIT（Copyright (c) 2026 Billtranscend，全文见 docs/licenses/Priestess-bot.txt）",
+      "standalone_sha256": "62c563118aa6f7c250a5e31a19b1d93b97a3ba2b7a446080b72dab1fb53f5dd9",
+      "note": "移植小黑盒 overview 响应的聚合口径与重建规则（六星真实记录 + 四星占位 + 五星补名），按本仓的 GachaRecord 存储模型重写，去掉浏览器运行时依赖。"
     },
     {
       "path": "app/services/game_calendar.py",

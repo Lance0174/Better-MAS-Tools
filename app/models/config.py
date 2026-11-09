@@ -41,6 +41,9 @@ class SettingsData(BaseModel):
     CloudPassword: str = Field(default="", repr=False, max_length=512)
     RelayEnabled: bool = False
     LightMode: bool = False
+    OnboardingDismissed: bool = Field(
+        default=False, description="已完成或跳过首次引导；更换桌面端口后仍然生效"
+    )
     # 液态玻璃材质开关：关闭后界面退化为半透明实色面板（低端机与远程桌面更省性能）。
     GlassEffect: bool = True
 

@@ -1,16 +1,9 @@
 name: Deploy Cloudflare Workers
 
+# 按项目安排暂缓 Cloudflare 部署（2026-11），不随推送或发版执行。
+# 保留手动入口供将来恢复时使用；恢复部署需先重新验收 docs/DEPLOYMENT.md 的流程。
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'app/**'
-      - 'frontend/**'
-      - 'scripts/install-worker-deps.py'
-      - 'scripts/prepare-worker.py'
-      - 'deploy/worker/**'
-      - 'docs/DEPLOYMENT.md'
 
 permissions:
   contents: read

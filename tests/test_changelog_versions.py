@@ -43,3 +43,27 @@ def test_android_version_code_is_monotonic_across_versions() -> None:
     ]
     assert codes == sorted(codes)
     assert len(set(codes)) == len(codes)
+
+def test_sync_writes_prerelease_version_to_generated_files(tmp_path, monkeypatch) -> None:
+    """sync 必须能把带预发布后缀的版本写进全部生成物（uv.lock 曾因正则只认数字而漏改）。"""
+    (tmp_path / "frontend").mkdir()
+    (tmp_path / "android" / "app").mkdir(parents=True)
+    (tmp_path / "app").mkdir()
+    (tmp_path / "pyproject.toml").write_text('[project]\nversion = "0.2.0-beta.1"\n', encoding="utf-8")
+    (tmp_path / "frontend" / "package.json").write_text('{\n  "version": "0.2.0-beta.1"\n}\n', encoding="utf-8")
+    (tmp_path / "android" / "app" / "build.gradle.kts").write_text(
+        'versionCode = 2000\nversionName = "0.2.0-beta.1"\n', encoding="utf-8"
+    )
+    (tmp_path / "app" / "version.py").write_text('VERSION = "0.2.0-beta.1"\n', encoding="utf-8")
+    (tmp_path / "uv.lock").write_text(
+        '[[package]]\nname = "better-mas-tools"\nversion = "0.2.0-beta.1"\nsource = { editable = "." }\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(changelog, "ROOT", tmp_path)
+
+    changed = changelog.sync("0.2.0-beta.2")
+
+    assert "uv.lock" in changed
+    assert 'version = "0.2.0-beta.2"' in (tmp_path / "uv.lock").read_text(encoding="utf-8")
+    assert 'version = "0.2.0-beta.2"' in (tmp_path / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'versionCode = 2001' in (tmp_path / "android" / "app" / "build.gradle.kts").read_text(encoding="utf-8")

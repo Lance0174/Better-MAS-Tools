@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.1.5"
+    "version": "0.2.0-beta.2"
   },
   "paths": {
     "/api/session": {
@@ -828,6 +828,48 @@
         }
       }
     },
+    "/api/gacha/fetch-cookie": {
+      "post": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Fetch Records By Cookie",
+        "description": "用米游社登录态换 authkey 读取官方记录；cookie 留空则用账号组已绑定的凭据。",
+        "operationId": "fetchGachaRecordsByCookie",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GachaCookieFetchIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaUpdateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/gacha/import": {
       "post": {
         "tags": [
@@ -845,6 +887,100 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaUpdateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/gacha/heybox": {
+      "post": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Import Heybox",
+        "operationId": "importGachaHeybox",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GachaHeyboxIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GachaHeyboxOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Gacha"
+        ],
+        "summary": "Revoke Heybox",
+        "operationId": "revokeGachaHeybox",
+        "parameters": [
+          {
+            "name": "game",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "const": "endfield",
+              "type": "string",
+              "default": "endfield",
+              "title": "Game"
+            }
+          },
+          {
+            "name": "playerUid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "title": "Playeruid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -2364,6 +2500,69 @@
         "title": "CommunityActivityTaskOut",
         "description": "日常活动中的单项任务。"
       },
+      "GachaCookieFetchIn": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "enum": [
+              "genshin",
+              "starrail",
+              "zzz"
+            ],
+            "title": "Game"
+          },
+          "accountId": {
+            "type": "string",
+            "title": "Accountid",
+            "description": "账号组 ID；cookie 留空时从这里取已绑定的米游社凭据",
+            "default": ""
+          },
+          "playerUid": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Playeruid",
+            "description": "游戏 UID（纯数字）"
+          },
+          "cookie": {
+            "type": "string",
+            "maxLength": 16000,
+            "format": "password",
+            "title": "Cookie",
+            "description": "米游社 Cookie；留空则用账号组里保存的那份",
+            "default": "",
+            "writeOnly": true
+          },
+          "region": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Region",
+            "description": "区域，如 cn_gf01/prod_gf_cn；留空按 UID 推断",
+            "default": ""
+          },
+          "timezone": {
+            "type": "integer",
+            "maximum": 14.0,
+            "minimum": -12.0,
+            "title": "Timezone",
+            "default": 8
+          },
+          "maxPages": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Maxpages",
+            "default": 100
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "playerUid"
+        ],
+        "title": "GachaCookieFetchIn",
+        "description": "米游社 Cookie 换 authkey 的读取入参；cookie 只在本次请求内使用。"
+      },
       "GachaExportOut": {
         "properties": {
           "code": {
@@ -2453,6 +2652,96 @@
           "game"
         ],
         "title": "GachaFetchIn"
+      },
+      "GachaHeyboxIn": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "const": "endfield",
+            "title": "Game",
+            "default": "endfield"
+          },
+          "heyboxId": {
+            "type": "string",
+            "maxLength": 12,
+            "minLength": 4,
+            "pattern": "^[0-9]{4,12}$",
+            "title": "Heyboxid",
+            "description": "小黑盒 ID"
+          },
+          "playerUid": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Playeruid",
+            "description": "游戏 UID"
+          },
+          "payload": {
+            "type": "string",
+            "maxLength": 2000000,
+            "minLength": 2,
+            "format": "password",
+            "title": "Payload",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "heyboxId",
+          "playerUid",
+          "payload"
+        ],
+        "title": "GachaHeyboxIn",
+        "description": "小黑盒「抽卡分析」响应文本：只做纯转换，不联网、不保存原始内容。"
+      },
+      "GachaHeyboxOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added",
+            "default": 0
+          },
+          "replaced": {
+            "type": "integer",
+            "title": "Replaced",
+            "default": 0
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "title": "GachaHeyboxOut",
+        "description": "小黑盒补录结果：added 是新增、replaced 是被替换的旧补录行。"
       },
       "GachaImportIn": {
         "properties": {
@@ -4023,6 +4312,12 @@
           "LightMode": {
             "type": "boolean",
             "title": "Lightmode",
+            "default": false
+          },
+          "OnboardingDismissed": {
+            "type": "boolean",
+            "title": "Onboardingdismissed",
+            "description": "已完成或跳过首次引导；更换桌面端口后仍然生效",
             "default": false
           },
           "GlassEffect": {

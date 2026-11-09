@@ -34,6 +34,9 @@ const lightFile = join(dataDirectory, 'desktop-light.json')
 const smokeTest = process.argv.includes('--smoke-test')
 let window: BrowserWindow | null = null
 let tray: Tray | null = null
+// 托盘图标是否真的加载到了：打包版曾漏打 community.ico，托盘变成不可见空图标，
+// 轻量模式就退化成「窗口没了、也没有入口唤回」，因此进入轻量模式前要确认它可用。
+let trayHasIcon = false
 let lightMode = false
 let origin = ''
 let quitting = false
@@ -120,10 +123,13 @@ function trayIconPath(): string {
   return candidates.find(candidate => existsSync(candidate)) ?? ''
 }
 
-function createTray(): void {
-  if (tray) return
+/** 创建托盘并返回图标是否可用；图标缺失时托盘不可见，调用方应避免进入仅靠托盘的形态。 */
+function createTray(): boolean {
+  if (tray) return trayHasIcon
   const iconPath = trayIconPath()
-  tray = new Tray(existsSync(iconPath) ? iconPath : nativeImage.createEmpty())
+  trayHasIcon = existsSync(iconPath)
+  if (!trayHasIcon) log(`托盘图标缺失：${iconPath || '(未找到候选路径)'}`)
+  tray = new Tray(trayHasIcon ? iconPath : nativeImage.createEmpty())
   tray.setToolTip(`${productName}（轻量模式运行中）`)
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -133,6 +139,7 @@ function createTray(): void {
     ])
   )
   tray.on('click', () => showWindow())
+  return trayHasIcon
 }
 
 function showWindow(): void {
@@ -223,9 +230,18 @@ async function start(): Promise<void> {
   writeFileSync(sessionFile, JSON.stringify({ pid: process.pid, backendPid: backend.pid, origin }))
   log(`服务已就绪 pid=${backend.pid}`)
   if (lightMode) {
-    createTray()
-    log('轻量模式启动：驻留托盘，主窗口未创建')
-    return
+    if (createTray()) {
+      log('轻量模式启动：驻留托盘，主窗口未创建')
+      return
+    }
+    // 托盘图标不可用时坚持轻量模式等于把应用藏起来：回滚设置并正常开窗。
+    lightMode = false
+    try {
+      writeFileSync(lightFile, JSON.stringify({ light: false }))
+    } catch {
+      log('轻量模式状态回滚写入失败')
+    }
+    log('轻量模式已跳过：托盘图标不可用，改为显示主窗口')
   }
   createWindow()
 }
@@ -238,14 +254,33 @@ ipcMain.on('bmat-light-mode', (event, enabled: unknown) => {
     log(`已忽略来源未知的轻量模式请求：${senderUrl || '未知来源'}`)
     return
   }
-  lightMode = enabled === true
+  const nextLightMode = enabled === true
+  // 从托盘/第二次启动重建的页面会重新同步设置，不能因此再次销毁刚唤回的窗口。
+  if (nextLightMode === lightMode) return
+  lightMode = nextLightMode
   try {
     writeFileSync(lightFile, JSON.stringify({ light: lightMode }))
   } catch {
     log('轻量模式状态写入失败')
   }
   if (lightMode) {
-    createTray()
+    if (!createTray()) {
+      // 没有可见托盘时销毁窗口就没有唤回入口，保持窗口并回滚到「未启用」。
+      lightMode = false
+      try {
+        writeFileSync(lightFile, JSON.stringify({ light: false }))
+      } catch {
+        log('轻量模式状态回滚写入失败')
+      }
+      log('轻量模式未启用：托盘图标缺失，窗口保持显示')
+      void dialog.showMessageBox({
+        type: 'warning',
+        title: productName,
+        message: '无法进入轻量模式',
+        detail: '托盘图标未能加载，进入轻量模式后将没有入口重新打开窗口。请重新安装完整版本后再试。',
+      })
+      return
+    }
     window?.destroy()
     window = null
     log('轻量模式已启用：窗口销毁，转入托盘驻留')

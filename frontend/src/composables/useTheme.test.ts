@@ -65,7 +65,7 @@ describe('useTheme', () => {
     expect(names).not.toContain('--app-glass-tint')
     expect(names).not.toContain('--app-glass-highlight')
     expect(state.glassEnabled.value).toBe(true)
-    expect(setProperty).toHaveBeenCalledWith('--app-glass-blur-pref', '26px')
+    expect(setProperty).toHaveBeenCalledWith('--app-glass-blur-pref', '18px')
     settings.data.value = { Theme: 'light', GlassEffect: false }
     await nextTick()
     expect(state.glassEnabled.value).toBe(false)
