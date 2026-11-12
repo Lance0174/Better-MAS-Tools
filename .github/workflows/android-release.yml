@@ -104,6 +104,7 @@ jobs:
       - name: Rename APK and write checksum
         working-directory: android/app/build/outputs/apk/release
         run: |
+          set -euo pipefail
           version="$(node -p "require('../../../../../../frontend/package.json').version")"
           mv app-release.apk "BMT-${version}-android.apk"
           # 资产名与 Windows 流水线区分：Release 内资产名唯一，同名 --clobber 会互相覆盖。
