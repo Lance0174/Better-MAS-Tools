@@ -396,4 +396,4 @@ async def get_accounts():            # 没有 operation_id，生成名退化成 
 - **UI 审批**：需要用户先审核的视觉改版先放独立 HTML/SVG 原型；用示例数据，无真实账号或网络依赖。记录桌面、窄屏、深浅主题的检查结果，审核通过后才应用正式界面。
 - **发布边界**：Cloudflare 部署暂缓，用户入口与发布材料不承诺其交付。保留历史实现供后续恢复，不执行远端写入或发布。
 
-这些约定以本仓的 Vue 3、Ant Design Vue、FastAPI、原子加密存储及多运行时实践为准。AUTO-MAS 的 Skill 用作设计参考；其组织流程、配置容器、版本分支及发布约定不自动成为本仓规则。
+这些约定以本仓的 Vue 3、Ant Design Vue、FastAPI、原子加密存储及多运行时实践为准。`.agents/skills/mas-*` 随源码维护，统一引用本仓文档；AUTO-MAS 仅作结构参考，其组织流程、配置容器、版本分支及发布约定不适用。已审核的 Miuix 风格、实际组件映射及双端边界见 [UI-STANDARDS.md](UI-STANDARDS.md)。

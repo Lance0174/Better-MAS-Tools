@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT data-model"
+  short_description: "Better-MAS-Tools Pydantic 配置、响应模型与兼容数据迁移。"
+  default_prompt: "使用 $mas-data-model 按 Better-MAS-Tools 本仓约定完成当前任务。"

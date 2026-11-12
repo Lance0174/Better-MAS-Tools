@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT frontend-ui"
+  short_description: "Better-MAS-Tools 已审核的 Miuix 风格、Ant Design Vue 组件与双端交互。"
+  default_prompt: "使用 $mas-frontend-ui 按 Better-MAS-Tools 本仓约定完成当前任务。"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT module-boundary"
+  short_description: "Better-MAS-Tools 后端分层、依赖方向和 Android 能力边界。"
+  default_prompt: "使用 $mas-module-boundary 按 Better-MAS-Tools 本仓约定完成当前任务。"

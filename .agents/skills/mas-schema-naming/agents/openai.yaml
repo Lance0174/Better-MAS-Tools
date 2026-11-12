@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT schema-naming"
+  short_description: "Better-MAS-Tools 新增 schema 命名与现有公开字段兼容。"
+  default_prompt: "使用 $mas-schema-naming 按 Better-MAS-Tools 本仓约定完成当前任务。"

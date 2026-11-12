@@ -39,7 +39,7 @@
 ## 4. 开工前：Skill 与对照源
 
 - 开发前使用仓库内 `.agents/skills/mas-skills/SKILL.md` 及任务需要的子 Skill（`mas-code-standards`、`mas-module-boundary`、`mas-function-design`、`mas-api-contract`、`mas-data-model`、`mas-schema-naming`、`mas-frontend-standards`、`mas-frontend-ui`、`mas-game-sign`），只选最小必要的一组，并在回复里说明选了哪些、为什么。
-- `.agents` 已被 `.gitignore` 忽略，新克隆不携带这些 Skill。本地缺目录时按 docs/CODE-STANDARDS.md 执行，并在开发报告里注明"未加载 Skill"。
+- `.agents/skills/mas-*` 是本仓维护并随源码分发的 Skill；其它本机会话文件继续忽略。不得套用 AUTO-MAS 的组织流程、dev 分支或版本规则。缺目录时在开发报告里注明“未加载 Skill”，优先恢复本仓文件。
 - 如需对照源仓库，使用环境变量 `AUTO_MAS_ROOT` 定位本机检出；校验脚本对应参数是 `scripts\verify_upstream.py --repo <path>`。源仓路径不能成为运行依赖：不得 import、不得拼进运行时代码、不得进入打包产物。
 - AUTO-MAS 是 AGPL 项目，只可借鉴结构与思路：措辞自己写，不复制大段英文，不搬运 AGPL 代码。本仓是独立实现，不是 AUTO-MAS 的分支。
 - 本仓的既有实践优先于通用风格指南。冲突时以本仓为准，并把新结论补进 docs/CODE-STANDARDS.md。
@@ -90,6 +90,7 @@ app/utils    → 只依赖标准库与第三方库
 ## 7. 前端栈与生成代码
 
 - 前端使用 Vue 3（`<script setup>`）+ TypeScript + Ant Design Vue 4，构建用 Vite，包管理 Yarn 4.9.1。
+- UI 按 [docs/UI-STANDARDS.md](docs/UI-STANDARDS.md) 的已审核 Miuix 风格实施，实际组件仍来自 Ant Design Vue。Miuix 原库是 Compose 库，不能声称已作为 Vue 组件导入。Android 不包含 MAS 管理或远端控制；桌面入口统一叫“MAS 管理”。
 - API 从 OpenAPI 生成，禁止手改 `frontend/src/api`。后端模型变更后：先 `scripts/export_openapi.py`，再在 frontend 目录 `yarn openapi`。
 - Ant Design Vue 组件在 `frontend/src/main.ts` 统一注册；新组件先加进那里的字母序列表，再在页面里直接用。
 - 只维护 zh-CN，不新增 en-US。所有用户可见文案必须进 `frontend/src/i18n/locales/`（`zh-CN.ts`、`standalone.ts`），组件与视图里禁止硬编码中文；代码里用 `t('namespace.key')`。
@@ -195,9 +196,11 @@ powershell -File scripts/start-desktop.ps1          # 启动已打包版本
 
 ```powershell
 .venv\Scripts\python.exe scripts/prepare-android.py --skip-frontend
+# --skip-frontend 前先在 frontend 执行 yarn vite build --mode android
 # android 目录
-.\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
-# 产物：android/app/build/outputs/apk/debug/app-debug.apk
+.\gradlew.bat --no-daemon :app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:lintDebug :app:lintRelease
+# 发布产物：android/app/build/outputs/apk/release/app-release.apk
+# 发布前：scripts/verify-android-signing.py 校验实际 APK 的固定证书
 # 打包资源界面回归（不进 CI）
 frontend\node_modules\electron\dist\electron.exe scripts/verify-android.cjs
 ```

@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT api-contract"
+  short_description: "Better-MAS-Tools FastAPI HTTP 契约、错误语义与客户端生成。"
+  default_prompt: "使用 $mas-api-contract 按 Better-MAS-Tools 本仓约定完成当前任务。"

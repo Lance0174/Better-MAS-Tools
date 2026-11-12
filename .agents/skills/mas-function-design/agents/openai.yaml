@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT function-design"
+  short_description: "Better-MAS-Tools 后端函数职责、返回契约、异步与副作用。"
+  default_prompt: "使用 $mas-function-design 按 Better-MAS-Tools 本仓约定完成当前任务。"

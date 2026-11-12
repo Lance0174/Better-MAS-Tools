@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT game-sign"
+  short_description: "Better-MAS-Tools 社区登录、扫码、签到、便笺与凭据保护。"
+  default_prompt: "使用 $mas-game-sign 按 Better-MAS-Tools 本仓约定完成当前任务。"

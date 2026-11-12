@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT code-standards"
+  short_description: "Better-MAS-Tools 的实现、修复、代码审查与提交说明约定。"
+  default_prompt: "使用 $mas-code-standards 按 Better-MAS-Tools 本仓约定完成当前任务。"

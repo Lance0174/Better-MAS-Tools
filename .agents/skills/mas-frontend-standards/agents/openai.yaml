@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMT frontend-standards"
+  short_description: "Better-MAS-Tools 的 Vue、TypeScript、Pinia、API、路由与前端验证。"
+  default_prompt: "使用 $mas-frontend-standards 按 Better-MAS-Tools 本仓约定完成当前任务。"

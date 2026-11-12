@@ -14,6 +14,7 @@ logs/
 local/
 frontend/node_modules/
 frontend/dist/
+frontend/dist-android/
 frontend/dist-electron/
 frontend/out/
 frontend/.yarn/install-state.gz
@@ -36,6 +37,9 @@ deploy/worker/.wrangler/
 deploy/worker/.dry-run-out/
 release-note.md
 
-.agents
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/mas-*/
 # Zcode 会话工作目录
 .zcode/
