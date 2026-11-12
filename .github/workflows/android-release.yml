@@ -63,33 +63,60 @@ jobs:
         working-directory: frontend
         run: |
           yarn install --immutable
-          yarn build
+          yarn lint
+          yarn typecheck
+          yarn test
+          yarn vite build --mode android
 
       - name: Prepare Android assets
         run: |
           uv run --no-project --with httpx --python 3.13 python scripts/prepare-android.py --skip-frontend
 
-      - name: Build and check debug APK
+      - name: Configure fixed release signing
+        env:
+          BMAT_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          BMAT_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BMAT_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BMAT_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for field in BMAT_KEYSTORE_BASE64 BMAT_KEYSTORE_PASSWORD BMAT_KEY_ALIAS BMAT_KEY_PASSWORD; do
+            if [ -z "${!field}" ]; then
+              echo "::error::发布签名配置缺失，禁止回退到临时调试签名。"
+              exit 1
+            fi
+          done
+          mkdir -p android/signing
+          printf '%s' "${BMAT_KEYSTORE_BASE64}" | base64 -d > android/signing/bmat-release.jks
+          chmod 600 android/signing/bmat-release.jks
+          echo "ANDROID_KEYSTORE_PATH=${GITHUB_WORKSPACE}/android/signing/bmat-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build and check fixed-signature release APK
         working-directory: android
-        # 与 README/docs 一致：走仓库内 wrapper，并跑单测与 lint，不只打包。
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+          ./gradlew --no-daemon :app:assembleRelease :app:testDebugUnitTest :app:lintRelease :app:lintDebug
 
       - name: Rename APK and write checksum
-        working-directory: android/app/build/outputs/apk/debug
+        working-directory: android/app/build/outputs/apk/release
         run: |
           version="$(node -p "require('../../../../../../frontend/package.json').version")"
-          mv app-debug.apk "BMT-${version}-android.apk"
+          mv app-release.apk "BMT-${version}-android.apk"
           # 资产名与 Windows 流水线区分：Release 内资产名唯一，同名 --clobber 会互相覆盖。
           sha256sum "BMT-${version}-android.apk" > SHA256SUMS-android.txt
+          python "${GITHUB_WORKSPACE}/scripts/verify-android-signing.py" "BMT-${version}-android.apk" | tee signing-report.txt
+          cat signing-report.txt >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: BMT-android
           path: |
-            android/app/build/outputs/apk/debug/BMT-*-android.apk
-            android/app/build/outputs/apk/debug/SHA256SUMS-android.txt
+            android/app/build/outputs/apk/release/BMT-*-android.apk
+            android/app/build/outputs/apk/release/SHA256SUMS-android.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -106,8 +133,8 @@ jobs:
           pre_args=()
           if [[ "$version" == *-* ]]; then pre_args=(--prerelease --latest=false); fi
           python scripts/changelog.py release-note --version "$version" --output release-note.md
-          apk="$(ls android/app/build/outputs/apk/debug/BMT-*-android.apk)"
-          sums="android/app/build/outputs/apk/debug/SHA256SUMS-android.txt"
+          apk="$(ls android/app/build/outputs/apk/release/BMT-*-android.apk)"
+          sums="android/app/build/outputs/apk/release/SHA256SUMS-android.txt"
           exists="$(gh release view "$tag" --json id --jq .id 2>/dev/null || true)"
           if [ -z "$exists" ]; then
             # Windows 与 Android 可能先后触发同一 tag；创建失败后再确认一次，避免竞态直接失败。
@@ -119,11 +146,10 @@ jobs:
             fi
           fi
           draft="$(gh release view "$tag" --json isDraft --jq .isDraft)"
-          assets="$(gh release view "$tag" --json assets --jq '.assets[].name')"
           # 已转正的版本只允许补资产，不允许覆盖；Android 产物已存在即视为重复发版。
-          if [ "$draft" != "true" ] && printf '%s\n' "$assets" | grep -q 'android\.apk'; then
+          if [ "$draft" != "true" ]; then
             echo "该版本已正式发布，请使用新的版本号。" >&2
             exit 1
           fi
           gh release upload "$tag" "$apk" "$sums" --clobber
-          gh release edit "$tag" --draft=false
+          # 两平台全部成功后由 finalize-release.yml 统一公开。

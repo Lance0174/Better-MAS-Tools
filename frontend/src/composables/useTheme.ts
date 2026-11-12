@@ -2,29 +2,29 @@ import { computed, onScopeDispose, ref, watchEffect } from 'vue'
 import { theme } from 'ant-design-vue'
 import { useSettingsStore } from '@/stores/settings'
 
-/** 审核方案 B：深浅主题共享细线、适度密度和黄色操作强调。 */
-const PAPER = {
+/** 已审核的 Miuix 风格：浅灰画布、圆角卡片和蓝色操作强调。 */
+const PALETTE = {
   light: {
-    canvas: '#eceeea',
-    raised: '#fafbf7',
-    bright: '#f0f2ed',
-    ink: '#242a28',
-    ink2: '#5e6964',
-    ink3: '#5e6964',
-    line: '#c8cec5',
-    lineSoft: '#e0e4dc',
-    link: '#7a6100',
+    canvas: '#f5f5f5',
+    raised: '#ffffff',
+    bright: '#f2f3f5',
+    ink: '#16181d',
+    ink2: '#646974',
+    ink3: '#646974',
+    line: '#e4e6eb',
+    lineSoft: '#eceef1',
+    link: '#2468d5',
   },
   dark: {
-    canvas: '#191b1e',
-    raised: '#222529',
-    bright: '#2a2d31',
-    ink: '#edf0f2',
-    ink2: '#a0a7b0',
-    ink3: '#a0a7b0',
-    line: '#393d42',
-    lineSoft: '#2d3136',
-    link: '#f5d747',
+    canvas: '#101114',
+    raised: '#1c1d21',
+    bright: '#28292e',
+    ink: '#f0f1f4',
+    ink2: '#aaadb6',
+    ink3: '#aaadb6',
+    line: '#383940',
+    lineSoft: '#303137',
+    link: '#77aaff',
   },
 } as const
 
@@ -53,16 +53,15 @@ export function useTheme() {
       settings.data?.Theme === 'dark' ||
       ((!settings.data?.Theme || settings.data.Theme === 'system') && systemDark.value)
   )
-  const palette = computed(() => (isDark.value ? PAPER.dark : PAPER.light))
+  const palette = computed(() => (isDark.value ? PALETTE.dark : PALETTE.light))
   const themeConfig = computed(() => ({
     algorithm: isDark.value ? theme.darkAlgorithm : theme.defaultAlgorithm,
     token: {
-      // 出版黄只做实心块：按钮/开关上的文字必须是深色，否则白字压黄只有 1.2:1。
-      colorPrimary: '#f5d747',
-      colorTextLightSolid: '#242a28',
+      colorPrimary: '#2468d5',
+      colorTextLightSolid: '#ffffff',
       colorLink: palette.value.link,
-      colorSuccess: '#1f7a48',
-      colorError: '#c8321a',
+      colorSuccess: isDark.value ? '#80d7a3' : '#207946',
+      colorError: '#c64141',
       colorInfo: '#2f6fbe',
       colorWarning: '#a9781a',
       colorBgLayout: palette.value.canvas,
@@ -73,11 +72,12 @@ export function useTheme() {
       colorTextTertiary: palette.value.ink3,
       colorBorder: palette.value.line,
       colorBorderSecondary: palette.value.lineSoft,
-      // 小圆角只用于容器与控件，保持审核方案的细线布局。
-      borderRadius: 3,
+      borderRadius: 12,
+      borderRadiusLG: 24,
+      borderRadiusSM: 8,
       fontSize: 14,
       fontFamily: "'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif",
-      controlHeight: 35,
+      controlHeight: 40,
     },
   }))
   // 液态玻璃：关闭后（或用户设置 GlassEffect=false）退化为半透明实色材质，不做背景模糊。
@@ -108,28 +108,24 @@ export function useTheme() {
     style.setProperty('--ant-color-primary', String(tokens.colorPrimary))
     style.setProperty('--ant-color-primary-bg', String(tokens.colorPrimaryBg))
     style.setProperty('--ant-color-primary-border', String(tokens.colorPrimaryBorder))
+    style.setProperty('--ant-color-link', String(tokens.colorLink))
     style.setProperty('--ant-color-success', String(tokens.colorSuccess))
     style.setProperty('--ant-color-text', String(tokens.colorText))
     style.setProperty('--ant-color-text-secondary', String(tokens.colorTextSecondary))
     style.setProperty('--ant-color-text-tertiary', String(tokens.colorTextTertiary))
     style.setProperty('--ant-color-warning', String(tokens.colorWarning))
-    // 32px 细格随主题切换，强度压到 5% 以下，保持内容可读。
     const dark = isDark.value
-    style.setProperty('--app-grid-line', dark ? 'rgba(255,255,255,0.018)' : 'rgba(0,0,0,0.025)')
-    style.setProperty('--app-panel', dark ? 'rgba(255,225,0,0.10)' : 'rgba(255,225,0,0.16)')
-    style.setProperty('--app-panel-border', dark ? 'rgba(255,225,0,0.34)' : 'rgba(21,21,21,0.24)')
-    style.setProperty('--app-tick', dark ? 'rgba(255,255,255,0.25)' : 'rgba(21,21,21,0.22)')
-    style.setProperty('--app-corner', dark ? 'rgba(255,225,0,0.85)' : 'rgba(21,21,21,0.55)')
-    style.setProperty('--app-scanline', dark ? 'rgba(255,225,0,0.04)' : 'rgba(21,21,21,0.03)')
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+    style.setProperty('--app-panel', String(tokens.colorPrimaryBg))
     // 报错文字专用色：危险实心色上的白字要 5:1，当文字又要 4.5:1，一个红做不到两件事。
     style.setProperty('--app-danger-ink', dark ? '#ff9088' : '#b5341f')
-    style.setProperty('--app-accent', '#f5d747')
-    // 液态玻璃令牌：纸面皮肤下玻璃更接近"蒙版纸"——底色近乎不透明，只留一点模糊湿度。
+    style.setProperty('--app-accent', String(tokens.colorPrimary))
+    // 保留用户的浮层材质偏好；卡片始终使用稳定的实色底。
     const glass = (name: string, value: string) =>
       style.setProperty(`--app-glass-${name}-pref`, value)
-    glass('tint', dark ? 'rgba(34,34,38,0.86)' : 'rgba(252,252,250,0.86)')
-    glass('tint-strong', dark ? 'rgba(28,28,32,0.94)' : 'rgba(255,255,252,0.94)')
-    glass('tint-soft', dark ? 'rgba(34,34,38,0.7)' : 'rgba(252,252,250,0.7)')
+    glass('tint', dark ? 'rgba(28,29,33,0.94)' : 'rgba(255,255,255,0.94)')
+    glass('tint-strong', palette.value.raised)
+    glass('tint-soft', palette.value.bright)
     glass('border-top', dark ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.9)')
     glass('border-body', dark ? 'rgba(74,74,80,0.9)' : 'rgba(184,184,177,0.9)')
     glass('highlight', dark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)')

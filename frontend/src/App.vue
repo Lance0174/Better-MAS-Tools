@@ -13,6 +13,7 @@ import { setDesktopLightMode } from '@/services/desktop'
 import OnboardingWizard from '@/components/OnboardingWizard.vue'
 import AppNavigation from '@/components/AppNavigation.vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
+import { BulbOutlined } from '@ant-design/icons-vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -43,7 +44,6 @@ const {
 // 设置页“重新查看引导”通过此事件重开首启向导，不影响“已跳过”标记。
 window.addEventListener('bmat-open-onboarding', openOnboarding)
 const pageTitle = computed(() => t(String(route.meta.title || 'standalone.home')))
-const pageCode = computed(() => t(`standalone.pageCodes.${route.path.slice(1) || 'home'}`))
 const toggleTheme = async () => {
   if (!settings.data || themeSaving.value) return
   themeSaving.value = true
@@ -111,12 +111,17 @@ onBeforeUnmount(() => {
       <a-layout-content class="app-content">
         <header v-if="ready" class="app-page-header">
           <div>
-            <p class="page-eyebrow mono">{{ pageCode }}</p>
             <h1>{{ pageTitle }}</h1>
           </div>
-          <a-button :loading="themeSaving" @click="toggleTheme">{{
-            t(isDark ? 'standalone.switchToLight' : 'standalone.switchToDark')
-          }}</a-button>
+          <a-button
+            shape="circle"
+            class="theme-toggle"
+            :loading="themeSaving"
+            :aria-label="t(isDark ? 'standalone.switchToLight' : 'standalone.switchToDark')"
+            :title="t(isDark ? 'standalone.switchToLight' : 'standalone.switchToDark')"
+            @click="toggleTheme"
+            ><BulbOutlined
+          /></a-button>
         </header>
         <main class="page-frame">
           <div v-if="!ready" class="page-state">
@@ -187,31 +192,30 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 27px 32px 25px;
-  border-bottom: 1px solid var(--ant-color-border);
+  padding: 40px 40px 28px;
   background: var(--ant-color-bg-layout);
 }
 .app-page-header h1 {
   margin: 0;
-  font-size: 26px;
+  font-size: 32px;
   line-height: 1.25;
   font-weight: 650;
-  letter-spacing: 0.03em;
+  letter-spacing: -0.03em;
 }
-.page-eyebrow {
-  margin: 0 0 7px;
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--ant-color-text-tertiary);
+.theme-toggle {
+  background: var(--ant-color-bg-container);
+  border-color: transparent;
+  flex-shrink: 0;
 }
 .page-frame {
-  padding: 24px 32px 40px;
+  padding: 0 40px 32px;
+  max-width: 1560px;
+  margin: 0 auto;
   min-height: calc(100% - 152px);
 }
 .app-status {
-  padding: 10px 32px;
-  border-top: 1px solid var(--ant-color-border);
-  background: var(--ant-color-bg-container);
+  padding: 16px 32px;
+  text-align: center;
   color: var(--ant-color-text-secondary);
   font-size: 11px;
 }
@@ -220,28 +224,25 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 .android-local .page-frame {
-  padding-bottom: 90px;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }
 @media (max-width: 1180px) {
   .app-page-header {
     padding: 24px;
   }
   .page-frame {
-    padding: 22px 24px 32px;
+    padding: 0 24px 32px;
   }
 }
 @media (max-width: 700px) {
   .app-page-header {
-    padding: 20px;
+    padding: 28px 20px 24px;
   }
   .app-page-header h1 {
-    font-size: 23px;
-  }
-  .page-eyebrow {
-    font-size: 9px;
+    font-size: 28px;
   }
   .page-frame {
-    padding: 20px 16px 90px;
+    padding: 0 16px calc(104px + env(safe-area-inset-bottom));
   }
   .app-status {
     padding-bottom: 80px;

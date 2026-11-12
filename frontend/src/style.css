@@ -2,47 +2,36 @@ html,
 body,
 #app {
   margin: 0;
-  min-width: 360px;
+  min-width: 320px;
   height: 100%;
-  font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
-}
-body {
-  /* 纸面皮肤：画布用 layout 色（纸），卡片用 container 色（抬起的纸）。 */
-  background: var(--ant-color-bg-layout);
-  color: var(--ant-color-text);
-}
-/* 等宽读数：编号与时间保持稳定列宽。 */
-.mono {
-  font-family: 'Cascadia Mono', 'Consolas', monospace;
-  font-variant-numeric: tabular-nums;
-}
-/* 终末地工业风：页面衬底淡网格，强化"工程终端"质感；不覆盖卡片内容。 */
-body {
-  background-image:
-    linear-gradient(var(--app-grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--app-grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
 * {
   box-sizing: border-box;
 }
+body {
+  background: var(--ant-color-bg-layout);
+  color: var(--ant-color-text);
+}
+a {
+  color: var(--ant-color-link);
+}
+.mono {
+  font-variant-numeric: tabular-nums;
+}
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
   background: var(--ant-color-border);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 *::-webkit-scrollbar-thumb:hover {
   background: var(--ant-color-text-tertiary);
-}
-.ant-drawer-body,
-.ant-modal-body {
-  scrollbar-color: var(--ant-color-border) transparent;
 }
 .page-toolbar {
   display: flex;
@@ -50,110 +39,85 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  margin-bottom: 20px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--ant-color-border-secondary);
+  margin-bottom: 24px;
 }
 .page-title {
-  position: relative;
-  display: inline-block;
-  font-size: 24px;
-  line-height: 1.1;
   margin: 0;
-  letter-spacing: 0.01em;
-  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
-  font-weight: 900;
-  padding-left: 14px;
-}
-/* 标题左侧斜切刻度条，强化工业仪表读数感 */
-.page-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 6px;
-  height: 88%;
-  background: var(--app-accent, #ffe100);
-  background: var(--ant-color-primary);
-  clip-path: polygon(0 0, 100% 20%, 100% 80%, 0 100%);
+  font-size: 22px;
+  line-height: 1.4;
+  font-weight: 650;
 }
 .section-title {
-  margin: 24px 0 12px;
-  font-size: 14px;
+  margin: 24px 0 16px;
+  font-size: 16px;
   font-weight: 600;
-  color: var(--ant-color-text-secondary);
-  letter-spacing: 0.02em;
 }
 .page-state {
   min-height: 240px;
   display: grid;
   place-content: center;
 }
+.page-alert {
+  margin-bottom: 16px;
+}
 .ant-drawer-content-wrapper {
   max-width: 100vw;
 }
 .ant-modal-body {
-  max-height: calc(100dvh - 220px);
+  max-height: calc(100dvh - 200px);
   overflow-y: auto;
 }
-/* 工业斜切卡片：用于账号行、结果卡片等容器 */
-.industrial-panel {
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+
+/* 唯一的全局组件表层；组件行为和尺寸仍由 Ant Design Vue 提供。 */
+html .ant-card {
+  border-color: transparent;
 }
-/* 安卓 WebView 在非整数 DPR 下会把 1px 纹理渲染成摩尔细线，整体关闭。 */
-html.android-local body {
-  background-image: none;
+html .ant-card > .ant-card-head {
+  border-bottom-color: var(--ant-color-border-secondary);
 }
-html.android-local #app::before {
-  display: none;
+html .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+html .ant-table-thead > tr > th {
+  background: var(--ant-color-bg-elevated);
+  font-weight: 600;
+}
+html .ant-table,
+html .ant-list-bordered {
+  border-radius: 20px;
+  overflow: hidden;
+}
+html .ant-tag {
+  border-radius: 8px;
+}
+html .ant-tabs-tab {
+  font-weight: 550;
+}
+html .ant-tabs-ink-bar {
+  border-radius: 3px;
+}
+html .glass-surface {
+  background: var(--ant-color-bg-container);
+  border: 0;
+  border-radius: 24px;
 }
 
-/* ---------------------------------------------------------------------------
-   液态玻璃材质（Liquid Glass）
-   视觉语言沿用 Kinara 音乐客户端定稿的 E 稿：背景模糊 + 饱和度提升 +
-   112° 斜向高光带 + 顶部描边高光 + 多层内阴影。令牌由 useTheme.ts 切换
-   html.dark / html.glass-lite 类驱动，这里只描述材质本身。
-   降级：不支持 backdrop-filter、安卓 WebView、系统"减少动态效果"或用户在
-   设置中关闭玻璃时，--app-glass-blur 归零并改用更实的玻璃底色。
---------------------------------------------------------------------------- */
+/* 浮层材质使用间接偏好变量，安卓和关闭特效时可降级成实色。 */
 :root {
-  /* 运行时偏好由 useTheme.ts 写入 --app-glass-*-pref；未写入时用这里的默认值。
-     所有玻璃令牌都必须走 -pref 间接：useTheme 直接写最终变量会变成 <html> 上的
-     内联样式，优先级高于下面 .glass-lite / @supports / html.android-local /
-     prefers-reduced-motion 的任何覆写，降级就会失效。 */
-  --app-glass-blur: var(--app-glass-blur-pref, 26px);
-  --app-glass-saturate: var(--app-glass-saturate-pref, 160%);
-  --app-glass-tint: var(--app-glass-tint-pref, rgba(255, 255, 255, 0.32));
-  --app-glass-tint-strong: var(--app-glass-tint-strong-pref, rgba(255, 255, 255, 0.58));
-  --app-glass-tint-soft: var(--app-glass-tint-soft-pref, rgba(255, 255, 255, 0.24));
-  --app-glass-border-top: var(--app-glass-border-top-pref, rgba(255, 255, 255, 0.95));
-  --app-glass-border-body: var(--app-glass-border-body-pref, rgba(255, 255, 255, 0.62));
-  --app-glass-highlight: var(--app-glass-highlight-pref, rgba(255, 255, 255, 0.46));
-  --app-glass-shadow: var(--app-glass-shadow-pref, rgba(6, 30, 42, 0.2));
-  /* 暗角只压四周：浅色下过重会把整个画布压成灰色，玻璃反而失去景深。 */
-  --app-glass-vignette: var(--app-glass-vignette-pref, rgba(6, 30, 42, 0.08));
-  --app-glass-radius: 3px;
-  /* 报错文字专用色，避免用危险实心色当文字（对比度不足）。 */
+  --app-glass-blur: var(--app-glass-blur-pref, 18px);
+  --app-glass-tint: var(--app-glass-tint-pref, #fff);
+  --app-glass-tint-strong: var(--app-glass-tint-strong-pref, #fff);
+  --app-glass-highlight: var(--app-glass-highlight-pref, #ffffff80);
+  --app-glass-shadow: var(--app-glass-shadow-pref, #18274012);
+  --app-glass-border-body: var(--app-glass-border-body-pref, var(--ant-color-border));
+  --app-glass-radius: 24px;
   --app-danger-ink: #b5341f;
-  --app-accent: #ffe100;
 }
-html.dark {
-  --app-danger-ink: #ff9088;
-  --app-glass-saturate: var(--app-glass-saturate-pref, 140%);
-  --app-glass-tint: var(--app-glass-tint-pref, rgba(25, 35, 57, 0.38));
-  --app-glass-tint-strong: var(--app-glass-tint-strong-pref, rgba(20, 28, 46, 0.64));
-  --app-glass-tint-soft: var(--app-glass-tint-soft-pref, rgba(25, 35, 57, 0.26));
-  --app-glass-border-top: var(--app-glass-border-top-pref, rgba(200, 238, 255, 0.7));
-  --app-glass-border-body: var(--app-glass-border-body-pref, rgba(160, 220, 245, 0.24));
-  --app-glass-highlight: var(--app-glass-highlight-pref, rgba(255, 255, 255, 0.18));
-  --app-glass-shadow: var(--app-glass-shadow-pref, rgba(0, 0, 0, 0.48));
-  --app-glass-vignette: var(--app-glass-vignette-pref, rgba(0, 0, 0, 0.42));
-}
-/* 关闭玻璃或命中降级条件：用更实的玻璃底色替代模糊，保持可读性。 */
-html.glass-lite {
+html.glass-lite,
+html.android-local {
+  --app-glass-blur: 0px;
   --app-glass-tint: var(--app-glass-tint-strong);
-  --app-glass-highlight: rgba(255, 255, 255, 0.12);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
@@ -161,121 +125,45 @@ html.glass-lite {
     --app-glass-tint: var(--app-glass-tint-strong);
   }
 }
+html .ant-modal-content,
+html .ant-drawer-content,
+html .ant-popover-inner,
+html .ant-dropdown-menu,
+html .ant-select-dropdown,
+html .ant-message-notice-content,
+html .ant-notification-notice {
+  background: var(--app-glass-tint);
+  -webkit-backdrop-filter: blur(var(--app-glass-blur));
+  backdrop-filter: blur(var(--app-glass-blur));
+  box-shadow: 0 12px 48px var(--app-glass-shadow);
+}
+html .ant-modal-content,
+html .ant-drawer-content {
+  border-radius: var(--app-glass-radius);
+}
+html .ant-modal-header {
+  background: transparent;
+}
+html .ant-modal-mask,
+html .ant-drawer-mask {
+  background: #0006;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--ant-color-link);
+  outline-offset: 3px;
+}
 @media (prefers-reduced-motion: reduce) {
   :root {
     --app-glass-blur: 0px;
   }
 }
-/* 安卓 WebView 在非整数 DPR 下 backdrop-filter 会渲染成条带，且滚动重绘成本高。 */
-html.android-local {
-  --app-glass-blur: 0px;
-  --app-glass-tint: var(--app-glass-tint-strong);
-}
-
-/* 玻璃表面：斜向高光带在底层之上、内容之下，边框与内阴影负责"厚度"。
-   选择器统一以 html 提权：Ant Design 运行时注入的组件样式是单类选择器，
-   且注入顺序在后，不加前缀会被它的不透明底色覆盖，玻璃就"看不见"了。 */
-html .glass-surface,
-html .ant-modal-content,
-html .ant-drawer-content,
-html .ant-dropdown-menu,
-html .ant-select-dropdown,
-html .ant-popover-inner,
-html .ant-tooltip-inner,
-html .ant-picker-dropdown .ant-picker-panel-container,
-html .ant-message-notice-content,
-html .ant-notification-notice {
-  background: var(--ant-color-bg-container);
-  border: 1px solid var(--ant-color-border);
-  -webkit-backdrop-filter: blur(var(--app-glass-blur));
-  backdrop-filter: blur(var(--app-glass-blur));
-  box-shadow: 0 8px 28px #0002;
-}
-/* 浮层内部仍有各自的底色，玻璃材质下统一交给外层，避免叠加成不透明块。 */
-html .ant-modal-content > .ant-modal-header,
-html .ant-modal-content > .ant-modal-body,
-html .ant-modal-content > .ant-modal-footer,
-html .ant-drawer-content > .ant-drawer-wrapper-body,
-html .ant-drawer-wrapper-body > .ant-drawer-header,
-html .ant-drawer-wrapper-body > .ant-drawer-body,
-html .ant-card > .ant-card-head,
-html .ant-card > .ant-card-body,
-html .ant-tabs > .ant-tabs-nav {
-  background: transparent;
-}
-html .ant-modal-content,
-html .ant-drawer-content,
-html .ant-popover-inner,
-html .ant-dropdown-menu,
-html .ant-select-dropdown {
-  border-radius: var(--app-glass-radius);
-}
-html .ant-modal-mask,
-html .ant-drawer-mask {
-  background: var(--app-glass-shadow);
-  /* 遮罩本身也滤镜背景：面板与遮罩之间的层次更接近真实玻璃。 */
-  -webkit-backdrop-filter: blur(5px) saturate(120%);
-  backdrop-filter: blur(5px) saturate(120%);
-}
-
-/* ---------------------------------------------------------------------------
-   审核方案 B：小圆角、细线、清晰标题和等宽读数。
-   AntD 令牌已经把主色 / 圆角 / 背景交过来了，这里只补令牌覆盖不到的表层：
-   卡片标题分隔线、表头小字、主按钮深色字。
---------------------------------------------------------------------------- */
-html .ant-btn,
-html .ant-input,
-html .ant-input-affix-wrapper,
-html .ant-select .ant-select-selector,
-html .ant-card,
-html .ant-modal-content,
-html .ant-drawer-content,
-html .ant-table,
-html .ant-table-container,
-html .ant-tag,
-html .ant-alert,
-html .ant-segmented,
-html .ant-segmented-item,
-html .ant-upload-drag,
-html .ant-collapse,
-html .ant-collapse-header,
-html .ant-progress-inner,
-html .ant-popover-inner,
-html .ant-dropdown-menu {
-  border-radius: 3px;
-}
-/* 卡片标题沿用细线分隔，保持页面间的层级一致。 */
-html .ant-card > .ant-card-head {
-  border-bottom: 1px solid var(--ant-color-border);
-  min-height: 40px;
-}
-html .ant-card > .ant-card-head .ant-card-head-title {
-  font-size: 13.5px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
-}
-/* 表头：小号大写 + 宽字距，与正文拉开层级。 */
-html .ant-table-thead > tr > th {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  background: var(--ant-color-bg-layout);
-}
-/* 主按钮落在出版黄上，字必须是墨色——AntD 默认白字只有 1.2:1。 */
-html .ant-btn-primary:not(.ant-btn-dangerous) {
-  color: #151515;
-}
-html .ant-btn-primary:not(.ant-btn-dangerous):not(:disabled):hover {
-  color: #151515;
-}
-/* 表格与输入框的等宽读数：坐标、时间戳、数字都按位对齐。 */
-html .ant-table-tbody > tr > td .mono,
-html .ant-statistic-content {
-  font-variant-numeric: tabular-nums;
-}
-
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--ant-color-primary);
-  outline-offset: 3px;
+@media (max-width: 700px) {
+  .page-toolbar {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .ant-modal-body {
+    max-height: calc(100dvh - 180px);
+  }
 }

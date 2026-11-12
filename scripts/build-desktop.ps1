@@ -16,6 +16,8 @@ try {
     Push-Location (Join-Path $projectDirectory 'frontend')
     try {
         Invoke-Checked 'yarn' @('install', '--immutable')
+        # 新版 Electron 按需获取二进制；显式准备后复用同一份运行时打包与验证。
+        Invoke-Checked 'node' @('node_modules/electron/install.js')
         Invoke-Checked 'yarn' @('typecheck')
         Invoke-Checked 'yarn' @('build')
     } finally { Pop-Location }

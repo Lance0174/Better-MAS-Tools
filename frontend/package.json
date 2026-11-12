@@ -2,7 +2,7 @@
   "name": "better-mas-tools-frontend",
   "private": true,
   "type": "module",
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.4",
   "description": "更好的MAS工具包独立前端",
   "license": "AGPL-3.0-or-later",
   "packageManager": "yarn@4.9.1",
@@ -20,11 +20,11 @@
   "dependencies": {
     "@ant-design/icons-vue": "^7.0.1",
     "ant-design-vue": "4.x",
-    "axios": "1.15.2",
+    "axios": "1.21.1",
     "pinia": "^3.0.3",
     "qrcode": "^1.5.4",
     "vue": "^3.5.17",
-    "vue-i18n": "^11.4.10",
+    "vue-i18n": "^11.4.18",
     "vue-router": "4",
     "vuedraggable": "^4.1.0"
   },
@@ -33,15 +33,20 @@
     "@types/qrcode": "1.5.5",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/tsconfig": "^0.7.0",
-    "electron": "^37.2.5",
-    "electron-builder": "26.8.1",
+    "electron": "^42.11.18",
+    "electron-builder": "26.18.0",
     "openapi-typescript-codegen": "^0.29.0",
     "oxfmt": "^0.42.0",
     "oxlint": "^1.56.0",
     "typescript": "^5.9.2",
-    "vite": "^7.0.4",
-    "vitest": "^4.1.9",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12",
     "vue-tsc": "^2.2.12"
+  },
+  "resolutions": {
+    "minimatch@npm:^9.0.3": "npm:11.0.8",
+    "minimatch@npm:^10.2.5": "npm:11.0.8",
+    "tinypool": "npm:2.2.0"
   },
   "main": "dist-electron/main.cjs"
 }

@@ -1,7 +1,6 @@
 package io.github.lance0174.bmat;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -9,9 +8,6 @@ import java.util.Set;
 final class NativePolicy {
     static final String ORIGIN = "https://appassets.androidplatform.net";
     static final String ENTRY = ORIGIN + "/index.html";
-
-    /** 单次请求声明的额外主机上限；云端/转发层只会有一个后端，8 项已远超实际需要。 */
-    static final int MAX_ALLOW_HOSTS = 8;
 
     /**
      * 原生代发请求的上游主机白名单：逐条来自 app/tools/*.py 与 app/services/*.py 里真实发出的
@@ -116,16 +112,6 @@ final class NativePolicy {
      * 拒绝原因（非白名单、内网地址、userinfo 混淆）在调用方统一成一个文案，不把内部细节回传 JS。
      */
     static String requestHost(String value) {
-        return requestHost(value, List.of());
-    }
-
-    /**
-     * 同上，额外接受本次请求显式声明的主机（安卓端用户配置的云端后端/转发层）。
-     * allowHosts 只对该次请求生效、不写入任何静态状态，且每一项仍要通过语法与内网拒绝规则；
-     * 它是白名单之外的唯一增量，无法借此指向任意公网主机——只有 Python 侧确认目标就是云端
-     * 主机时才会声明，原生层只做"这一条是否等于本次请求主机"的比对。
-     */
-    static String requestHost(String value, List<String> allowHosts) {
         try {
             URI uri = URI.create(value);
             if (!"https".equals(uri.getScheme()) || uri.getHost() == null) return null;
@@ -139,46 +125,12 @@ final class NativePolicy {
             if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
             if (host.isEmpty() || host.endsWith(".") || host.indexOf('%') >= 0) return null;
             if (isInternalAddress(host)) return null;
-            if (isPlatformHost(host) || declaredHost(host, allowHosts)) return host;
+            if (host.equals("api.github.com") && uri.getPath().equals("/repos/Lance0174/Better-MAS-Tools/releases")) return host;
+            if (isPlatformHost(host)) return host;
             return null;
         } catch (IllegalArgumentException error) {
             return null;
         }
-    }
-
-    /** 本次请求声明的允许主机是否包含该主机；条数超限或存在非法条目都按整体拒绝处理。 */
-    private static boolean declaredHost(String host, List<String> allowHosts) {
-        if (allowHosts == null || allowHosts.isEmpty()) return false;
-        if (allowHosts.size() > MAX_ALLOW_HOSTS) return false;
-        boolean matched = false;
-        for (String entry : allowHosts) {
-            String allowed = allowedHost(entry);
-            // 有一条不合法就整条拒绝，不做"忽略坏项继续放行"的容错，避免宽容度被套利。
-            if (allowed == null) return false;
-            matched |= allowed.equals(host);
-        }
-        return matched;
-    }
-
-    /**
-     * 校验并归一化一条声明主机。云端后端是公网 https 主机，本来就不在 PLATFORM_HOSTS 里，
-     * 所以这里只复用 userinfo/私网/环回/链路本地/`.local` 等拒绝规则加 DNS 语法，不复用白名单。
-     */
-    private static String allowedHost(String value) {
-        if (value == null) return null;
-        String host = value.trim().toLowerCase(Locale.ROOT);
-        if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
-        if (host.isEmpty() || host.length() > 253 || host.endsWith(".")) return null;
-        if (host.indexOf("..") >= 0 || host.startsWith("-") || host.startsWith(".")) return null;
-        for (int index = 0; index < host.length(); index++) {
-            char letter = host.charAt(index);
-            // 只接受 DNS 名：@ % : / 等字符代表 userinfo、转义或端口歧义，一律拒绝。
-            boolean plain = (letter >= 'a' && letter <= 'z') || (letter >= '0' && letter <= '9')
-                    || letter == '-' || letter == '.';
-            if (!plain) return null;
-        }
-        if (host.endsWith("-")) return null;
-        return isInternalAddress(host) ? null : host;
     }
 
     static boolean isPlatformHost(String host) {

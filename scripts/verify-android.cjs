@@ -53,7 +53,19 @@ app.whenReady().then(async () => {
       if (operation === 'state.write') { probe.state = payload.state; return { saved: true }; }
       if (operation === 'wiki.read') return { content: probe.wiki[payload.path] ?? null };
       if (operation === 'wiki.write') { probe.wiki[payload.path] = payload.content; return { saved: true }; }
-      if (operation === 'http.request') return { error: 'network' };
+      if (operation === 'http.request') {
+        if (payload.url.startsWith('https://api.github.com/repos/Lance0174/Better-MAS-Tools/releases?')) {
+          const name = 'BMT-9.0.0-android.apk';
+          const releases = [{ tag_name: 'v9.0.0', draft: false, prerelease: false, body: 'Offline update fixture', assets: [{ name, state: 'uploaded', size: 100, digest: 'sha256:' + 'a'.repeat(64), browser_download_url: 'https://github.com/Lance0174/Better-MAS-Tools/releases/download/v9.0.0/' + name }] }];
+          return { status: 200, headers: [['content-type', 'application/json']], body: btoa(JSON.stringify(releases)) };
+        }
+        return { error: 'network' };
+      }
+      if (operation === 'update.download') {
+        if (!payload.downloadUrl.endsWith('/v9.0.0/BMT-9.0.0-android.apk') || payload.sha256 !== 'a'.repeat(64)) throw new Error('Update metadata lost');
+        return { ready: true };
+      }
+      if (operation === 'update.install') return { permissionRequired: true };
       if (operation === 'log.write') { probe.logs.push(payload.message); return {}; }
       if (operation === 'log.read') return { content: probe.logs.join('\\n') };
       if (operation === 'file.save') { probe.exports.push(payload.filename); return { saved: true }; }
@@ -83,6 +95,13 @@ app.whenReady().then(async () => {
       await new Promise(r => setTimeout(r, 900));
       pages.push(check(route));
     }
+    if (document.body.innerText.includes('MAS 管理')) throw new Error('Android exposes MAS management');
+    for (const route of ['mas', 'remote']) {
+      location.hash = '#/' + route;
+      await wait(() => location.hash === '#/home');
+    }
+    location.hash = '#/settings';
+    await wait(() => !!document.querySelector('.settings-page'));
     return { pages, nativeCalls: probe.calls, nativeLogs: probe.logs, onboardingDismissed: true };
   })()`);
   fs.writeFileSync(path.join(output, 'settings-light.png'), (await window.webContents.capturePage()).toPNG());
@@ -114,6 +133,17 @@ app.whenReady().then(async () => {
     await wait(() => probe.exports.length === 1);
     location.hash = '#/settings';
     await wait(() => !!document.querySelector('.settings-page'));
+    clickText('.ant-tabs-tab', '软件更新');
+    clickText('button', '检查更新');
+    await wait(() => document.body.innerText.includes('9.0.0'));
+    clickText('button', '下载更新');
+    await wait(() => probe.calls.includes('update.download'));
+    await wait(() => Array.from(document.querySelectorAll('button')).some(button => button.textContent.replace(/\\s/g, '') === '安装更新'));
+    clickText('button', '安装更新');
+    await wait(() => !!document.querySelector('.ant-modal-confirm .ant-btn-primary'));
+    document.querySelector('.ant-modal-confirm .ant-btn-primary').click();
+    await wait(() => probe.calls.includes('update.install'));
+    await wait(() => !document.querySelector('.ant-modal-confirm'));
     clickText('.ant-tabs-tab', '外观与查询');
     await new Promise(r => setTimeout(r, 300));
     document.querySelector('.ant-tabs-tabpane-active .ant-select-selector').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -123,7 +153,7 @@ app.whenReady().then(async () => {
     await wait(() => document.documentElement.classList.contains('dark'));
     const state = JSON.parse(probe.state);
     if (state.gacha.length !== 1 || state.settings.Theme !== 'dark') throw new Error('Native persistence mismatch');
-    return { imported: state.gacha.length, exported: probe.exports.length, theme: state.settings.Theme };
+    return { imported: state.gacha.length, exported: probe.exports.length, theme: state.settings.Theme, updateChecked: true, updateDownloaded: true, updatePermissionFlow: true };
   })()`);
   fs.writeFileSync(path.join(output, 'settings-dark.png'), (await window.webContents.capturePage()).toPNG());
   const savedState = await window.webContents.executeJavaScript('probe.state');

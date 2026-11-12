@@ -15,6 +15,7 @@ import {
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { BackendService } from './backend.cjs'
+import { registerUpdates } from './updates.cjs'
 
 const productName = '更好的MAS工具包'
 // 产品更名保留既有目录与应用 ID，保证原账号密文、单实例锁和快捷方式兼容。
@@ -69,6 +70,8 @@ function isTrustedUrl(value: string): boolean {
   }
 }
 
+registerUpdates(isTrustedUrl)
+
 /** 窗口底色跟随系统主题，避免深色系统下启动瞬间先闪一帧白屏。 */
 function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? '#141414' : '#ffffff'
@@ -101,8 +104,7 @@ function applyRendererCsp(): void {
     )
     // 只给顶层/子框架文档补策略：后端已下发的（含验证码 iframe 的极验放行）原样保留，
     // 覆盖它会把极验脚本和图片挡掉，验证码就打不开了。
-    const isDocument =
-      details.resourceType === 'mainFrame' || details.resourceType === 'subFrame'
+    const isDocument = details.resourceType === 'mainFrame' || details.resourceType === 'subFrame'
     if (!hasPolicy && isDocument) responseHeaders['Content-Security-Policy'] = [RENDERER_CSP]
     callback({ responseHeaders })
   })
@@ -277,7 +279,8 @@ ipcMain.on('bmat-light-mode', (event, enabled: unknown) => {
         type: 'warning',
         title: productName,
         message: '无法进入轻量模式',
-        detail: '托盘图标未能加载，进入轻量模式后将没有入口重新打开窗口。请重新安装完整版本后再试。',
+        detail:
+          '托盘图标未能加载，进入轻量模式后将没有入口重新打开窗口。请重新安装完整版本后再试。',
       })
       return
     }

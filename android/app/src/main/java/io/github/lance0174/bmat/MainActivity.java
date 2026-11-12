@@ -50,6 +50,7 @@ public final class MainActivity extends Activity {
     private LocalStateStore state;
     private WikiCacheStore wikiCache;
     private NativeDiagnostics diagnostics;
+    private UpdateInstaller updater;
     private Button diagnosticButton;
     private ValueCallback<Uri[]> fileCallback;
     private String saveId;
@@ -71,6 +72,7 @@ public final class MainActivity extends Activity {
         state = new LocalStateStore(getApplicationContext());
         wikiCache = new WikiCacheStore(getApplicationContext());
         diagnostics = new NativeDiagnostics(getApplicationContext());
+        updater = new UpdateInstaller(this);
         diagnostics.write("Android startup version=" + BuildConfig.VERSION_NAME + " code=" + BuildConfig.VERSION_CODE
                 + " SDK=" + Build.VERSION.SDK_INT + " WebView="
                 + (WebView.getCurrentWebViewPackage() == null ? "unavailable" : WebView.getCurrentWebViewPackage().versionName));
@@ -253,12 +255,14 @@ public final class MainActivity extends Activity {
             }
             JSONObject data = payload;
             int generation = network.generation();
-            (operation.equals("http.request") ? networkPool : storagePool).execute(() -> {
+            (operation.equals("http.request") || operation.startsWith("update.") ? networkPool : storagePool).execute(() -> {
                 try { respond(id, execute(operation, data, generation), null); }
                 catch (Exception error) {
                     // 调用栈交由原生日志统一脱敏；界面仅显示可操作的简要错误。
                     diagnostics.write(operation + "\n" + Log.getStackTraceString(error));
-                    respond(id, null, operation.startsWith("state.")
+                    respond(id, null, operation.equals("update.download")
+                            ? (error instanceof IllegalArgumentException ? error.getMessage() : "更新包下载或校验失败，请检查网络后重试") : operation.equals("update.install")
+                            ? (error instanceof IllegalArgumentException ? error.getMessage() : "无法打开系统安装器，请检查安装权限后重试") : operation.startsWith("state.")
                             ? "手机配置操作未完成，原数据已保留" : "本地操作未完成，请查看日志后重试");
                 }
             });
@@ -269,6 +273,8 @@ public final class MainActivity extends Activity {
 
     private JSONObject execute(String operation, JSONObject payload, int generation) throws Exception {
         switch (operation) {
+            case "update.download": return updater.download(payload);
+            case "update.install": return updater.install();
             case "state.read": {
                 String value = state.read();
                 return new JSONObject().put("state", value == null ? JSONObject.NULL : value);
@@ -385,6 +391,7 @@ public final class MainActivity extends Activity {
         if (fileCallback != null) fileCallback.onReceiveValue(null);
         if (port != null) { port.close(); port = null; }
         network.close();
+        if (updater != null) updater.close();
         networkPool.shutdownNow();
         storagePool.shutdown();
         if (webView != null) webView.destroy();

@@ -126,7 +126,6 @@ const sign = async () => {
 <template>
   <section class="community-sign-page">
     <header class="page-toolbar">
-
       <a-space wrap>
         <a-button :loading="loading" @click="load"
           ><ReloadOutlined />{{ t('standalone.refresh') }}</a-button
@@ -220,10 +219,10 @@ const sign = async () => {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
+  padding: 24px;
   border: 1px solid var(--ant-color-border-secondary);
-  border-left: 3px solid var(--ant-color-primary-border);
-  border-radius: 8px;
+  border-left: 1px solid var(--ant-color-border-secondary);
+  border-radius: 24px;
   background: var(--ant-color-bg-container);
   transition:
     background-color 200ms ease,

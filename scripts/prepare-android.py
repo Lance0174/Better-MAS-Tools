@@ -22,7 +22,9 @@ def frontend_licenses(directory: Path) -> None:
     """附带生产依赖的许可与版本，保留其原始文本。"""
     modules = ROOT / "frontend/node_modules"
     pending = list(
-        json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))["dependencies"]
+        json.loads((ROOT / "frontend/package.json").read_text(encoding="utf-8"))[
+            "dependencies"
+        ]
     )
     seen = {}
     while pending:
@@ -67,7 +69,9 @@ def main() -> None:
     parser.add_argument("--skip-frontend", action="store_true")
     parser.add_argument("--proxy", help="只对本次资源下载生效")
     args = parser.parse_args()
-    manifest = json.loads((ANDROID / "runtime/manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (ANDROID / "runtime/manifest.json").read_text(encoding="utf-8")
+    )
     cache = args.runtime_cache.resolve()
     cache.mkdir(parents=True, exist_ok=True)
     base = f"https://cdn.jsdelivr.net/pyodide/v{manifest['pyodide']}/full/"
@@ -101,7 +105,7 @@ def main() -> None:
     if not args.skip_frontend:
         try:
             subprocess.run(
-                ["node", "node_modules/vite/bin/vite.js", "build"],
+                ["node", "node_modules/vite/bin/vite.js", "build", "--mode", "android"],
                 cwd=ROOT / "frontend",
                 check=True,
                 # 没有超时的构建会一直挂着：本地看着像"没反应"，CI 里无法区分慢和卡死。
@@ -111,8 +115,15 @@ def main() -> None:
             raise RuntimeError(
                 "前端构建超过 900 秒仍未结束，请检查 Node/vite 进程后重试"
             ) from None
-    if not (ROOT / "frontend/dist/index.html").is_file():
-        raise RuntimeError("请先构建 frontend")
+    frontend = ROOT / "frontend/dist-android"
+    platform_marker = frontend / "build-platform.json"
+    if not (frontend / "index.html").is_file() or not platform_marker.is_file():
+        raise RuntimeError("请先运行 Android 前端构建：vite build --mode android")
+    if (
+        json.loads(platform_marker.read_text(encoding="utf-8")).get("platform")
+        != "android"
+    ):
+        raise RuntimeError("拒绝将桌面端功能打包到 Android")
     output = (ANDROID / "app/src/main/assets").resolve()
     # 比较的两侧都要先 resolve：Windows 上短路径、符号链接和大小写会让同一目录出现
     # 两种字符串写法，只解析一侧会把合法目标误判成"非 Android 生成资源目录"。
@@ -123,10 +134,12 @@ def main() -> None:
     staging_parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=staging_parent) as temporary:
         staging = Path(temporary)
-        shutil.copytree(ROOT / "frontend/dist", staging, dirs_exist_ok=True)
+        shutil.copytree(frontend, staging, dirs_exist_ok=True)
         runtime = staging / "runtime"
         runtime.mkdir()
-        lock = json.loads((ANDROID / "runtime/pyodide-lock.json").read_text(encoding="utf-8"))
+        lock = json.loads(
+            (ANDROID / "runtime/pyodide-lock.json").read_text(encoding="utf-8")
+        )
         provenance = []
         # pure 轮也要留摘要：只记 packages 时，纯 Python 包换过一次缓存或 wheel 也查不出来。
         pure_provenance = []
@@ -161,6 +174,14 @@ def main() -> None:
             # app/tools/data/endfield_aliases.json）。Pyodide 侧读取失败时不会
             # 报错，只会让资料库检索退化成"只能按正式名搜索"，所以显式收进来。
             for source in sorted((ROOT / "app").rglob("*.py")):
+                if source.relative_to(ROOT).as_posix() in {
+                    "app/api/mas.py",
+                    "app/services/mas.py",
+                    "app/api/relay.py",
+                    "app/core/relay.py",
+                    "app/services/relay.py",
+                }:
+                    continue
                 add(source.relative_to(ROOT).as_posix(), source.read_bytes())
             for source in sorted((ROOT / "app").rglob("*.json")):
                 add(source.relative_to(ROOT).as_posix(), source.read_bytes())

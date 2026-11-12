@@ -2,7 +2,16 @@
 
 declare global {
   interface Window {
-    bmatDesktop?: { setLightMode(enabled: boolean): void }
+    bmatDesktop?: {
+      setLightMode(enabled: boolean): void
+      downloadUpdate(asset: {
+        downloadUrl: string
+        sha256: string
+        size: number
+        assetName: string
+      }): Promise<{ ready: boolean }>
+      installUpdate(): Promise<{ restarting: boolean }>
+    }
   }
 }
 

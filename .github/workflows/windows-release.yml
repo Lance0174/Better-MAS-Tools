@@ -54,6 +54,8 @@ jobs:
           try {
             yarn lint
             if ($LASTEXITCODE -ne 0) { throw 'Frontend lint failed.' }
+            yarn typecheck
+            if ($LASTEXITCODE -ne 0) { throw 'Frontend type checks failed.' }
             yarn test
             if ($LASTEXITCODE -ne 0) { throw 'Frontend tests failed.' }
           } finally { Pop-Location }
@@ -101,13 +103,11 @@ jobs:
           }
 
           $isDraft = (gh release view $tag --json isDraft --jq .isDraft 2>&1 | Out-String).Trim()
-          $assetNames = (gh release view $tag --json assets --jq '.assets[].name' 2>&1 | Out-String)
-          # 已转正的版本只允许补资产，不允许覆盖；Windows 产物已存在即视为重复发版。
-          if ($isDraft -ne 'true' -and $assetNames -match 'windows-x64') {
+          # 公开版本禁止补传或覆盖；草稿可重跑同一提交的失败任务。
+          if ($isDraft -ne 'true') {
             throw 'This version is already published. Use a new version tag.'
           }
           $uploads = Get-ChildItem frontend/out -File | Where-Object { $_.Extension -in '.zip', '.exe' -or $_.Name -eq 'SHA256SUMS-windows-x64.txt' }
           gh release upload $tag @($uploads.FullName) --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Release upload failed; the release remains a draft.' }
-          gh release edit $tag --draft=false
-          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }
+          # 两平台全部成功后由 finalize-release.yml 统一公开。

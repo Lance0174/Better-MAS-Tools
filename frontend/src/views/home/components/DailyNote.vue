@@ -93,7 +93,6 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
           ><HolderOutlined
         /></span>
         <div>
-          <p class="note-eyebrow mono">{{ t('standalone.pageCodes.activity') }}</p>
           <h3>{{ label }} · {{ t('standalone.activity') }}</h3>
         </div>
         <a-tag :color="statusColor">{{ t(`gamesign.activity.status.${snapshot.status}`) }}</a-tag>
@@ -162,7 +161,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
   height: 100%;
   overflow: hidden;
   border: 1px solid var(--ant-color-border);
-  border-radius: 3px;
+  border-radius: 24px;
   background: #182026;
   color: #f8fafc;
 }
@@ -207,7 +206,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
 }
 .note-eyebrow {
   margin: 0 0 5px;
-  font-size: 9px;
+  font-size: 12px;
   color: #cad4dc;
   letter-spacing: 0.12em;
 }
@@ -216,7 +215,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
   background: #0b151dcc;
   color: #e6f7ef;
   border-color: #d4e4dc70;
-  font-size: 10px;
+  font-size: 12px;
 }
 .activity-drag-handle {
   cursor: grab;
@@ -228,7 +227,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
 .note-account {
   width: 100%;
   max-width: 390px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .note-account :deep(.ant-select-selector) {
   background: #0b151da6;
@@ -239,7 +238,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
   color: #f8fafc;
 }
 .note-identity {
-  font-size: 11px;
+  font-size: 12px;
   padding: 6px 0;
   overflow-wrap: anywhere;
   color: #f8fafc;
@@ -274,7 +273,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 24px;
   margin: 14px 0 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .note-details > div {
   display: flex;
@@ -289,7 +288,7 @@ const selectAccount = (value: unknown) => activity.select(props.game, String(val
   color: #f8fafc;
 }
 .note-metric-status {
-  font-size: 10px;
+  font-size: 12px;
   color: #d6e0e7;
 }
 .note-details .note-metric-status {
@@ -304,7 +303,7 @@ footer {
   justify-content: space-between;
   gap: 8px;
   margin-top: auto;
-  font-size: 10px;
+  font-size: 12px;
   color: #d6e0e7;
 }
 footer a {

@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URI;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,18 +31,7 @@ final class NativeNetwork {
         String method = data.getString("method");
         // 只代发 NativePolicy 登记过的上游主机：即便 WebView 出现 XSS，原生层也不再是
         // "任意 https 都代发并回传响应"的内网探测/SSRF 通道，也不绕过页面 CSP 的 connect-src。
-        List<String> allowHosts = new ArrayList<>();
-        JSONArray declared = data.optJSONArray("allowHosts");
-        if (declared != null) {
-            // 云端后端/转发层由 Python 侧按本次请求声明，作用域只到这次调用，不进任何静态状态。
-            if (declared.length() > NativePolicy.MAX_ALLOW_HOSTS) {
-                throw new IllegalArgumentException("Unsupported platform request");
-            }
-            for (int index = 0; index < declared.length(); index++) {
-                allowHosts.add(declared.optString(index, ""));
-            }
-        }
-        if (NativePolicy.requestHost(url, allowHosts) == null || !METHODS.contains(method)) {
+        if (NativePolicy.requestHost(url) == null || !METHODS.contains(method)) {
             throw new IllegalArgumentException("Unsupported platform request");
         }
         int timeout = Math.max(1000, Math.min(data.getInt("timeoutMs"), 60_000));

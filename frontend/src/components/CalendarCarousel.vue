@@ -218,7 +218,7 @@ onUnmounted(() => clearInterval(timer))
   isolation: isolate;
   overflow: hidden;
   border: 1px solid var(--ant-color-border);
-  border-radius: 3px;
+  border-radius: 20px;
   background: #182026;
   color: #f8fafc;
 }
@@ -247,7 +247,7 @@ onUnmounted(() => clearInterval(timer))
   max-width: calc(100% - 220px);
 }
 .banner-kicker {
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   color: #d2dbe1;
 }
@@ -274,7 +274,7 @@ onUnmounted(() => clearInterval(timer))
 .banner-status,
 .banner-source {
   display: inline-block;
-  font-size: 11px;
+  font-size: 12px;
   margin-top: 16px;
   margin-right: 16px;
 }
@@ -289,7 +289,7 @@ onUnmounted(() => clearInterval(timer))
   display: flex;
   align-items: center;
   gap: 14px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .carousel-controls button {
   width: 32px;
@@ -298,7 +298,7 @@ onUnmounted(() => clearInterval(timer))
   border: 1px solid #f4f7fa70;
   color: #f8fafc;
   background: #10182070;
-  border-radius: 3px;
+  border-radius: 50%;
   font-size: 17px;
   cursor: pointer;
 }
@@ -320,10 +320,10 @@ button:focus-visible {
     flex: 1;
   }
   .carousel-games button {
-    font-size: 11px;
+    font-size: 12px;
   }
   .carousel-toolbar > .ant-btn {
-    font-size: 10px;
+    font-size: 12px;
   }
   .calendar-banner {
     height: 244px;
@@ -344,18 +344,18 @@ button:focus-visible {
     font-size: 21px;
   }
   .banner-caption p {
-    font-size: 10px;
+    font-size: 12px;
   }
   .banner-status,
   .banner-source {
     margin-top: 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .carousel-controls {
     bottom: 16px;
     right: 16px;
     gap: 8px;
-    font-size: 9px;
+    font-size: 12px;
   }
   .carousel-controls button {
     width: 28px;

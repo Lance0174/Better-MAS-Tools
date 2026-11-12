@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 from app.core import accounts, login
 from app.core.runtime import runtime
@@ -87,7 +87,7 @@ async def get_settings() -> SettingsOut:
 
 
 @router.put("/settings", response_model=OutBase, operation_id="updateSettings")
-async def update_settings(body: SettingsData) -> OutBase:
+async def update_settings(body: SettingsData, request: Request) -> OutBase:
     runtime.require_idle()
     from urllib.parse import urlsplit
 
@@ -103,9 +103,16 @@ async def update_settings(body: SettingsData) -> OutBase:
         raise ValueError("代理地址必须包含有效的协议")
     if body.YunmaToken is None:
         body.YunmaToken = state.data.settings.YunmaToken
-    from app.services.mas import validate_base_url
+    if request.app.state.mas_enabled:
+        from app.services.mas import validate_base_url
 
-    body.MasBaseUrl = validate_base_url(body.MasBaseUrl)
+        body.MasBaseUrl = validate_base_url(body.MasBaseUrl)
+    elif (
+        body.MasBaseUrl != state.data.settings.MasBaseUrl
+        or body.RelayEnabled
+        or body.CloudMode
+    ):
+        raise ValueError("手机版不支持 MAS 管理或远端控制配置")
     await state.update_settings(body)
     return OutBase()
 
@@ -171,8 +178,14 @@ async def create_qr(provider: Literal["miyoushe", "skland"]) -> QrCreateOut:
             device=str(result["device"]),
             qr_url=str(result["qr_url"]),
         )
+    except CommunityConnectionError as error:
+        raise ValueError(str(error)) from None
+    except ValueError:
+        # 工具层抛的中文原因（上游拒绝、二维码解析失败）比通用文案有用得多，
+        # 原样上抛；main 的 ValueError 处理器会把它写进 message。
+        raise
     except Exception:
-        # 登录异常禁止回显请求和原始响应，避免凭据进入日志或错误页面。
+        # 其余未知异常禁止回显请求和原始响应，避免凭据进入日志或错误页面。
         raise ValueError("二维码创建失败，请稍后重试") from None
 
 
@@ -190,6 +203,11 @@ async def check_qr(
             scan_code=str(result.get("scan_code") or ""),
             message=str(result.get("message") or ""),
         )
+    except CommunityConnectionError as error:
+        raise ValueError(str(error)) from None
+    except ValueError:
+        # 轮询失败要能看出是网络还是凭据问题，别一律报「请稍后重试」。
+        raise
     except Exception:
         raise ValueError("二维码状态查询失败，请稍后重试") from None
 
@@ -206,6 +224,10 @@ async def save_qr(provider: Literal["miyoushe", "skland"], body: QrSaveIn) -> Ou
         # 写好了能照着做的中文原因，别再把它盖成「请检查账号及登录状态」。
         detail = str(error).strip()
         raise ValueError(detail or "登录凭据保存失败，请检查网络后重试") from None
+    except ValueError:
+        # 「获得森空岛 cred 失败: …」「接口响应解码失败，请检查系统代理/TUN…」这类
+        # 已经带着线索的原因直接送到界面，用户才知道该改代理还是重扫码。
+        raise
     except Exception:
         raise ValueError("登录凭据保存失败，请检查账号及登录状态") from None
     return OutBase(message="登录凭据已保存")

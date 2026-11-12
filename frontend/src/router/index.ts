@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { isAndroidLocal } from '@/services/android'
 
 export const router = createRouter({
   history: createWebHashHistory(),
@@ -9,12 +10,16 @@ export const router = createRouter({
       component: () => import('@/views/logs/index.vue'),
       meta: { title: 'standalone.logs' },
     },
-    {
-      path: '/mas',
-      name: 'Mas',
-      component: () => import('@/views/mas/index.vue'),
-      meta: { title: 'standalone.mas' },
-    },
+    ...(import.meta.env.BMAT_ANDROID || isAndroidLocal
+      ? []
+      : [
+          {
+            path: '/mas',
+            name: 'Mas',
+            component: () => import('@/views/mas/index.vue'),
+            meta: { title: 'standalone.mas' },
+          },
+        ]),
     {
       path: '/wiki',
       name: 'Wiki',
@@ -52,17 +57,22 @@ export const router = createRouter({
       component: () => import('@/views/home/ActivityOverview.vue'),
       meta: { title: 'standalone.activity' },
     },
-    {
-      path: '/remote',
-      name: 'RemoteControl',
-      component: () => import('@/views/remote/index.vue'),
-      meta: { title: 'standalone.remote' },
-    },
+    ...(import.meta.env.BMAT_ANDROID || isAndroidLocal
+      ? []
+      : [
+          {
+            path: '/remote',
+            name: 'RemoteControl',
+            component: () => import('@/views/remote/index.vue'),
+            meta: { title: 'standalone.remote' },
+          },
+        ]),
     {
       path: '/settings',
       name: 'Settings',
       component: () => import('@/views/settings/index.vue'),
       meta: { title: 'standalone.settings' },
     },
+    { path: '/:pathMatch(.*)*', redirect: '/home' },
   ],
 })

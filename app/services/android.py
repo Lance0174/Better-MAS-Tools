@@ -5,7 +5,6 @@ import base64
 import json
 import secrets
 from collections.abc import Awaitable, Callable
-from urllib.parse import urlsplit
 
 import httpx
 
@@ -85,11 +84,6 @@ class AndroidTransport(httpx.AsyncBaseTransport):
             "body": base64.b64encode(await request.aread()).decode("ascii"),
             "timeoutMs": min(int(timeout * 1000), 60_000),
         }
-        cloud_host = self._cloud_host(request)
-        if cloud_host:
-            # 原生层只代发平台白名单主机；用户显式配置的云端后端按本次请求声明放行，
-            # 不写进原生静态状态，因此伪造一次请求也拿不到"永久可用的任意主机"。
-            payload["allowHosts"] = [cloud_host]
         try:
             async with asyncio.timeout(timeout):
                 response = json.loads(
@@ -118,26 +112,3 @@ class AndroidTransport(httpx.AsyncBaseTransport):
             raise
         except Exception:
             raise httpx.ConnectError("手机网络请求未完成", request=request) from None
-
-    @staticmethod
-    def _cloud_host(request: httpx.Request) -> str:
-        """本次请求若发往设置里的云端后端，返回该主机名；否则返回空串。
-
-        取值只来自 state.data.settings.CloudBaseUrl，且沿用保存时的
-        app.services.cloud.validate_cloud_url 校验（https、无路径/参数/凭据）；
-        这里只比较主机名，不做自己的地址策略判断。云端同步（app/services/cloud.py）
-        与转发层（app/core/relay.py:64,77-85）用的是同一个 CloudBaseUrl，因此同一套放行通用。
-        """
-        try:
-            # 延迟导入：services 不反向依赖 core，也避免模块级循环导入。
-            from app.core.state import state
-            from app.services.cloud import validate_cloud_url
-
-            base = validate_cloud_url(state.data.settings.CloudBaseUrl or "")
-        except Exception:
-            # 未配置、配置非法或状态尚未加载时，本次请求不声明任何主机。
-            return ""
-        host = (urlsplit(base).hostname or "").lower()
-        if not host or request.url.host.lower() != host:
-            return ""
-        return host

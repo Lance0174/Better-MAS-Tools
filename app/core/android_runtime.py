@@ -10,6 +10,7 @@ import httpx
 
 from app.core.runtime import runtime
 from app.core.state import state
+from app.models.config import SavedState
 from app.services.android import (
     AndroidStorage,
     AndroidTransport,
@@ -35,15 +36,22 @@ class AndroidRuntime:
         self.startup_running = False
 
     async def initialize(self, *, run_startup: bool) -> None:
-        from app.main import create_app
-
         started = time.perf_counter()
         storage = AndroidStorage(self.call)
         state.data = await storage.load()
         state.storage = storage
+        if state.data.settings.CloudMode or state.data.settings.RelayEnabled:
+            # 旧手机配置可能留有桌面开关，升级后统一回到本机执行且保留账号。
+            def disable_remote(candidate: SavedState) -> None:
+                candidate.settings.CloudMode = False
+                candidate.settings.RelayEnabled = False
+
+            await state.mutate(disable_remote)
         network.transport_factory = lambda: AndroidTransport(self.call)
         network.local_connections = False
         network.proxy = None
+        from app.main import create_app
+
         if state.data.settings.Proxy:
             raise ValueError("手机本地版不支持桌面代理配置，请清除该配置后重试")
         logger.info(
@@ -54,7 +62,10 @@ class AndroidRuntime:
         wiki_store = WikiStore(storage=AndroidWikiStorage(self.call))
         await wiki_store.initialize()
         app = create_app(
-            start_scheduler=False, external_state=True, wiki_store=wiki_store
+            start_scheduler=False,
+            external_state=True,
+            wiki_store=wiki_store,
+            mas_enabled=False,
         )
         logger.info(
             f"后端应用构建耗时 {round((time.perf_counter() - build_started) * 1000)} ms"

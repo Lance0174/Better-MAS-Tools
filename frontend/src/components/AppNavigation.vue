@@ -2,6 +2,19 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import {
+  AppstoreOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  FileTextOutlined,
+  GiftOutlined,
+  HomeOutlined,
+  ReadOutlined,
+  SettingOutlined,
+  DesktopOutlined,
+  CloudOutlined,
+} from '@ant-design/icons-vue'
 import { useSettingsStore } from '@/stores/settings'
 import { isAndroidLocal } from '@/services/android'
 
@@ -11,16 +24,22 @@ const router = useRouter()
 const settings = useSettingsStore()
 const moreOpen = ref(false)
 const items = computed(() => [
-  { path: '/home', key: 'home' },
-  { path: '/sign', key: 'sign' },
-  ...(settings.data?.ActivityEnabled !== false ? [{ path: '/activity', key: 'activity' }] : []),
-  { path: '/gacha', key: 'gacha' },
-  { path: '/wiki', key: 'wiki' },
-  { path: '/calendar', key: 'calendar' },
-  ...(isAndroidLocal ? [] : [{ path: '/mas', key: 'mas' }]),
-  ...(settings.data?.CloudMode ? [{ path: '/remote', key: 'remote' }] : []),
-  { path: '/logs', key: 'logs' },
-  { path: '/settings', key: 'settings' },
+  { path: '/home', key: 'home', icon: HomeOutlined },
+  { path: '/sign', key: 'sign', icon: CheckCircleOutlined },
+  ...(settings.data?.ActivityEnabled !== false
+    ? [{ path: '/activity', key: 'activity', icon: ClockCircleOutlined }]
+    : []),
+  { path: '/gacha', key: 'gacha', icon: GiftOutlined },
+  { path: '/wiki', key: 'wiki', icon: ReadOutlined },
+  { path: '/calendar', key: 'calendar', icon: CalendarOutlined },
+  ...(import.meta.env.BMAT_ANDROID || isAndroidLocal
+    ? []
+    : [{ path: '/mas', key: 'mas', icon: DesktopOutlined }]),
+  ...(!isAndroidLocal && !import.meta.env.BMAT_ANDROID && settings.data?.CloudMode
+    ? [{ path: '/remote', key: 'remote', icon: CloudOutlined }]
+    : []),
+  { path: '/logs', key: 'logs', icon: FileTextOutlined },
+  { path: '/settings', key: 'settings', icon: SettingOutlined },
 ])
 const primary = computed(() => items.value.filter(item => !['logs', 'settings'].includes(item.key)))
 const secondary = computed(() =>
@@ -29,7 +48,7 @@ const secondary = computed(() =>
 const mobile = computed(() =>
   items.value.filter(item => ['home', 'activity', 'gacha', 'calendar'].includes(item.key))
 )
-const number = (index: number) => String(index + 1).padStart(2, '0')
+const isMorePage = computed(() => !mobile.value.some(item => route.path === item.path))
 const go = (path: string) => {
   moreOpen.value = false
   void router.push(path)
@@ -40,25 +59,25 @@ const go = (path: string) => {
   <nav v-if="!isAndroidLocal" class="desktop-navigation" :aria-label="t('standalone.navigation')">
     <div class="navigation-links">
       <router-link
-        v-for="(item, index) in primary"
+        v-for="item in primary"
         :key="item.path"
         :to="item.path"
         :aria-current="route.path === item.path ? 'page' : undefined"
       >
-        <span class="nav-number mono">{{ number(index) }}</span
-        >{{ t(`standalone.${item.key}`) }}
+        <component :is="item.icon" aria-hidden="true" />
+        <span>{{ t(`standalone.${item.key}`) }}</span>
       </router-link>
     </div>
     <div class="navigation-bottom">
       <div class="navigation-links">
         <router-link
-          v-for="(item, index) in secondary"
+          v-for="item in secondary"
           :key="item.path"
           :to="item.path"
           :aria-current="route.path === item.path ? 'page' : undefined"
         >
-          <span class="nav-number mono">{{ number(primary.length + index) }}</span
-          >{{ t(`standalone.${item.key}`) }}
+          <component :is="item.icon" aria-hidden="true" />
+          <span>{{ t(`standalone.${item.key}`) }}</span>
         </router-link>
       </div>
       <p class="navigation-status"><i />{{ t('standalone.serviceReady') }}</p>
@@ -76,13 +95,17 @@ const go = (path: string) => {
       :aria-current="route.path === item.path ? 'page' : undefined"
       @click="go(item.path)"
     >
-      <span class="nav-number mono">{{
-        number(items.findIndex(entry => entry.path === item.path))
-      }}</span>
+      <component :is="item.icon" aria-hidden="true" />
       <span>{{ t(`standalone.${item.key}`) }}</span>
     </button>
-    <button type="button" :aria-label="t('standalone.allFeatures')" @click="moreOpen = true">
-      <span class="nav-number mono">•••</span><span>{{ t('standalone.more') }}</span>
+    <button
+      type="button"
+      :aria-label="t('standalone.allFeatures')"
+      :aria-expanded="moreOpen"
+      :aria-current="isMorePage ? 'page' : undefined"
+      @click="moreOpen = true"
+    >
+      <AppstoreOutlined aria-hidden="true" /><span>{{ t('standalone.more') }}</span>
     </button>
   </nav>
   <a-drawer
@@ -100,7 +123,7 @@ const go = (path: string) => {
         :type="route.path === item.path ? 'primary' : 'default'"
         @click="go(item.path)"
       >
-        {{ t(`standalone.${item.key}`) }}
+        <component :is="item.icon" aria-hidden="true" />{{ t(`standalone.${item.key}`) }}
       </a-button>
     </div>
   </a-drawer>
@@ -112,50 +135,36 @@ const go = (path: string) => {
   flex-direction: column;
   flex: 0 0 208px;
   min-height: 0;
-  padding: 27px 12px 16px;
-  background: var(--ant-color-bg-container);
-  border-right: 1px solid var(--ant-color-border);
+  padding: 40px 14px 20px;
+  background: var(--ant-color-bg-layout);
+  border-right: 1px solid var(--ant-color-border-secondary);
 }
 .navigation-links {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   overflow-y: auto;
 }
 .navigation-links a {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: 13px;
-  min-height: 46px;
-  padding: 10px 12px;
-  border: 1px solid transparent;
+  gap: 14px;
+  min-height: 50px;
+  padding: 13px 18px;
+  border-radius: 16px;
   color: var(--ant-color-text-secondary);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 550;
   text-decoration: none;
 }
-.navigation-links a:hover,
-.navigation-links a[aria-current] {
+.navigation-links .anticon {
+  font-size: 21px;
+}
+.navigation-links a:hover {
   background: var(--ant-color-bg-elevated);
-  color: var(--ant-color-text);
 }
 .navigation-links a[aria-current] {
-  border-color: var(--ant-color-border);
-}
-.navigation-links a[aria-current]::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
-  background: var(--ant-color-primary);
-}
-.nav-number {
-  font-size: 10px;
-  color: var(--ant-color-text-tertiary);
-}
-.navigation-links a[aria-current] .nav-number {
-  color: var(--ant-color-text);
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-link);
 }
 .navigation-bottom {
   margin-top: auto;
@@ -165,27 +174,29 @@ const go = (path: string) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-top: 1px solid var(--ant-color-border);
-  margin: 24px 8px 0;
-  padding-top: 16px;
-  font-size: 11px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+  margin: 20px 12px 0;
+  padding-top: 20px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
 .navigation-status i {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--ant-color-success);
 }
 .mobile-navigation {
   display: none;
   position: fixed;
-  inset: auto 0 0;
+  inset: auto 16px calc(12px + env(safe-area-inset-bottom));
   z-index: 10;
-  gap: 3px;
-  padding: 6px 8px max(6px, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--ant-color-border);
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--ant-color-border-secondary);
+  border-radius: 24px;
   background: var(--ant-color-bg-container);
+  box-shadow: 0 8px 32px #00000012;
 }
 .mobile-navigation button {
   display: flex;
@@ -193,22 +204,24 @@ const go = (path: string) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 5px;
   min-width: 0;
   min-height: 48px;
-  padding: 5px;
-  border: 1px solid transparent;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 16px;
   background: transparent;
   color: var(--ant-color-text-secondary);
   font: inherit;
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
 }
+.mobile-navigation .anticon {
+  font-size: 21px;
+}
 .mobile-navigation button[aria-current] {
-  border-color: var(--ant-color-border);
-  border-top-color: var(--ant-color-primary);
-  background: var(--ant-color-bg-elevated);
-  color: var(--ant-color-text);
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-link);
 }
 .mobile-navigation--android {
   display: flex;
@@ -216,10 +229,10 @@ const go = (path: string) => {
 .all-features {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
 }
 .all-features .ant-btn {
-  min-height: 40px;
+  min-height: 48px;
 }
 :global(.navigation-drawer .ant-drawer-body) {
   max-height: 65dvh;
@@ -227,12 +240,11 @@ const go = (path: string) => {
 }
 @media (max-width: 1180px) {
   .desktop-navigation {
-    flex-basis: 178px;
+    flex-basis: 184px;
   }
   .navigation-links a {
-    font-size: 12px;
-    padding: 10px 8px;
-    gap: 9px;
+    padding: 12px;
+    gap: 10px;
   }
 }
 @media (max-width: 700px) {

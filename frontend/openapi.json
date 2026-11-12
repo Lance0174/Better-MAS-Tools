@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "更好的MAS工具包",
-    "version": "0.2.0-beta.2"
+    "version": "0.2.0-beta.4"
   },
   "paths": {
     "/api/session": {
@@ -1182,6 +1182,192 @@
         }
       }
     },
+    "/api/relay/command": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Command",
+        "operationId": "relayCommand",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayCommandIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayCommandAcceptedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/poll": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Poll",
+        "operationId": "relayPoll",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayPollIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayPollOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/result": {
+      "post": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Result",
+        "operationId": "relayResult",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RelayResultIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OutBase"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/nodes": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Nodes",
+        "operationId": "relayNodes",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayNodesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/relay/commands/{command_id}": {
+      "get": {
+        "tags": [
+          "Relay"
+        ],
+        "summary": "Relay Command Status",
+        "operationId": "relayCommandStatus",
+        "parameters": [
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Command Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelayCommandStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/login/kuro/sms/automatic": {
       "post": {
         "tags": [
@@ -1432,192 +1618,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OutBase"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/relay/command": {
-      "post": {
-        "tags": [
-          "Relay"
-        ],
-        "summary": "Relay Command",
-        "operationId": "relayCommand",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RelayCommandIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelayCommandAcceptedOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/relay/poll": {
-      "post": {
-        "tags": [
-          "Relay"
-        ],
-        "summary": "Relay Poll",
-        "operationId": "relayPoll",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RelayPollIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelayPollOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/relay/result": {
-      "post": {
-        "tags": [
-          "Relay"
-        ],
-        "summary": "Relay Result",
-        "operationId": "relayResult",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RelayResultIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OutBase"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/relay/nodes": {
-      "get": {
-        "tags": [
-          "Relay"
-        ],
-        "summary": "Relay Nodes",
-        "operationId": "relayNodes",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelayNodesOut"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/relay/commands/{command_id}": {
-      "get": {
-        "tags": [
-          "Relay"
-        ],
-        "summary": "Relay Command Status",
-        "operationId": "relayCommandStatus",
-        "parameters": [
-          {
-            "name": "command_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Command Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelayCommandStatusOut"
                 }
               }
             }
@@ -1888,6 +1888,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WikiCalendarAllOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/updates/check": {
+      "get": {
+        "tags": [
+          "Updates"
+        ],
+        "summary": "Check",
+        "operationId": "checkUpdates",
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "windows",
+                "android"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "stable",
+                "beta"
+              ],
+              "type": "string",
+              "default": "stable",
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateCheckOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -4555,6 +4615,91 @@
         ],
         "title": "TaygedoLoginIn"
       },
+      "UpdateCheckOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "currentVersion": {
+            "type": "string",
+            "title": "Currentversion"
+          },
+          "latestVersion": {
+            "type": "string",
+            "title": "Latestversion"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "stable",
+              "beta"
+            ],
+            "title": "Channel"
+          },
+          "prerelease": {
+            "type": "boolean",
+            "title": "Prerelease",
+            "default": false
+          },
+          "releaseUrl": {
+            "type": "string",
+            "title": "Releaseurl",
+            "default": ""
+          },
+          "downloadUrl": {
+            "type": "string",
+            "title": "Downloadurl",
+            "default": ""
+          },
+          "sha256": {
+            "type": "string",
+            "title": "Sha256",
+            "default": ""
+          },
+          "assetName": {
+            "type": "string",
+            "title": "Assetname",
+            "default": ""
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "default": 0
+          },
+          "notes": {
+            "type": "string",
+            "title": "Notes",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentVersion",
+          "latestVersion",
+          "available",
+          "channel"
+        ],
+        "title": "UpdateCheckOut"
+      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4578,6 +4723,13 @@
           "type": {
             "type": "string",
             "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
         "type": "object",

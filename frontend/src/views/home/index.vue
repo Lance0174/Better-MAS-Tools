@@ -98,41 +98,39 @@ onUnmounted(() => {
 
 <template>
   <section class="home-overview">
-    <div class="home-section-heading">
-      <h2>{{ t('standalone.calendar') }}</h2>
-      <router-link to="/calendar">{{ t('standalone.viewCalendar') }} ↗</router-link>
-    </div>
-    <a-alert
-      v-if="calendar.failure"
-      type="error"
-      show-icon
-      :message="errorMessage(calendar.failure, t('standalone.calendarFailed'))"
-      class="page-alert"
-      ><template #action
-        ><a-button size="small" :loading="calendar.loading" @click="calendar.load()">{{
-          t('standalone.retry')
-        }}</a-button></template
-      ></a-alert
-    >
-    <a-alert
-      v-if="calendar.notice"
-      type="info"
-      show-icon
-      :message="calendar.notice"
-      class="page-alert"
-    />
-    <div v-if="calendar.loading && !calendar.games.length" class="page-state"><a-spin /></div>
-    <CalendarCarousel
-      v-else-if="calendar.games.length"
-      v-model:game="activeGame"
-      :groups="calendar.games"
-    />
-    <a-empty v-else :description="t('standalone.calendarEmpty')" class="page-state" />
-
-    <div
-      class="home-community"
-      :class="{ 'home-community--sign-only': settings.data?.ActivityEnabled === false }"
-    >
+    <div class="home-dashboard">
+      <section class="home-calendar">
+        <div class="home-section-heading">
+          <h2>{{ t('standalone.calendar') }}</h2>
+          <router-link to="/calendar">{{ t('standalone.viewCalendar') }} ↗</router-link>
+        </div>
+        <a-alert
+          v-if="calendar.failure"
+          type="error"
+          show-icon
+          :message="errorMessage(calendar.failure, t('standalone.calendarFailed'))"
+          class="page-alert"
+          ><template #action
+            ><a-button size="small" :loading="calendar.loading" @click="calendar.load()">{{
+              t('standalone.retry')
+            }}</a-button></template
+          ></a-alert
+        >
+        <a-alert
+          v-if="calendar.notice"
+          type="info"
+          show-icon
+          :message="calendar.notice"
+          class="page-alert"
+        />
+        <div v-if="calendar.loading && !calendar.games.length" class="page-state"><a-spin /></div>
+        <CalendarCarousel
+          v-else-if="calendar.games.length"
+          v-model:game="activeGame"
+          :groups="calendar.games"
+        />
+        <a-empty v-else :description="t('standalone.calendarEmpty')" class="page-state" />
+      </section>
       <section class="home-sign">
         <header>
           <h2>{{ t('standalone.homeSignResults') }}</h2>
@@ -170,6 +168,11 @@ onUnmounted(() => {
           }}</span>
         </footer>
       </section>
+    </div>
+    <div
+      class="home-details"
+      :class="{ 'home-details--sign-only': settings.data?.ActivityEnabled === false }"
+    >
       <section v-if="settings.data?.ActivityEnabled !== false" class="home-note">
         <a-alert
           v-if="activity.failure"
@@ -190,29 +193,40 @@ onUnmounted(() => {
           }}</router-link>
         </div>
       </section>
-    </div>
-    <div class="home-section-heading">
-      <h2>{{ game?.name }} · {{ t('standalone.activityReminders') }}</h2>
-      <span>{{ t('standalone.beijingTime') }}</span>
-    </div>
-    <div v-if="events.length" class="home-agenda">
-      <article v-for="(event, index) in events" :key="`${event.title}-${event.startsAt}-${index}`">
-        <p>
-          {{
-            event.subtitle ||
-            t(event.kind === 'gacha' ? 'standalone.calendarGacha' : 'standalone.calendarActivity')
-          }}
-        </p>
-        <h3>{{ event.title }}</h3>
-        <div>
-          <span class="mono">{{
-            time(event.status === '即将开始' ? event.startsAt : event.endsAt)
-          }}</span
-          ><a-tag :color="event.status === '即将开始' ? 'blue' : 'gold'">{{ event.status }}</a-tag>
+      <section class="home-reminders">
+        <div class="home-section-heading">
+          <h2>{{ game?.name }} · {{ t('standalone.activityReminders') }}</h2>
+          <span>{{ t('standalone.beijingTime') }}</span>
         </div>
-      </article>
+        <div v-if="events.length" class="home-agenda">
+          <article
+            v-for="(event, index) in events"
+            :key="`${event.title}-${event.startsAt}-${index}`"
+          >
+            <p>
+              {{
+                event.subtitle ||
+                t(
+                  event.kind === 'gacha'
+                    ? 'standalone.calendarGacha'
+                    : 'standalone.calendarActivity'
+                )
+              }}
+            </p>
+            <h3>{{ event.title }}</h3>
+            <div>
+              <span class="mono">{{
+                time(event.status === '即将开始' ? event.startsAt : event.endsAt)
+              }}</span
+              ><a-tag :color="event.status === '即将开始' ? 'blue' : 'gold'">{{
+                event.status
+              }}</a-tag>
+            </div>
+          </article>
+        </div>
+        <a-empty v-else :description="t('standalone.homeAgendaEmpty')" />
+      </section>
     </div>
-    <a-empty v-else :description="t('standalone.homeAgendaEmpty')" />
   </section>
 </template>
 
@@ -237,16 +251,23 @@ onUnmounted(() => {
 }
 .home-section-heading > a,
 .home-section-heading > span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
-.home-community {
+.home-dashboard,
+.home-details {
   display: grid;
-  grid-template-columns: minmax(250px, 0.9fr) minmax(0, 1.7fr);
-  gap: 20px;
-  margin-bottom: 28px;
+  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
 }
-.home-community--sign-only {
+.home-calendar {
+  min-width: 0;
+  background: var(--ant-color-bg-container);
+  border-radius: 24px;
+  padding: 20px;
+}
+.home-details--sign-only {
   grid-template-columns: minmax(0, 1fr);
 }
 .home-sign {
@@ -254,8 +275,8 @@ onUnmounted(() => {
   flex-direction: column;
   min-width: 0;
   background: var(--ant-color-bg-container);
-  border: 1px solid var(--ant-color-border);
-  border-radius: 3px;
+  border-radius: 24px;
+  overflow: hidden;
 }
 .home-sign > header {
   display: flex;
@@ -266,11 +287,11 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--ant-color-border);
 }
 .home-sign h2 {
-  font-size: 14px;
+  font-size: 17px;
   margin: 0;
 }
 .home-sign > header > span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
 .home-sign-rows {
@@ -301,13 +322,13 @@ onUnmounted(() => {
   font-weight: 600;
 }
 .home-sign-row > div > span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
 .home-sign-row p {
   grid-column: 1/-1;
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
   overflow-wrap: anywhere;
 }
@@ -316,7 +337,7 @@ onUnmounted(() => {
 }
 .home-sign-row .ant-tag {
   margin: 0;
-  font-size: 10px;
+  font-size: 12px;
 }
 .home-sign-empty {
   padding: 20px 0;
@@ -330,10 +351,10 @@ onUnmounted(() => {
   margin-top: auto;
   padding: 13px 20px;
   border-top: 1px solid var(--ant-color-border);
-  font-size: 11px;
+  font-size: 12px;
 }
 .home-sign footer span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
 .home-note {
@@ -348,21 +369,28 @@ onUnmounted(() => {
   background: var(--ant-color-bg-container);
   height: 100%;
   min-height: 264px;
+  border-radius: 24px;
+}
+.home-reminders {
+  min-width: 0;
+  background: var(--ant-color-bg-container);
+  padding: 24px;
+  border-radius: 24px;
 }
 .home-agenda {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
 .home-agenda article {
   background: var(--ant-color-bg-container);
-  border: 1px solid var(--ant-color-border);
-  padding: 16px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  padding: 12px 0;
   min-width: 0;
 }
 .home-agenda p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ant-color-text-secondary);
 }
 .home-agenda h3 {
@@ -376,19 +404,21 @@ onUnmounted(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .home-agenda .ant-tag {
   margin: 0;
 }
 @media (max-width: 1180px) {
-  .home-community {
-    grid-template-columns: minmax(240px, 0.95fr) minmax(0, 1.3fr);
+  .home-dashboard,
+  .home-details {
+    grid-template-columns: minmax(0, 1.3fr) minmax(270px, 1fr);
     gap: 16px;
   }
 }
 @media (max-width: 900px) {
-  .home-community {
+  .home-dashboard,
+  .home-details {
     grid-template-columns: minmax(0, 1fr);
   }
 }

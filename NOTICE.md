@@ -56,3 +56,10 @@ Cloudflare 集成使用官方 workers-py/runtime SDK；实现核对 workers-py `
 Android 本地版使用 [Pyodide 0.28.3](https://github.com/pyodide/pyodide/tree/0.28.3)（MPL-2.0）在 Web Worker 中运行本项目 Python 源码，许可全文见 [LICENSE-Pyodide.txt](android/runtime/LICENSE-Pyodide.txt)。依赖版本和摘要固定于 `android/runtime/manifest.json`；Python 包的许可证随其 wheel 和源码包保留，前端生产依赖的许可随 APK 的 `licenses/frontend` 目录附带。
 
 本地受限网络构建可复用经逐文件 RECORD 校验的公共包缓存。pydantic-core 的一个历史缓存重打包摘要单独登记为 `repackedSha256`；APK 的 `licenses/android-runtime.json` 记录实际采用的摘要，默认联网构建使用原始官方 wheel。重打包未修改依赖源码或二进制内容。
+## UI 设计参考
+
+界面参考 [Miuix](https://github.com/compose-miuix-ui/miuix)（Apache-2.0）的组件设计方向，在 Vue 3 与 Ant Design Vue 4 中独立实现。本仓未分发 Miuix 的 Compose 运行时或源码；实际组件映射见 `docs/UI-STANDARDS.md`。既有第三方代码和素材的许可说明继续适用。
+
+## 安全更新中的依赖
+
+FastAPI 的新增依赖 [annotated-doc](https://github.com/fastapi/annotated-doc) 适用 MIT，[OpenTelemetry Python API](https://github.com/open-telemetry/opentelemetry-python) 适用 Apache-2.0。FastAPI（MIT）、Starlette（BSD-3-Clause）、Pillow（MIT-CMU）及前端依赖继续保留各自许可。Android wheel 的 dist-info 中附带原始许可证；桌面分发保留 Python 包元数据和本文件。前端构建用 minimatch（ISC）与 tinypool（MIT）的固定安全版本仅用于开发和打包，不进入渲染进程运行依赖。

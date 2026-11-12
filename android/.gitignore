@@ -4,4 +4,7 @@ local.properties
 app/src/main/assets/
 *.jks
 *.keystore
+# 正式签名配置与密钥本体：本地放在仓库外，CI 由 secret 还原，任何情况都不入库。
+keystore.properties
+signing/
 .idea/

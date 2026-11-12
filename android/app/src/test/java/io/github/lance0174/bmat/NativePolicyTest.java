@@ -1,7 +1,6 @@
 package io.github.lance0174.bmat;
 
 import static org.junit.Assert.*;
-import java.util.List;
 import org.junit.Test;
 
 public class NativePolicyTest {
@@ -95,46 +94,16 @@ public class NativePolicyTest {
         assertFalse(NativePolicy.isResponseHeader(null));
     }
 
-    @Test public void declaredHostsAllowOnlyTheConfiguredCloudBackend() {
-        // 云端后端是公网 https 主机但不在平台白名单里，只能靠本次请求的声明放行。
-        assertEquals(
-                "community.example.workers.dev",
-                NativePolicy.requestHost(
-                        "https://community.example.workers.dev/api/session",
-                        List.of("community.example.workers.dev")));
-        // 声明与请求两侧的大小写、结尾点等价。
-        assertEquals(
-                "community.example.workers.dev",
-                NativePolicy.requestHost(
-                        "https://Community.Example.Workers.dev/api/cloud/sync",
-                        List.of("community.example.workers.dev.")));
-        // 声明只对"主机相同"的那条请求生效，换成别的主机仍然拒绝。
-        assertNull(
-                NativePolicy.requestHost(
-                        "https://other.example.workers.dev/api/session",
-                        List.of("community.example.workers.dev")));
-        // 未声明时保持默认：白名单之外一律拒绝。
+    @Test public void cloudHostsAreNotAvailableOnAndroid() {
         assertNull(NativePolicy.requestHost("https://community.example.workers.dev/api/session"));
-        // 声明也压不住内网字面量、本地名与 userinfo 混淆。
-        assertNull(NativePolicy.requestHost("https://10.0.0.5/internal", List.of("10.0.0.5")));
-        assertNull(NativePolicy.requestHost("https://[::1]/admin", List.of("[::1]")));
-        assertNull(NativePolicy.requestHost("https://router.local/api", List.of("router.local")));
-        assertNull(
-                NativePolicy.requestHost(
-                        "https://cloud.example.com/api", List.of("evil.com@cloud.example.com")));
-        // 超过 8 项整条拒绝，8 项以内仍按主机相等放行（上限不是 7）。
-        assertNull(
-                NativePolicy.requestHost(
-                        "https://cloud.example.com/api",
-                        List.of("cloud.example.com", "a1.example.com", "a2.example.com",
-                                "a3.example.com", "a4.example.com", "a5.example.com",
-                                "a6.example.com", "a7.example.com", "a8.example.com")));
+        assertNull(NativePolicy.requestHost("https://Community.Example.Workers.dev/api/cloud/sync"));
+        assertNull(NativePolicy.requestHost("https://10.0.0.5/internal"));
+        assertNull(NativePolicy.requestHost("https://[::1]/admin"));
+        assertNull(NativePolicy.requestHost("https://router.local/api"));
+        assertNull(NativePolicy.requestHost("https://evil.com@cloud.example.com/api"));
+        // 软件更新仅查询本仓 Release；不能把 GitHub API 当成任意请求代理。
         assertEquals(
-                "cloud.example.com",
-                NativePolicy.requestHost(
-                        "https://cloud.example.com/api",
-                        List.of("cloud.example.com", "a1.example.com", "a2.example.com",
-                                "a3.example.com", "a4.example.com", "a5.example.com",
-                                "a6.example.com", "a7.example.com")));
+                "api.github.com", NativePolicy.requestHost("https://api.github.com/repos/Lance0174/Better-MAS-Tools/releases?per_page=30"));
+        assertNull(NativePolicy.requestHost("https://api.github.com/repos/other/project/releases"));
     }
 }

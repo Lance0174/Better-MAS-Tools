@@ -44,6 +44,22 @@ def test_account_name_limit_matches_storage_model():
     assert _account_name_limit() == storage_limits[0]
 
 
+def test_android_app_excludes_mas_and_keeps_settings_usable(tmp_path):
+    application = create_app(data_dir=tmp_path, start_scheduler=False, mas_enabled=False)
+    with TestClient(application, base_url="http://127.0.0.1") as local:
+        local.headers["x-community-session"] = application.state.session_key
+        assert local.get("/api/mas/snapshot").status_code == 404
+        assert local.post("/api/mas/start", json={}).status_code == 404
+        assert local.post("/api/relay/command", json={}).status_code == 404
+        spec = application.openapi()
+        assert not any(path.startswith(("/api/mas/", "/api/relay/")) for path in spec["paths"])
+        settings = local.get("/api/settings").json()["data"]
+        settings["OnboardingDismissed"] = True
+        assert local.put("/api/settings", json=settings).status_code == 200
+        settings["MasBaseUrl"] = "http://127.0.0.1:9999"
+        assert local.put("/api/settings", json=settings).status_code == 400
+
+
 def test_account_update_rejects_too_long_name_without_internal_text(client: TestClient):
     uid = client.post("/api/accounts").json()["data"]["uid"]
     response = client.post(
@@ -211,6 +227,26 @@ def test_save_qr_surfaces_network_reason(client: TestClient, monkeypatch):
     assert response.status_code == 400
     message = response.json()["message"]
     assert "Fake-IP" in message
+    assert "请检查账号及登录状态" not in message
+
+
+def test_save_qr_keeps_the_tool_level_reason(client: TestClient, monkeypatch):
+    """工具层已经写清的原因（cred 换取失败、响应解码失败）不能被通用文案盖掉。"""
+
+    from app.api import community
+
+    async def boom(*_args, **_kwargs):
+        raise ValueError("获得森空岛 cred 失败: ConnectError")
+
+    monkeypatch.setattr(community.login, "save_qr", boom)
+    response = client.post(
+        "/api/login/skland/qr/save",
+        json={"account_uid": "x", "cookie": "", "scan_code": "code"},
+    )
+
+    assert response.status_code == 400
+    message = response.json()["message"]
+    assert "获得森空岛 cred 失败" in message
     assert "请检查账号及登录状态" not in message
 
 

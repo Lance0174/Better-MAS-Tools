@@ -134,9 +134,7 @@ const canSubmit = computed(() => {
     )
   }
   if (source.value === 'cookie') {
-    return (
-      playerUid.value.trim() !== '' && cookieReady(cookieText.value, cookieAccountId.value)
-    )
+    return playerUid.value.trim() !== '' && cookieReady(cookieText.value, cookieAccountId.value)
   }
   if (source.value === 'skland') {
     return accountId.value !== '' && playerUid.value.trim() !== ''
@@ -342,7 +340,6 @@ const changePage = (value: { current?: number }) => {
 <template>
   <section class="gacha-page">
     <header class="page-toolbar">
-
       <a-space wrap>
         <a-button :disabled="importing || !data.total" @click="exportFile('bmasc')">{{
           t('standalone.gachaExport')
@@ -469,7 +466,11 @@ const changePage = (value: { current?: number }) => {
       >
         <a-form-item name="source" :label="t('standalone.gachaSourceMode')">
           <a-radio-group v-model:value="source" button-style="solid">
-            <a-radio-button v-for="choice in sourceChoices" :key="choice.value" :value="choice.value">
+            <a-radio-button
+              v-for="choice in sourceChoices"
+              :key="choice.value"
+              :value="choice.value"
+            >
               {{ choice.label }}
             </a-radio-button>
           </a-radio-group>
@@ -542,7 +543,11 @@ const changePage = (value: { current?: number }) => {
           <a-form-item name="playerUid" label="UID" required>
             <a-input v-model:value="playerUid" autocomplete="off" />
           </a-form-item>
-          <a-form-item v-if="game !== 'wuthering'" name="maxPages" :label="t('standalone.gachaMaxPages')">
+          <a-form-item
+            v-if="game !== 'wuthering'"
+            name="maxPages"
+            :label="t('standalone.gachaMaxPages')"
+          >
             <a-input-number v-model:value="maxPages" :min="1" :max="500" />
           </a-form-item>
         </template>
@@ -696,7 +701,7 @@ const changePage = (value: { current?: number }) => {
   padding: 16px;
   background: var(--ant-color-primary-bg);
   border: 1px solid var(--ant-color-primary-border);
-  border-radius: 8px;
+  border-radius: 24px;
 }
 .gacha-pool span {
   color: var(--ant-color-text-secondary);

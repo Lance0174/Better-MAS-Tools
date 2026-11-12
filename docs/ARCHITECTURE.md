@@ -22,7 +22,7 @@ flowchart LR
 | `app/services` | Windows DPAPI、Linux AES-GCM 与 Workers 加密存储；原子替换、独立网络参数与有限 MAS 连接 |
 | `app/api` | 输入输出转换和固定的登录错误信息，不承载上游工作流 |
 | `frontend/src` | 账号、签到、便笺、抽卡、MAS 和设置页面；持久状态以后端为准 |
-| `frontend/electron` | 单实例、窗口、独立后端启动、健康检查和退出管理；不暴露 Node 到渲染页 |
+| `frontend/electron` | 单实例、窗口、独立后端启动、健康检查、受限官方更新和退出管理；不暴露 Node 到渲染页 |
 
 `CommunityAccount` 是兼容原社区编排字段读写的小包装，不迁入完整 ConfigBase 或专项任务管理器。签到与便笺使用各自执行锁；用户修改账号和设置时检查是否有执行中的请求。配置写盘完成后才更新内存；请求取消时等待已开始的写盘完成，保持文件与内存一致。
 
@@ -40,8 +40,14 @@ API 使用 `X-Community-Session` 请求；桌面模式通过同源握手建立�
 
 Cloudflare 部署暂缓，以下 Workers 结构仅为保留实现，不列入当前发布交付。`deploy/worker/src/entry.py` 将 API 交给固定名称的单用户 Durable Object，复用相同 ASGI 应用。`FetchTransport` 将 HTTPX 请求交给 Workers Fetch；`DurableStorage` 将整份状态压缩加密，在 SQLite 事务中分块替换。状态上限8MB；多个使用者应部署独立实例。Cron每5分钟检查北京时间计划，运行前持久化当日尝试标记；不提供桌面“启动时签到”的语义。详见 [部署说明](DEPLOYMENT.md)。
 
-桌面外壳没有 MAS 运行环境下载器、专项脚本、插件市场、管理员提权、Sentry、组织发布和自动更新配置。通知模块经用户确认不在独立版首期范围。原协议中的云游戏通知确认、结果附加标记仍保留，因为它们参与奖励领取和结果转换。
+桌面外壳没有 MAS 运行环境下载器、专项脚本、插件市场、管理员提权、Sentry、组织发布。通知模块经用户确认不在独立版首期范围。原协议中的云游戏通知确认、结果附加标记仍保留，因为它们参与奖励领取和结果转换。
 
 本轮来源文件及 SHA-256 见 `upstream-files.json`。平台代码采用小范围依赖替换；前端保留便笺、扫码状态机和有效注释，应用外壳、账号与设置页重新组织为社区专用入口。原始图标文件保留，实际渲染使用派生 WebP。
 
 后续新增功能应先明确支持的社区、账号权限及用户可观察的行为，再按 models → core/tools → api → 生成客户端 → 页面流程补齐；不要把 MAS 的完整公共模块重新复制进来。
+
+## 双端界面与软件更新
+
+界面权威见 `docs/UI-STANDARDS.md`。Android 使用独立前端构建及平台标记，服务端以 mas_enabled=False 构建，源码包排除 MAS / relay 模块；隐藏导航之外也不能通过路由、接口进入管理功能。
+
+`app/tools/update_release.py` 纯解析版本及官方资产；`app/services/updates.py` 只读取本仓 GitHub 公开元数据；`app/models/updates.py` 单独维护更新契约，避免继续扩大通用 schema。API 不接收任意地址。桌面受限 IPC 在主进程校验来源、大小与摘要，Windows 便携版由退出后的短任务备份旧 EXE、替换并重启；ZIP 版启动新的便携包。Android 的 UpdatePolicy / UpdateInstaller 检查来源、摘要、包名、递增版本和固定证书，通过只读 Provider 交给系统安装器。安装由用户主动确认，应用数据目录不迁移、不删除。

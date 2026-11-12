@@ -23,6 +23,7 @@ from app.core.state import state
 from app.models.schema import SessionLoginIn, SessionOut
 from app.services.access import RemoteAccess, RemoteSessions, resolve_peer
 from app.services.diagnostics import Diagnostics
+from app.services.network import network
 from app.tools.community_contract import CommunitySignInProgressError
 from app.utils.environment import load_project_environment
 from app.utils.logger import configure_file_logging, get_logger
@@ -42,6 +43,7 @@ def create_app(
     external_state: bool = False,
     relay_store=None,
     wiki_store=None,
+    mas_enabled: bool = True,
 ) -> FastAPI:
     remote = remote or RemoteAccess.from_environment()
     remote_sessions = RemoteSessions(remote) if remote else None
@@ -104,6 +106,7 @@ def create_app(
     app = FastAPI(title="更好的MAS工具包", version=VERSION, lifespan=lifespan)
     app.state.diagnostics = diagnostics
     app.state.session_key = secrets.token_urlsafe(32)
+    app.state.mas_enabled = mas_enabled
     if wiki_store is not None:
         app.state.wiki = wiki_store
     allowed_hosts = ["localhost", "127.0.0.1", "[::1]"]
@@ -298,20 +301,24 @@ def create_app(
     from app.api.diagnostics import router as diagnostics_router
     from app.api.gacha import router as gacha_router
     from app.api.kuro_login import router as kuro_login_router
-    from app.api.mas import router as mas_router
     from app.api.miyoushe_missions import router as miyoushe_missions_router
-    from app.api.relay import router as relay_router
+    from app.api.updates import router as updates_router
     from app.api.wiki import router as wiki_router
 
     app.include_router(router)
     app.include_router(cloud_router)
     app.include_router(diagnostics_router)
     app.include_router(gacha_router)
-    app.include_router(mas_router)
+    if mas_enabled:
+        from app.api.mas import router as mas_router
+        from app.api.relay import router as relay_router
+
+        app.include_router(mas_router)
+        app.include_router(relay_router)
     app.include_router(kuro_login_router)
     app.include_router(miyoushe_missions_router)
-    app.include_router(relay_router)
     app.include_router(wiki_router)
+    app.include_router(updates_router)
     app.state.relay_store = relay_store
     frontend = Path(os.environ.get("COMMUNITY_WEB_DIR", PROJECT_ROOT / "frontend/dist"))
     if not external_state and frontend.is_dir():
@@ -342,4 +349,5 @@ def _default_relay_store():
 
 app = create_app(
     relay_store=_default_relay_store(),
+    mas_enabled=network.local_connections,
 )

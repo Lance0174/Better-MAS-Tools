@@ -10,9 +10,14 @@ async function launch(light: boolean) {
   const windows: FakeWindow[] = []
   const ipc = new EventEmitter()
   const app = Object.assign(new EventEmitter(), {
-    getPath: () => '/isolated', setName: vi.fn(), setPath: vi.fn(),
-    setAppUserModelId: vi.fn(), requestSingleInstanceLock: () => true,
-    userAgentFallback: 'test', isPackaged: false, quit: vi.fn(),
+    getPath: () => '/isolated',
+    setName: vi.fn(),
+    setPath: vi.fn(),
+    setAppUserModelId: vi.fn(),
+    requestSingleInstanceLock: () => true,
+    userAgentFallback: 'test',
+    isPackaged: false,
+    quit: vi.fn(),
     whenReady: () => Promise.resolve(),
   })
   class FakeWindow extends EventEmitter {
@@ -22,27 +27,45 @@ async function launch(light: boolean) {
       session: { setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn() },
       setWindowOpenHandler: vi.fn(),
     })
-    constructor() { super(); windows.push(this) }
-    isMinimized() { return false }
+    constructor() {
+      super()
+      windows.push(this)
+    }
+    isMinimized() {
+      return false
+    }
     restore() {}
     focus() {}
     setBackgroundColor() {}
-    show() { this.shown++ }
-    loadURL() { return Promise.resolve() }
-    destroy() { this.destroyed = true; this.emit('closed') }
+    show() {
+      this.shown++
+    }
+    loadURL() {
+      return Promise.resolve()
+    }
+    destroy() {
+      this.destroyed = true
+      this.emit('closed')
+    }
   }
   const files = {
-    appendFileSync: vi.fn(), mkdirSync: vi.fn(), rmSync: vi.fn(), writeFileSync: vi.fn(),
+    appendFileSync: vi.fn(),
+    mkdirSync: vi.fn(),
+    rmSync: vi.fn(),
+    writeFileSync: vi.fn(),
     existsSync: () => true,
     readFileSync: () => JSON.stringify({ light }),
   }
   const electron = {
-    app, ipcMain: ipc, BrowserWindow: FakeWindow,
+    app,
+    ipcMain: ipc,
+    BrowserWindow: FakeWindow,
     nativeTheme: Object.assign(new EventEmitter(), { shouldUseDarkColors: false }),
     screen: { getPrimaryDisplay: () => ({ workAreaSize: { width: 1280, height: 900 } }) },
     session: { defaultSession: { webRequest: { onHeadersReceived: vi.fn() } } },
     Menu: { setApplicationMenu: vi.fn(), buildFromTemplate: vi.fn() },
-    nativeImage: { createEmpty: vi.fn() }, shell: { openExternal: vi.fn() },
+    nativeImage: { createEmpty: vi.fn() },
+    shell: { openExternal: vi.fn() },
     dialog: { showErrorBox: vi.fn(), showMessageBox: vi.fn() },
     Tray: class extends EventEmitter {
       setToolTip() {}
@@ -56,18 +79,25 @@ async function launch(light: boolean) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText
   vm.runInNewContext(code, {
-    __dirname: '/isolated/frontend/dist-electron', exports: {},
+    __dirname: '/isolated/frontend/dist-electron',
+    exports: {},
     URL,
     process: { env: { COMMUNITY_DATA_DIR: '/isolated/data' }, argv: [] },
     require: (name: string) => {
       if (name === 'electron') return electron
       if (name === 'node:fs') return files
       if (name === 'node:path') return path
-      if (name === './backend.cjs') return { BackendService: class {
-        pid = 42
-        async start() { return 'http://127.0.0.1:39876' }
-        async stop() {}
-      } }
+      if (name === './updates.cjs') return { registerUpdates: vi.fn() }
+      if (name === './backend.cjs')
+        return {
+          BackendService: class {
+            pid = 42
+            async start() {
+              return 'http://127.0.0.1:39876'
+            }
+            async stop() {}
+          },
+        }
       throw new Error(`Unexpected dependency: ${name}`)
     },
   })

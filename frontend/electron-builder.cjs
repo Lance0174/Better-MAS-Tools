@@ -1,4 +1,4 @@
-/** 独立打包，不配置组织远端或自动更新；Release 上传由 GitHub Actions 负责。 */
+/** 独立打包；用户主动更新由本仓实现，Release 上传由 GitHub Actions 负责。 */
 module.exports = {
   appId: 'independent.bettermas.community',
   productName: '更好的MAS工具包',
@@ -21,6 +21,7 @@ module.exports = {
     },
   ],
   npmRebuild: false,
+  electronDist: 'node_modules/electron/dist',
   asar: true,
   win: {
     icon: 'assets/community.ico',

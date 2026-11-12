@@ -9,14 +9,21 @@ import { isAndroidLocal } from '@/services/android'
 import { isDesktop } from '@/services/desktop'
 import { applyLightModeChange } from './settingsLightMode'
 import { createSettingsAutoSave } from './settingsAutoSave'
+import SoftwareUpdate from './SoftwareUpdate.vue'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
+const androidBuild = import.meta.env.BMAT_ANDROID
 const draft = ref<SettingsData>({
   ...settings.data,
 })
 // 壳层也提供主题切换，避免设置草稿在下一次自动保存时写回旧主题。
-watch(() => settings.data?.Theme, value => { if (value) draft.value.Theme = value })
+watch(
+  () => settings.data?.Theme,
+  value => {
+    if (value) draft.value.Theme = value
+  }
+)
 const yunmaToken = computed({
   get: () => draft.value.YunmaToken ?? '',
   set: (value: string) => {
@@ -78,6 +85,9 @@ onBeforeUnmount(autoSave.dispose)
   <section class="settings-page">
     <a-form layout="vertical" :model="draft">
       <a-tabs>
+        <a-tab-pane key="updates" :tab="t('standalone.softwareUpdate')"
+          ><SoftwareUpdate
+        /></a-tab-pane>
         <a-tab-pane key="captcha" :tab="t('standalone.humanVerification')">
           <a-alert
             type="info"
@@ -100,15 +110,11 @@ onBeforeUnmount(autoSave.dispose)
               @blur="textBlurred"
             />
           </a-form-item>
-          <a-button
-            danger
-            @click="clearYunmaKey"
-            >{{ t('standalone.clearYunmaKey') }}</a-button
-          >
+          <a-button danger @click="clearYunmaKey">{{ t('standalone.clearYunmaKey') }}</a-button>
         </a-tab-pane>
         <a-tab-pane key="preferences" :tab="t('standalone.preferences')">
           <a-form-item
-            v-if="!isAndroidLocal"
+            v-if="!isAndroidLocal && !androidBuild"
             name="MasBaseUrl"
             :label="t('standalone.masAddress')"
             :extra="t('standalone.masHint')"
@@ -216,7 +222,11 @@ onBeforeUnmount(autoSave.dispose)
               @blur="textBlurred"
           /></a-form-item>
         </a-tab-pane>
-        <a-tab-pane key="cloud" :tab="t('standalone.cloudMode')">
+        <a-tab-pane
+          v-if="!isAndroidLocal && !androidBuild"
+          key="cloud"
+          :tab="t('standalone.cloudMode')"
+        >
           <a-alert
             type="info"
             show-icon

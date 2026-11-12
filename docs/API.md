@@ -6,6 +6,7 @@
 
 | 路径 | 用途 |
 | --- | --- |
+| `/api/updates/check` | GET platform=windows/android、channel=stable/beta；仅查询本仓公开 Release，返回版本、说明、固定来源下载地址、大小及 SHA-256；不直接安装或接受用户下载地址 |
 | `/api/accounts` | 账号列表与新增；更新、删除等契约以OpenAPI为准 |
 | `/api/settings` | 读取/保存设置，YunmaToken始终脱敏；null保留旧密钥，空字符串清除 |
 | `/api/status` | 运行状态、北京时间today和各平台结果 |

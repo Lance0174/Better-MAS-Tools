@@ -273,7 +273,7 @@ onMounted(load)
 .calendar-hint {
   margin-bottom: 12px;
 }
-/* 筛选条与卡片同材质，避免在玻璃界面里插一块实色面板。 */
+/* 筛选与内容沿用统一卡片材质。 */
 .calendar-filters {
   display: flex;
   align-items: center;
@@ -281,7 +281,7 @@ onMounted(load)
   flex-wrap: wrap;
   margin-bottom: 16px;
   padding: 8px 12px;
-  border-radius: 3px;
+  border-radius: 16px;
 }
 .calendar-filter-field {
   min-width: 132px;
@@ -319,15 +319,15 @@ onMounted(load)
   min-width: 0;
   gap: 12px;
   height: 100%;
-  padding: 10px;
-  border-radius: 3px;
+  padding: 16px;
+  border-radius: 24px;
 }
 .calendar-card img,
 .calendar-card-placeholder {
   width: 100%;
   height: 88px;
   flex: 0 0 auto;
-  border-radius: 3px;
+  border-radius: 16px;
   object-fit: cover;
 }
 .calendar-card-placeholder {
@@ -377,7 +377,8 @@ onMounted(load)
   gap: 24px;
 }
 .calendar-summary section {
-  padding: 16px;
+  padding: 20px;
+  border-radius: 24px;
   margin-bottom: 16px;
   border: 1px solid var(--ant-color-border);
   background: var(--ant-color-bg-container);
