@@ -13,6 +13,20 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
+def test_release_lookup_includes_drafts_on_later_pages():
+    draft = {"tag_name": "v0.2.0-beta.4", "draft": True}
+    pages = [[{"tag_name": "v0.2.0-beta.2", "draft": False}], [draft]]
+    assert module.find_release(pages, "v0.2.0-beta.4") == draft
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_release_lookup_rejects_missing_or_ambiguous_tags(duplicate):
+    release = {"tag_name": "v0.2.0-beta.4", "draft": True}
+    pages = [[release], [release]] if duplicate else [[]]
+    with pytest.raises(ValueError, match="唯一"):
+        module.find_release(pages, "v0.2.0-beta.4")
+
+
 def fixture():
     version = "0.2.0-beta.4"
     files = [

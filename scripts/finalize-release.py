@@ -7,13 +7,21 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("RELEASE_SOURCE_ROOT", Path(__file__).resolve().parents[1]))
 
 
 def gh(*args: str) -> bytes:
     return subprocess.run(
         ["gh", *args], cwd=ROOT, capture_output=True, check=True
     ).stdout
+
+
+def find_release(pages: list[list[dict]], tag: str) -> dict:
+    """从包含草稿的分页列表取唯一版本，按 tag 查询的接口不返回草稿。"""
+    matches = [item for page in pages for item in page if item.get("tag_name") == tag]
+    if len(matches) != 1:
+        raise ValueError("无法找到唯一的版本草稿")
+    return matches[0]
 
 
 def verify_assets(
@@ -68,6 +76,13 @@ def main() -> None:
     repository = os.environ["GITHUB_REPOSITORY"]
     prefix = f"repos/{repository}"
     run = json.loads(gh("api", f"{prefix}/actions/runs/{os.environ['RELEASE_RUN_ID']}"))
+    if (
+        run["event"] != "push"
+        or run["conclusion"] != "success"
+        or run["name"] not in {"Windows Release", "Android Release"}
+        or run["head_repository"]["full_name"] != repository
+    ):
+        raise ValueError("只允许完成本仓成功的标签构建")
     tag = run["head_branch"]
     if not re.fullmatch(r"v\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?", tag):
         print("Not a version tag; nothing to publish")
@@ -109,7 +124,12 @@ def main() -> None:
         cwd=ROOT,
         check=True,
     )
-    release = json.loads(gh("api", f"{prefix}/releases/tags/{tag}"))
+    release = find_release(
+        json.loads(
+            gh("api", f"{prefix}/releases?per_page=100", "--paginate", "--slurp")
+        ),
+        tag,
+    )
     if not release["draft"]:
         print("Release already public; no changes made")
         return
