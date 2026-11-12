@@ -26,6 +26,31 @@ describe('errorMessage', () => {
     expect(errorMessage(error, '兜底文案')).toBe('凭据已失效')
   })
 
+  it('只有 FastAPI 的 detail 时也要把原因读出来', () => {
+    const error = new ApiError(
+      request,
+      apiResult({ detail: '获得森空岛 cred 失败: ConnectError' }),
+      'Bad Request'
+    )
+    expect(errorMessage(error, '兜底文案')).toBe('获得森空岛 cred 失败: ConnectError')
+  })
+
+  it('detail 是校验错误数组时拼成一行可读文案', () => {
+    const error = new ApiError(
+      request,
+      apiResult({
+        detail: [
+          { loc: ['body', 'account_uid'], msg: '字段不能为空' },
+          { loc: ['body', 'scan_code'], msg: '格式错误' },
+        ],
+      }),
+      'Unprocessable Entity'
+    )
+    expect(errorMessage(error, '兜底文案')).toBe(
+      'body.account_uid: 字段不能为空；body.scan_code: 格式错误'
+    )
+  })
+
   it('ApiError 没有业务消息时用兜底，而不是英文状态描述', () => {
     const error = new ApiError(request, apiResult({}), 'Bad Request')
     expect(errorMessage(error, '兜底文案')).toBe('兜底文案')

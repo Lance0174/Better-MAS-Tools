@@ -5,6 +5,9 @@ import { useQrLogin } from './useQrLogin'
 const createQr = vi.fn()
 const checkQr = vi.fn()
 const saveQr = vi.fn()
+const createSklandQr = vi.fn()
+const checkSklandQr = vi.fn()
+const saveSklandQr = vi.fn()
 
 vi.mock('./useGameSignApi', () => ({
   useGameSignApi: () => ({
@@ -14,6 +17,9 @@ vi.mock('./useGameSignApi', () => ({
     createMiyousheQr: createQr,
     checkMiyousheQr: checkQr,
     saveMiyousheQr: saveQr,
+    createSklandQr,
+    checkSklandQr,
+    saveSklandQr,
   }),
 }))
 
@@ -97,6 +103,78 @@ describe('useQrLogin', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('森空岛创建请求失败显示中文原因，重试后生成二维码', async () => {
+    const reason = '社区代理连接失败，请检查代理服务后重试'
+    const failure = new ApiError(
+      { method: 'POST', url: '/api/login/skland/qr/create' },
+      { url: '', ok: false, status: 400, statusText: 'Bad Request', body: { message: reason } },
+      'Bad Request'
+    )
+    createSklandQr.mockImplementationOnce(() => failing(failure))
+    const qr = useQrLogin({
+      provider: 'skland',
+      getAccountId: () => 'acc-1',
+      onSaved: vi.fn(),
+      logger,
+    })
+    await qr.start()
+    expect(qr.status.value).toBe('error')
+    expect(qr.statusText.value).toBe(reason)
+    createSklandQr.mockReturnValueOnce(cancelable(CREATED))
+    await qr.start()
+    expect(qr.status.value).toBe('waiting')
+    expect(qr.qrCodeDataUrl.value).toContain('data:image/png')
+    qr.cancel()
+  })
+
+  it('森空岛完成扫码并保存 scan_code，取消后停止请求', async () => {
+    createSklandQr.mockReturnValueOnce(cancelable(CREATED))
+    checkSklandQr.mockReturnValueOnce(cancelable({ code: 200, status: 'Scanned' }))
+    checkSklandQr.mockReturnValueOnce(
+      cancelable({ code: 200, status: 'Confirmed', scan_code: 'fake-code' })
+    )
+    saveSklandQr.mockReturnValueOnce(cancelable({ code: 200 }))
+    const onSaved = vi.fn()
+    const qr = useQrLogin({ provider: 'skland', getAccountId: () => 'acc-1', onSaved, logger })
+    await qr.start()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(qr.status.value).toBe('scanned')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(saveSklandQr).toHaveBeenCalledWith('acc-1', 'fake-code')
+    expect(onSaved).toHaveBeenCalledWith('acc-1', 'fake-code', expect.any(Function))
+    expect(qr.status.value).toBe('done')
+    qr.cancel()
+    await vi.advanceTimersByTimeAsync(6000)
+    expect(checkSklandQr).toHaveBeenCalledTimes(2)
+    expect(saveQr).not.toHaveBeenCalled()
+  })
+
+  it('轮询短暂连接失败保留二维码，恢复后继续等待确认', async () => {
+    createSklandQr.mockReturnValueOnce(cancelable(CREATED))
+    const reason = '二维码状态查询连接失败，请检查网络'
+    const failure = new ApiError(
+      { method: 'POST', url: '/api/login/skland/qr/check' },
+      { url: '', ok: false, status: 400, statusText: 'Bad Request', body: { message: reason } },
+      'Bad Request'
+    )
+    checkSklandQr.mockImplementationOnce(() => failing(failure))
+    checkSklandQr.mockReturnValueOnce(cancelable({ code: 200, status: 'Scanned' }))
+    const qr = useQrLogin({
+      provider: 'skland',
+      getAccountId: () => 'acc-1',
+      onSaved: vi.fn(),
+      logger,
+    })
+    await qr.start()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(qr.status.value).toBe('waiting')
+    expect(qr.statusText.value).toBe(reason)
+    expect(qr.qrCodeDataUrl.value).toBeTruthy()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(qr.status.value).toBe('scanned')
+    qr.cancel()
   })
 
   it('生成二维码后进入等待扫码态', async () => {

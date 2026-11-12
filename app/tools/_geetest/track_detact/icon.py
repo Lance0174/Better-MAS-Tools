@@ -9,20 +9,21 @@ import sys
 import httpx
 from PIL import Image
 
+from app.tools.captcha_image import open_captcha_image
 from app.tools.yunma import recognize_icons
 
 from .slide import download_image
 
 
 def compose_icons(background: bytes, icons: list[bytes]) -> tuple[bytes, int, int]:
-    with Image.open(io.BytesIO(background)) as original:
+    with open_captcha_image(background) as original:
         width, height = original.size
         if not 1 <= width <= 2048 or not 1 <= height <= 2048:
             raise ValueError("验证码图片尺寸无效")
         canvas = Image.new("RGB", (width, height + 64), "white")
         canvas.paste(original.convert("RGB"), (0, 0))
     for index, raw in enumerate(icons):
-        with Image.open(io.BytesIO(raw)) as icon:
+        with open_captcha_image(raw) as icon:
             if not 1 <= icon.width <= 512 or not 1 <= icon.height <= 512:
                 raise ValueError("验证码提示图片尺寸无效")
             icon.thumbnail((48, 48))

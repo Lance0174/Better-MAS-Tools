@@ -675,19 +675,21 @@ def _log_skland_exception(stage: str, error: Exception) -> str:
     return reason
 
 
-def _hypergryph_headers(device_id: str) -> dict[str, str]:
+def _hypergryph_headers(device_id: str = "") -> dict[str, str]:
     """构造鹰角通行证接口所需的客户端标识请求头。"""
 
-    return {
+    headers = {
         "Content-Type": "application/json",
         "User-Agent": (
             "Mozilla/5.0 (Linux; Android 12; SM-A5560 Build/V417IR; wv) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 "
             "Chrome/101.0.4951.61 Safari/537.36; SKLand/1.52.1"
         ),
-        "dId": device_id,
         "x-requested-with": "com.hypergryph.skland",
     }
+    if device_id:
+        headers["dId"] = device_id
+    return headers
 
 
 async def _get_grant_code(
@@ -892,11 +894,13 @@ async def create_skland_qr_login(
     """创建森空岛扫码登录，返回 ticket、二维码内容与设备 ID。"""
 
     async with _create_skland_client(proxy) as client:
-        device_id = await get_cached_device_id(proxy, client=client)
+        # 申请二维码不需要数美 dId；设备验证只在确认后换取 cred 时进行。
+        # device 保留本地会话标识以兼容前端，scan_status 不使用它。
+        device_id = uuid.uuid4().hex
         response = await client.post(
             SKLAND_SCAN_CREATE_URL,
             json={},
-            headers=_hypergryph_headers(device_id),
+            headers=_hypergryph_headers(),
         )
         response_data = _parse_json_object(response)
         if not response.is_success or str(response_data.get("status")) != "0":
@@ -907,13 +911,13 @@ async def create_skland_qr_login(
         data = response_data.get("data")
         if not isinstance(data, dict):
             raise ValueError("森空岛扫码登录响应格式无效")
-        scan_id = str(data.get("scanId") or "").strip()
-        scan_url = str(data.get("scanUrl") or "").strip()
-        if not scan_id or not scan_url:
+        scan_id = data.get("scanId")
+        scan_url = data.get("scanUrl")
+        if not all(isinstance(value, str) and value.strip() for value in (scan_id, scan_url)):
             raise ValueError("森空岛扫码登录未返回有效二维码")
         return {
-            "ticket": scan_id,
-            "qr_url": scan_url,
+            "ticket": scan_id.strip(),
+            "qr_url": scan_url.strip(),
             "device": device_id,
         }
 
@@ -956,7 +960,7 @@ async def check_skland_qr_status(
         elif "取消" in message or "拒绝" in message:
             status = "Canceled"
         else:
-            status = "Init"
+            status = "Error"
         return {
             "status": status,
             "scan_code": "",

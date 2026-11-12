@@ -1,12 +1,13 @@
 # Copyright (c) 2025 MX
 # Adapted from mxyooR/Kuro_login (MIT). See docs/licenses/Kuro_login.txt.
 import asyncio
-import io
 import sys
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import httpx
+
+from app.tools.captcha_image import open_captcha_image
 
 from ..errors import CaptchaError
 
@@ -14,11 +15,10 @@ from ..errors import CaptchaError
 def _calculate_slide_distance_numpy(bg_bytes: bytes, target_bytes: bytes) -> int:
     """Workers 无 OpenCV，使用灰度梯度相关匹配；无法识别的挑战仍交人工。"""
     import numpy as np
-    from PIL import Image
 
     images = []
     for raw in (bg_bytes, target_bytes):
-        with Image.open(io.BytesIO(raw)) as image:
+        with open_captcha_image(raw) as image:
             if not (2 <= image.width <= 640 and 2 <= image.height <= 400):
                 raise ValueError("当前滑块图片尺寸需要人工验证")
             gray = np.asarray(image.convert("L"), dtype=np.float32)
@@ -67,12 +67,11 @@ def _calculate_slide_distance_numpy(bg_bytes: bytes, target_bytes: bytes) -> int
 def _calculate_slide_distance_cv2(bg_bytes: bytes, target_bytes: bytes) -> int:
     import cv2
     import numpy as np
-    from PIL import Image
 
     # 限定同步识别的计算量；该函数由可终止的独立进程执行，不在 Web 线程加载 OpenCV。
     sizes = []
     for raw in (bg_bytes, target_bytes):
-        with Image.open(io.BytesIO(raw)) as image:
+        with open_captcha_image(raw) as image:
             if not (2 <= image.width <= 640 and 2 <= image.height <= 400):
                 raise ValueError("当前滑块图片尺寸需要人工验证")
             sizes.append(image.size)

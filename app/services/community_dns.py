@@ -2,7 +2,9 @@
 
 import asyncio
 import ipaddress
+import os
 import socket
+import struct
 import time
 from collections.abc import Awaitable, Callable
 
@@ -18,11 +20,17 @@ logger = get_logger("上游请求")
 DOH_ENDPOINTS = ("https://223.5.5.5/resolve", "https://223.6.6.6/resolve")
 DOH_HOST = "dns.alidns.com"
 DOH_TIMEOUT_SECONDS = 3.0
+# 加密 DNS 被 TUN 接管时 DoH 也会一起失效，此时改用明文 UDP 查询公共 DNS。
+# 目标写 IP，不经过本机解析器，Fake-IP 污染影响不到这一步。
+UDP_DNS_SERVERS = ("223.5.5.5", "119.29.29.29")
+UDP_TIMEOUT_SECONDS = 2.0
 CACHE_TTL_MIN_SECONDS = 60.0
 CACHE_TTL_MAX_SECONDS = 300.0
 MAX_FALLBACK_ADDRESSES = 2
 # 只处理本次确认存在连接问题的森空岛官方域名；本机 MAS 等请求不做公网解析。
-FALLBACK_HOSTS = frozenset({"zonai.skland.com", "as.hypergryph.com"})
+FALLBACK_HOSTS = frozenset(
+    {"zonai.skland.com", "as.hypergryph.com", "fp-it.portal101.cn"}
+)
 # 连接阶段失败可以安全重放：请求一个字节都还没发出去。读写失败不能重放，
 # 否则签到、扫码保存这类 POST 会被执行两次。
 CONNECT_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout, httpx.ProxyError)
@@ -88,6 +96,119 @@ async def resolve_over_https(hostname: str) -> list[tuple[str, float]]:
     return []
 
 
+def _build_dns_query(hostname: str) -> bytes:
+    """构造一条 A 记录查询（RFC 1035 报文头 + 单条问题）。"""
+
+    header = struct.pack("!HHHHHH", int.from_bytes(os.urandom(2), "big"), 0x0100, 1, 0, 0, 0)
+    name = b"".join(
+        bytes((len(part),)) + part.encode("idna")
+        for part in hostname.rstrip(".").split(".")
+        if part
+    )
+    return header + name + b"\x00" + struct.pack("!HH", 1, 1)
+
+
+def _skip_dns_name(data: bytes, offset: int) -> int:
+    """跳过域名：压缩指针 2 字节，标签则以 0 结尾。"""
+
+    while offset < len(data):
+        length = data[offset]
+        if length == 0:
+            return offset + 1
+        if length & 0xC0 == 0xC0:
+            if offset + 2 > len(data):
+                return len(data) + 1
+            pointer = ((length & 0x3F) << 8) | data[offset + 1]
+            return offset + 2 if pointer < len(data) else len(data) + 1
+        if length > 63 or offset + 1 + length > len(data):
+            return len(data) + 1
+        offset += 1 + length
+    return offset
+
+
+def _parse_dns_answers(data: bytes) -> list[tuple[str, float]]:
+    """从 DNS 响应报文里取公网 A 记录，格式不认识就返回空列表。"""
+
+    if len(data) < 12:
+        return []
+    try:
+        flags, questions, answers = struct.unpack("!HHH", data[2:8])
+    except struct.error:
+        return []
+    # 仅接受完整、成功的标准查询应答；截断／错误报文不能当成可用地址。
+    if flags & 0xFA0F != 0x8000 or questions != 1:
+        return []
+    offset = 12
+    for _ in range(questions):
+        offset = _skip_dns_name(data, offset) + 4
+        if offset > len(data):
+            return []
+    addresses: list[tuple[str, float]] = []
+    for _ in range(answers):
+        offset = _skip_dns_name(data, offset)
+        if offset + 10 > len(data):
+            break
+        record_type, record_class, ttl, length = struct.unpack(
+            "!HHIH", data[offset : offset + 10]
+        )
+        offset += 10
+        if offset + length > len(data):
+            return []
+        payload = data[offset : offset + length]
+        offset += length
+        if record_type != 1 or record_class != 1 or length != 4:
+            continue
+        address = ipaddress.IPv4Address(payload)
+        # 与 DoH 一致：只认公网 IPv4，内网地址会把凭据送错地方。
+        if not address.is_global:
+            continue
+        clamped = min(max(float(ttl), CACHE_TTL_MIN_SECONDS), CACHE_TTL_MAX_SECONDS)
+        addresses.append((str(address), clamped))
+    return addresses[:MAX_FALLBACK_ADDRESSES]
+
+
+def _query_udp_blocking(server: str, hostname: str) -> bytes:
+    """同步发送一次 UDP 查询；由调用方丢进线程池。"""
+
+    query = _build_dns_query(hostname)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+        sock.settimeout(UDP_TIMEOUT_SECONDS)
+        # 连接 UDP 限制应答来源，并核对事务号与问题，拒绝串包。
+        sock.connect((server, 53))
+        sock.send(query)
+        payload = sock.recv(2048)
+    if payload[:2] != query[:2] or payload[12:len(query)] != query[12:]:
+        return b""
+    return payload
+
+
+async def resolve_via_udp(hostname: str) -> list[tuple[str, float]]:
+    """明文 UDP 查询公共 DNS，失败返回空列表（回退不是必需步骤，不能抛）。"""
+
+    for server in UDP_DNS_SERVERS:
+        try:
+            payload = await asyncio.wait_for(
+                asyncio.to_thread(_query_udp_blocking, server, hostname),
+                timeout=UDP_TIMEOUT_SECONDS + 0.5,
+            )
+        except (OSError, asyncio.TimeoutError):
+            continue
+        addresses = _parse_dns_answers(payload)
+        if addresses:
+            return addresses
+    return []
+
+
+async def resolve_direct(hostname: str) -> list[tuple[str, float]]:
+    """回退解析入口：先加密 DNS，再明文 UDP，避免 DoH 被 TUN 一并接管时无处可退。"""
+
+    addresses = await resolve_over_https(hostname)
+    if addresses:
+        return addresses
+    logger.warning(f"{hostname} 加密 DNS 解析失败，改用公共 DNS 明文查询")
+    return await resolve_via_udp(hostname)
+
+
 def _looks_like_fake_ip(address: str) -> bool:
     try:
         parsed = ipaddress.ip_address(address)
@@ -126,7 +247,8 @@ def describe_failure(hostname: str, addresses: list[str]) -> str:
         return f"本机 DNS 解析不到 {hostname}，请检查网络或 DNS 设置后重试。"
     return (
         f"连接 {hostname}（本机解析到 {addresses[0]}）失败，"
-        "加密 DNS 回退也没能建立连接；请检查代理/TUN 的规则后重试。"
+        "回退解析（加密 DNS 与明文 DNS）后仍连不上；"
+        "请检查代理/TUN 的规则后重试。"
     )
 
 
@@ -141,7 +263,8 @@ class CommunityHTTPTransport(httpx.AsyncBaseTransport):
         transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
     ) -> None:
         self._uses_proxy = proxy is not None
-        self._resolver = resolver or resolve_over_https
+        # 显式代理代表用户选定的出口，回环地址也不能在失败后静默绕过。
+        self._resolver = resolver or resolve_direct
         # 注入点：测试用假 transport 顶替真实连接，既不联网也不依赖 DNS。
         self._transport_factory = transport_factory or (
             lambda: httpx.AsyncHTTPTransport(proxy=proxy, trust_env=False)
@@ -159,7 +282,6 @@ class CommunityHTTPTransport(httpx.AsyncBaseTransport):
             return await self._transport.handle_async_request(request)
         except CONNECT_ERRORS as error:
             self._resolved.pop(hostname, None)
-            # 有显式代理时代理应自己解析域名，回退只会绕过代理把请求发到本机网络。
             if (
                 not self._uses_proxy
                 and request.url.scheme == "https"
@@ -171,7 +293,7 @@ class CommunityHTTPTransport(httpx.AsyncBaseTransport):
                     except CONNECT_ERRORS:
                         continue
                     self._resolved[hostname] = (address, time.monotonic() + expires_in)
-                    logger.info(f"{hostname} 直连失败，已改用加密 DNS 解析的 {address}")
+                    logger.info(f"{hostname} 直连失败，改用回退解析的 {address}")
                     return response
             if hostname not in FALLBACK_HOSTS:
                 raise

@@ -50,7 +50,7 @@ const AUTO_CLOSE_DELAY_MS = 1200
  * 后者由 AbortError 静默吞掉，不能弹提示。
  */
 export const isQrExpiredMessage = (messageText: string) =>
-  /二维码|qr|expired|invalid|nonetype.*get|object has no attribute.*get/i.test(messageText)
+  /失效|过期|不存在|expired|invalid|nonetype.*get|object has no attribute.*get/i.test(messageText)
 
 const isQrAbortError = (error: unknown) => error instanceof Error && error.name === 'AbortError'
 
@@ -331,12 +331,13 @@ export function useQrLogin({ getAccountId, onSaved, logger, provider }: QrLoginO
       await applyCheckResult(data, id, signal)
     } catch (e) {
       if (!isCurrentSession(id) || isQrAbortError(e)) return
-      const errorMessage = e instanceof Error ? e.message : String(e)
-      if (isQrExpiredMessage(errorMessage) || errorMessage === QR_RESPONSE_INVALID_MESSAGE) {
+      const reason = errorMessage(e, t('gamesign.qr.queryFailed'))
+      if (isQrExpiredMessage(reason) || reason === QR_RESPONSE_INVALID_MESSAGE) {
         markExpired(t('gamesign.qr.invalidState'))
       } else {
         // 短暂网络错误不停止轮询，但记录日志便于调试。
-        logger.warn(`[QR poll] 轮询异常: ${errorMessage}`)
+        statusText.value = reason
+        logger.warn(`[QR poll] 轮询异常: ${reason}`)
       }
     } finally {
       if (isCurrentSession(id)) pollInFlight.value = false
@@ -388,7 +389,7 @@ export function useQrLogin({ getAccountId, onSaved, logger, provider }: QrLoginO
     } catch (e) {
       if (!isCurrentSession(id) || isQrAbortError(e)) return
       status.value = 'error'
-      statusText.value = e instanceof Error ? e.message : String(e)
+      statusText.value = errorMessage(e, t('gamesign.qr.createFailed'))
     } finally {
       if (isCurrentSession(id)) loading.value = false
     }

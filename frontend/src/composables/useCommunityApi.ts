@@ -19,21 +19,45 @@ export function assertSuccess<T extends OutBase>(response: T): T {
   return response
 }
 
+const nonEmptyText = (value: unknown): string =>
+  typeof value === 'string' && value.trim() ? value.trim() : ''
+
+/**
+ * 取后端错误体里的原因。
+ *
+ * 我们自己的异常处理器把原因写在 message，FastAPI 的 HTTPException 写在 detail，
+ * 参数校验失败时 detail 又是数组——三种都要认，否则「获得森空岛 cred 失败…」
+ * 这类真正能照着改的原因会被英文状态描述整条盖掉。
+ */
+const reasonOf = (body: unknown): string => {
+  if (!body || typeof body !== 'object') return ''
+  const record = body as { message?: unknown; detail?: unknown }
+  const text = nonEmptyText(record.message)
+  if (text) return text
+  const detail = record.detail
+  if (typeof detail === 'string') return nonEmptyText(detail)
+  if (Array.isArray(detail))
+    return detail
+      .map(item => {
+        const entry = item as { msg?: unknown; loc?: unknown } | null
+        const msg = nonEmptyText(entry?.msg)
+        if (!msg) return ''
+        const loc = Array.isArray(entry?.loc) ? entry.loc.join('.') : ''
+        return loc ? `${loc}: ${msg}` : msg
+      })
+      .filter(Boolean)
+      .join('；')
+  return ''
+}
+
 /**
  * 统一错误文案：后端业务消息 > 自有异常消息 > 调用方传入的 i18n 兜底。
  * axios 的网络/超时错误只有英文 message（如 Network Error），对用户没有信息量，直接走兜底。
  */
 export function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
-    const body: unknown = error.body
-    if (
-      body &&
-      typeof body === 'object' &&
-      'message' in body &&
-      typeof body.message === 'string' &&
-      body.message.trim()
-    )
-      return body.message
+    const reason = reasonOf(error.body)
+    if (reason) return reason
     // 生成客户端自带的 message 是英文状态描述，没有业务文案时交给兜底。
     return fallback
   }

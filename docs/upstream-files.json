@@ -90,7 +90,7 @@
       "path": "app/tools/skland.py",
       "source": "app/tools/skland.py",
       "source_sha256": "9a6400579134a1247fe6b690dcaeab5251519d43103d02411e3a0ffb0a0fe137",
-      "standalone_sha256": "a7ec78d50578ed90233feb3c36691ba1ab41da818c5c0f179b049a2827f25213",
+      "standalone_sha256": "f4ed3b91f28c1bdc5a34300d399489e5e66774df5985f31729686c25ecdaad86",
       "synced_source_sha256": "ade78966347b962f9fb98ddc32688f5883cdf17b927a32ced3e0913c8840b6d7",
       "synced_from": "b834a12358bf1e1d0fc25dc2207a681a228d7263"
     },
@@ -146,7 +146,7 @@
       "path": "frontend/src/views/gamesign/useQrLogin.ts",
       "source": "frontend/src/views/gamesign/useQrLogin.ts",
       "source_sha256": "66d587c4e193e45378df1ee46986daeca61074d07ed1ebc988fbffcc74035409",
-      "standalone_sha256": "e35b4458e87d1ad57ca1e0d68199f7dc2857b9c94de6a5fc4f3ab82ab7e69010"
+      "standalone_sha256": "2aa7e5d36b4ac9c1bf2e5b1d447c266dd12b9306ac233cd0450982f9b60a8627"
     },
     {
       "path": "frontend/src/views/gamesign/components/CommunityActivityCard.vue",
@@ -164,7 +164,7 @@
       "path": "frontend/src/views/gamesign/useQrLogin.test.ts",
       "source": "frontend/src/views/gamesign/useQrLogin.test.ts",
       "source_sha256": "0849147a7e613633ce8c355c7caf2254e6efd87b7d6ecdb28a8c0cf5cc623359",
-      "standalone_sha256": "e16df460cd539d964e946d56469437bcfcaaaf39912d6814c38309a617198ea7"
+      "standalone_sha256": "210778f14143b49243a621fb254cc8a22ef034766bcaf096220353e9203a840b"
     },
     {
       "path": "frontend/tsconfig.app.json",
@@ -388,14 +388,14 @@
       "path": "app/tools/_geetest/track_detact/icon.py",
       "origin": "mxyooR/Kuro_login",
       "license": "MIT（Copyright (c) 2025 MX，全文见 docs/licenses/Kuro_login.txt）",
-      "standalone_sha256": "ed53fa43053611fef203ef84f5b2a70ddc0de1eec1ed9e4ddc7224f5820ae5cf",
+      "standalone_sha256": "a8d82e29695afa6e685265a52c190897514d3989bbf2f787e21b612bcbea35b6",
       "note": "图标点选适配：拼接图标提示交本仓云码识别；Alpha 轮廓处理参考上游 pictureUtils。"
     },
     {
       "path": "app/tools/_geetest/track_detact/slide.py",
       "origin": "mxyooR/Kuro_login",
       "license": "MIT（Copyright (c) 2025 MX，全文见 docs/licenses/Kuro_login.txt）",
-      "standalone_sha256": "aacfcd8718fa71385f4334c354352ccb651dce98fb9f707cc34b3ed9d5a6edc5",
+      "standalone_sha256": "9c123f8e0e4db4d655ff32b92a5f3e734df28d968c2f5cb3abd2bbf538cc2c77",
       "note": "滑块缺口距离与轨迹生成适配：保留上游轨迹流程，距离匹配改为 numpy 梯度相关，识别服务换成本仓云码客户端。"
     }
   ],
