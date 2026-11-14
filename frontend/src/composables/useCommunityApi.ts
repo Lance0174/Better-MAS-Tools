@@ -7,6 +7,7 @@ import {
   type GeetestV3Data,
   type GeetestV4Data,
   type AccountUpdateIn,
+  type AccountRolesIn,
   type SettingsData,
   type OutBase,
 } from '@/api'
@@ -73,6 +74,8 @@ export function useCommunityApi() {
     automaticKuroSms: (sessionId: string) => KuroLoginService.automaticKuroSms({ sessionId }).then(assertSuccess),
     listAccounts: () => CommunityService.listAccounts().then(assertSuccess),
     createAccount: () => CommunityService.createAccount().then(assertSuccess),
+    listAccountRoles: (accountId: string, platform: AccountRolesIn['platform']) =>
+      CommunityService.listAccountRoles({ accountId, platform }).then(assertSuccess),
     updateAccount: (body: AccountUpdateIn) =>
       CommunityService.updateAccount(body).then(assertSuccess),
     deleteAccount: (accountId: string) =>

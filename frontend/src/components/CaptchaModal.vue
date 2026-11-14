@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
 import { getLogger } from '@/utils/logger'
 import { isAndroidLocal } from '@/services/android'
 
@@ -116,14 +117,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <a-modal
+  <AdaptivePanel
     :open="open"
     :title="t('standalone.humanVerification')"
-    :footer="null"
     :width="440"
-    centered
-    destroy-on-close
-    @cancel="emit('close')"
+    desktop-modal
+    @close="emit('close')"
   >
     <a-space v-if="failed" direction="vertical" class="captcha-error">
       <a-alert type="error" show-icon :message="t(failureReason)" />
@@ -139,7 +138,7 @@ onBeforeUnmount(() => {
         :title="t('standalone.humanVerification')"
       />
     </a-spin>
-  </a-modal>
+  </AdaptivePanel>
 </template>
 
 <style scoped>

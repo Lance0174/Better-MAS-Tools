@@ -1,5 +1,12 @@
 import type { SignAccountOut } from '@/api'
 
+/** 旧结果把社区名与角色名合在同一字段；仅拆解有明确 UID 的格式。 */
+export function signRoleIdentity(value = '') {
+  const match = value.match(/^([^/]+)\/([^/]+)\((\d+)\)$/)
+  if (!match) return { name: value, uid: '' }
+  return { name: match[1] === match[2] ? match[1] : `${match[1]} / ${match[2]}`, uid: match[3] }
+}
+
 /** 共享的库洛币签到放在游戏结果之后；旧记录保留合并状态，不猜测分项成功。 */
 export function getAccountSignSteps(account: SignAccountOut) {
   return (account.games ?? [])
@@ -48,7 +55,9 @@ export function summarizeSignResults(accounts: SignAccountOut[], today: string) 
   return { success, failed, pending }
 }
 
-export function getSignSummaryState(counts: ReturnType<typeof summarizeSignResults>) {
+export function getSignSummaryState(
+  counts: ReturnType<typeof summarizeSignResults>
+): 'success' | 'partial' | 'failed' | 'pending' {
   if (counts.failed) return counts.success ? 'partial' : 'failed'
   if (counts.pending || !counts.success) return 'pending'
   return 'success'

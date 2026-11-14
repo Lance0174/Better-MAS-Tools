@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import { confirmDialog } from '@/utils/confirmDialog'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import ChoiceSelect from '@/components/ChoiceSelect.vue'
 import { useI18n } from 'vue-i18n'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import type { SettingsData } from '@/api'
 import { useSettingsStore } from '@/stores/settings'
 import { errorMessage } from '@/composables/useCommunityApi'
@@ -13,6 +16,15 @@ import SoftwareUpdate from './SoftwareUpdate.vue'
 
 const { t } = useI18n()
 const settings = useSettingsStore()
+const route = useRoute()
+const section = ref('appearance')
+watch(
+  () => route.query.section,
+  value => {
+    section.value = value === 'updates' ? 'updates' : 'appearance'
+  },
+  { immediate: true }
+)
 const androidBuild = import.meta.env.BMAT_ANDROID
 const draft = ref<SettingsData>({
   ...settings.data,
@@ -22,8 +34,17 @@ watch(
   () => settings.data?.Theme,
   value => {
     if (value) draft.value.Theme = value
-  }
+  },
+  { flush: 'sync' }
 )
+const themePreference = computed({
+  get: () => settings.data?.Theme ?? 'system',
+  set: (value: SettingsData['Theme']) => {
+    void settings
+      .patch({ Theme: value })
+      .catch(cause => message.error(errorMessage(cause, t('standalone.saveFailed'))))
+  },
+})
 const yunmaToken = computed({
   get: () => draft.value.YunmaToken ?? '',
   set: (value: string) => {
@@ -36,13 +57,13 @@ const captchaModes = computed(() => [
   { value: 'manual', label: t('standalone.captchaManual') },
 ])
 const themes = computed(() =>
-  ['light', 'dark', 'system'].map(value => ({ value, label: t(`standalone.${value}`) }))
+  (['light', 'dark', 'system'] as const).map(value => ({ value, label: t(`standalone.${value}`) }))
 )
 const reopenOnboarding = () => {
   window.dispatchEvent(new CustomEvent('bmat-open-onboarding'))
 }
 const autoSave = createSettingsAutoSave({
-  getSnapshot: () => draft.value,
+  getSnapshot: () => ({ ...draft.value, Theme: settings.data?.Theme }),
   save: next => settings.save(next),
   onFailure: cause => message.error(errorMessage(cause, t('standalone.saveFailed'))),
 })
@@ -62,7 +83,7 @@ const lightModeChanged = (enabled: boolean) => {
     },
     confirm: () =>
       new Promise<boolean>(resolve => {
-        Modal.confirm({
+        confirmDialog({
           title: t('standalone.lightModeConfirmTitle'),
           content: t('standalone.lightModeConfirmContent'),
           okText: t('standalone.lightModeConfirmOk'),
@@ -84,7 +105,25 @@ onBeforeUnmount(autoSave.dispose)
 <template>
   <section class="settings-page">
     <a-form layout="vertical" :model="draft">
-      <a-tabs>
+      <a-tabs v-model:active-key="section">
+        <a-tab-pane key="appearance" :tab="t('standalone.ui.appearance')">
+          <a-form-item name="Theme" :label="t('standalone.theme')"
+            ><ChoiceSelect v-model:value="themePreference" :options="themes" class="short-field"
+          /></a-form-item>
+          <a-form-item
+            name="GlassEffect"
+            :label="t('standalone.glassEffect')"
+            :extra="t('standalone.glassEffectHint')"
+            ><a-switch v-model:checked="draft.GlassEffect" @change="changed"
+          /></a-form-item>
+          <a-form-item
+            name="onboarding"
+            :label="t('standalone.onboardingReopen')"
+            :extra="t('standalone.onboardingReopenHint')"
+          >
+            <a-button @click="reopenOnboarding">{{ t('standalone.onboardingReopen') }}</a-button>
+          </a-form-item>
+        </a-tab-pane>
         <a-tab-pane key="updates" :tab="t('standalone.softwareUpdate')"
           ><SoftwareUpdate
         /></a-tab-pane>
@@ -96,7 +135,11 @@ onBeforeUnmount(autoSave.dispose)
             class="settings-hint"
           />
           <a-form-item name="CaptchaMode" :label="t('standalone.captchaMode')">
-            <a-select v-model:value="draft.CaptchaMode" :options="captchaModes" @change="changed" />
+            <ChoiceSelect
+              v-model:value="draft.CaptchaMode"
+              :options="captchaModes"
+              @change="changed"
+            />
           </a-form-item>
           <a-form-item
             name="YunmaToken"
@@ -112,7 +155,7 @@ onBeforeUnmount(autoSave.dispose)
           </a-form-item>
           <a-button danger @click="clearYunmaKey">{{ t('standalone.clearYunmaKey') }}</a-button>
         </a-tab-pane>
-        <a-tab-pane key="preferences" :tab="t('standalone.preferences')">
+        <a-tab-pane key="preferences" :tab="t('standalone.ui.preferences')">
           <a-form-item
             v-if="!isAndroidLocal && !androidBuild"
             name="MasBaseUrl"
@@ -126,26 +169,6 @@ onBeforeUnmount(autoSave.dispose)
               @update:value="textChanged"
               @blur="textBlurred"
             />
-          </a-form-item>
-          <a-form-item name="Theme" :label="t('standalone.theme')"
-            ><a-select
-              v-model:value="draft.Theme"
-              :options="themes"
-              class="short-field"
-              @change="changed"
-          /></a-form-item>
-          <a-form-item
-            name="GlassEffect"
-            :label="t('standalone.glassEffect')"
-            :extra="t('standalone.glassEffectHint')"
-            ><a-switch v-model:checked="draft.GlassEffect" @change="changed"
-          /></a-form-item>
-          <a-form-item
-            name="onboarding"
-            :label="t('standalone.onboardingReopen')"
-            :extra="t('standalone.onboardingReopenHint')"
-          >
-            <a-button @click="reopenOnboarding">{{ t('standalone.onboardingReopen') }}</a-button>
           </a-form-item>
           <a-form-item
             v-if="isDesktop"
@@ -282,12 +305,29 @@ onBeforeUnmount(autoSave.dispose)
 
 <style scoped>
 .settings-page {
-  max-width: 900px;
+  max-width: 1000px;
+  margin: auto;
+}
+.settings-page :deep(.ant-tabs-tabpane) {
+  background: var(--ant-color-bg-container);
+  border-radius: 24px;
+  padding: 24px;
+}
+.settings-page :deep(.ant-form-item) {
+  margin-bottom: 24px;
 }
 .short-field {
   width: 200px;
 }
 .settings-hint {
   margin-bottom: 20px;
+}
+@media (max-width: 700px) {
+  .settings-page :deep(.ant-tabs-tabpane) {
+    padding: 20px;
+  }
+  .short-field {
+    width: 100%;
+  }
 }
 </style>

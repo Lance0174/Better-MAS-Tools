@@ -6,10 +6,13 @@ import type { CancelablePromise, LogEntryInfo, LogsOut } from '@/api'
 import { assertSuccess, errorMessage } from '@/composables/useCommunityApi'
 import { useDiagnosticsApi } from '@/composables/useDiagnosticsApi'
 import { androidCall, isAndroidLocal } from '@/services/android'
+import ChoiceSelect from '@/components/ChoiceSelect.vue'
+import { useMobileUi } from '@/composables/useMobileUi'
 import { saveTextFile } from '@/utils/download'
 
 const { t, locale } = useI18n()
 const api = useDiagnosticsApi()
+const mobile = useMobileUi()
 const entries = ref<LogEntryInfo[]>([])
 const level = ref('all')
 const search = ref('')
@@ -107,7 +110,7 @@ onBeforeUnmount(() => {
         allow-clear
         class="log-search"
       />
-      <a-select v-model:value="level" :options="levels" class="log-level-select" />
+      <ChoiceSelect v-model:value="level" :options="levels" class="log-level-select" />
       <a-button @click="paused = !paused">{{
         t(paused ? 'standalone.logResume' : 'standalone.logPause')
       }}</a-button>
@@ -129,7 +132,7 @@ onBeforeUnmount(() => {
         )
       "
     />
-    <div v-if="isAndroidLocal" class="mobile-logs">
+    <div v-if="mobile" class="mobile-logs">
       <a-empty v-if="!filtered.length" />
       <article
         v-for="entry in filtered.slice((logPage - 1) * 50, logPage * 50)"
@@ -203,6 +206,11 @@ onBeforeUnmount(() => {
 .logs-table :deep(.ant-table-content > table) {
   min-width: 960px;
 }
+.mobile-logs {
+  background: var(--ant-color-bg-container);
+  padding: 8px 18px;
+  border-radius: 24px;
+}
 .mobile-log {
   padding: 12px 0;
   border-bottom: 1px solid var(--ant-color-border-secondary);
@@ -230,5 +238,13 @@ onBeforeUnmount(() => {
   font-size: 12px;
   max-height: 240px;
   overflow-y: auto;
+}
+@media (max-width: 700px) {
+  .log-search {
+    width: 100%;
+  }
+  .log-toolbar :deep(.ant-space-item:first-child) {
+    width: 100%;
+  }
 }
 </style>

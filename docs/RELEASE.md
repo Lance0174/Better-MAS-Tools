@@ -12,6 +12,8 @@
 
 分类标题固定使用：**新增 / 变更 / 优化 / 修复 / 安全**。日常开发使用 `changelog.d/` 碎片记录变更，发版时由脚本统一聚合。
 
+项目显示名称、升级身份和更新源的更名准备见 [RENAMING.md](RENAMING.md)。
+
 ## 日常开发：记录变更
 
 合并用户可见变更（`app/`、`frontend/src/`、`frontend/electron/`、`main.py`）时，同步创建一条碎片：

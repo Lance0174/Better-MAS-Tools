@@ -9,7 +9,8 @@ import { errorMessage, useCommunityApi } from '@/composables/useCommunityApi'
 import CalendarCarousel from '@/components/CalendarCarousel.vue'
 import { filterAndSortActivities } from '@/views/calendar/calendarFilter'
 import DailyNote from './components/DailyNote.vue'
-import { GAME_NAMES, homeSignRows } from '@/utils/communityDashboard'
+import { CheckCircleOutlined, RightOutlined } from '@ant-design/icons-vue'
+import { summarizeSignResults } from '@/views/gamesign/signSummary'
 
 const { t, locale } = useI18n()
 const activity = useActivityStore()
@@ -21,20 +22,18 @@ const status = ref<StatusOut | null>(null)
 const statusFailure = ref<unknown>(null)
 const statusLoading = ref(false)
 const game = computed(() => calendar.games.find(group => group.game === activeGame.value))
-const gameName = computed(
-  () =>
-    GAME_NAMES[activeGame.value] ||
-    game.value?.name ||
-    activity.groups[0]?.game ||
-    Object.values(status.value?.results ?? {}).flatMap(accounts =>
-      accounts.flatMap(account => account.games ?? [])
-    )[0]?.game ||
-    ''
+const counts = computed(() =>
+  summarizeSignResults(Object.values(status.value?.results ?? {}).flat(), status.value?.today ?? '')
 )
-const rows = computed(() =>
-  homeSignRows(status.value?.results ?? {}, gameName.value, status.value?.today ?? '')
-)
-const completed = computed(() => rows.value.filter(row => row.state === 'success').length)
+const noteGames = computed(() => activity.groups.slice(0, 2))
+const signSummary = computed(() => {
+  if (!status.value) return t('standalone.ui.signEmpty')
+  if (!Object.values(status.value.results ?? {}).flat().length) return t('standalone.noResult')
+  return t(
+    counts.value.failed ? 'standalone.todayPartialFailure' : 'standalone.todaySummary',
+    counts.value
+  )
+})
 const events = computed(() =>
   filterAndSortActivities(game.value?.activities ?? [], {
     statusFilter: 'active',
@@ -42,7 +41,6 @@ const events = computed(() =>
     hidePermanent: false,
   }).slice(0, 3)
 )
-const note = computed(() => activity.current(gameName.value))
 watch(
   () => calendar.games,
   groups => {
@@ -98,87 +96,67 @@ onUnmounted(() => {
 
 <template>
   <section class="home-overview">
-    <div class="home-dashboard">
-      <section class="home-calendar">
-        <div class="home-section-heading">
-          <h2>{{ t('standalone.calendar') }}</h2>
-          <router-link to="/calendar">{{ t('standalone.viewCalendar') }} ↗</router-link>
-        </div>
-        <a-alert
-          v-if="calendar.failure"
-          type="error"
-          show-icon
-          :message="errorMessage(calendar.failure, t('standalone.calendarFailed'))"
-          class="page-alert"
-          ><template #action
-            ><a-button size="small" :loading="calendar.loading" @click="calendar.load()">{{
-              t('standalone.retry')
-            }}</a-button></template
-          ></a-alert
-        >
-        <a-alert
-          v-if="calendar.notice"
-          type="info"
-          show-icon
-          :message="calendar.notice"
-          class="page-alert"
-        />
-        <div v-if="calendar.loading && !calendar.games.length" class="page-state"><a-spin /></div>
-        <CalendarCarousel
-          v-else-if="calendar.games.length"
-          v-model:game="activeGame"
-          :groups="calendar.games"
-        />
-        <a-empty v-else :description="t('standalone.calendarEmpty')" class="page-state" />
-      </section>
-      <section class="home-sign">
-        <header>
-          <h2>{{ t('standalone.homeSignResults') }}</h2>
-          <span>{{ t('standalone.signCompleted', { count: completed, total: rows.length }) }}</span>
-        </header>
-        <a-alert
-          v-if="statusFailure"
-          type="error"
-          show-icon
-          :message="errorMessage(statusFailure, t('standalone.loadFailed'))"
-        />
-        <div v-if="statusLoading && !status" class="page-state"><a-spin /></div>
-        <div v-else-if="rows.length" class="home-sign-rows">
-          <article v-for="row in rows" :key="row.key" class="home-sign-row">
-            <div>
-              <strong>{{ row.name }}</strong
-              ><span>{{ row.platform }}</span>
-            </div>
-            <a-tag
-              :color="
-                row.state === 'success' ? 'success' : row.state === 'error' ? 'error' : 'default'
-              "
-              >{{ row.status || t('standalone.todayPending') }}</a-tag
-            >
-            <p :class="{ 'sign-error': row.state === 'error' }">
-              {{ row.reason || row.reward || t('standalone.todayPending') }}
-            </p>
-          </article>
-        </div>
-        <a-empty v-else :description="t('standalone.noResult')" class="home-sign-empty" />
-        <footer>
-          <router-link to="/sign">{{ t('standalone.openSign') }}</router-link
-          ><span v-if="settings.data?.ScheduledRun">{{
-            t('standalone.dailyPlan', { time: settings.data.ScheduledTime || '' })
-          }}</span>
-        </footer>
-      </section>
-    </div>
-    <div
-      class="home-details"
-      :class="{ 'home-details--sign-only': settings.data?.ActivityEnabled === false }"
+    <a-alert
+      v-if="calendar.failure"
+      type="error"
+      show-icon
+      :message="errorMessage(calendar.failure, t('standalone.calendarFailed'))"
+      class="page-alert"
+      ><template #action
+        ><a-button size="small" :loading="calendar.loading" @click="calendar.load()">{{
+          t('standalone.retry')
+        }}</a-button></template
+      ></a-alert
     >
-      <section v-if="settings.data?.ActivityEnabled !== false" class="home-note">
+    <a-alert
+      v-if="calendar.notice"
+      type="info"
+      show-icon
+      :message="calendar.notice"
+      class="page-alert"
+    />
+    <div v-if="calendar.loading && !calendar.games.length" class="page-state"><a-spin /></div>
+    <CalendarCarousel
+      v-else-if="calendar.games.length"
+      v-model:game="activeGame"
+      :groups="calendar.games"
+    />
+    <a-empty v-else :description="t('standalone.calendarEmpty')" class="home-calendar-empty" />
+    <a-alert
+      v-if="statusFailure"
+      type="error"
+      show-icon
+      :message="errorMessage(statusFailure, t('standalone.loadFailed'))"
+      class="page-alert"
+      ><template #action
+        ><a-button size="small" @click="loadStatus">{{ t('standalone.retry') }}</a-button></template
+      ></a-alert
+    >
+    <router-link to="/sign" class="home-sign-summary">
+      <span class="sign-icon" :class="{ 'sign-icon--warning': counts.failed }"
+        ><CheckCircleOutlined
+      /></span>
+      <div>
+        <h2>{{ t('standalone.ui.todayResults') }}</h2>
+        <p>{{ statusLoading && !status ? t('standalone.ui.signLoading') : signSummary }}</p>
+        <small v-if="settings.data?.ScheduledRun">{{
+          t('standalone.dailyPlan', { time: settings.data.ScheduledTime || '' })
+        }}</small>
+      </div>
+      <RightOutlined />
+    </router-link>
+    <div class="home-details" :class="{ 'sign-only': settings.data?.ActivityEnabled === false }">
+      <section v-if="settings.data?.ActivityEnabled !== false" class="home-notes-section">
+        <div class="home-section-heading">
+          <h2>{{ t('standalone.ui.noteTitle') }}</h2>
+          <router-link to="/activity">{{ t('standalone.ui.noteMore') }} ›</router-link>
+        </div>
         <a-alert
           v-if="activity.failure"
           type="error"
           show-icon
           :message="errorMessage(activity.failure, t('gamesign.activity.queryFailed'))"
+          class="page-alert"
           ><template #action
             ><a-button size="small" :loading="activity.loading" @click="activity.load(true)">{{
               t('standalone.retry')
@@ -186,42 +164,44 @@ onUnmounted(() => {
           ></a-alert
         >
         <div v-if="activity.loading && !activity.loaded" class="page-state"><a-spin /></div>
-        <DailyNote v-else-if="note" :game="gameName" compact />
+        <div v-else-if="noteGames.length" class="home-notes">
+          <DailyNote v-for="group in noteGames" :key="group.game" :game="group.game" compact />
+        </div>
         <div v-else class="home-note-empty">
-          <a-empty :description="t('standalone.homeNoteEmpty')" /><router-link to="/sign">{{
+          <a-empty :description="t('standalone.ui.notesEmpty')" /><router-link to="/accounts">{{
             t('standalone.accountList')
           }}</router-link>
         </div>
       </section>
       <section class="home-reminders">
         <div class="home-section-heading">
-          <h2>{{ game?.name }} · {{ t('standalone.activityReminders') }}</h2>
-          <span>{{ t('standalone.beijingTime') }}</span>
+          <h2>{{ t('standalone.activityReminders') }}</h2>
+          <router-link to="/calendar">{{ t('standalone.viewCalendar') }} ›</router-link>
         </div>
         <div v-if="events.length" class="home-agenda">
           <article
             v-for="(event, index) in events"
             :key="`${event.title}-${event.startsAt}-${index}`"
           >
-            <p>
-              {{
-                event.subtitle ||
-                t(
-                  event.kind === 'gacha'
-                    ? 'standalone.calendarGacha'
-                    : 'standalone.calendarActivity'
-                )
-              }}
-            </p>
-            <h3>{{ event.title }}</h3>
             <div>
-              <span class="mono">{{
-                time(event.status === '即将开始' ? event.startsAt : event.endsAt)
-              }}</span
-              ><a-tag :color="event.status === '即将开始' ? 'blue' : 'gold'">{{
-                event.status
-              }}</a-tag>
+              <p>
+                {{ game?.name }} ·
+                {{
+                  event.subtitle ||
+                  t(
+                    event.kind === 'gacha'
+                      ? 'standalone.calendarGacha'
+                      : 'standalone.calendarActivity'
+                  )
+                }}
+              </p>
+              <h3>{{ event.title }}</h3>
+              <span class="mono"
+                >{{ time(event.status === '即将开始' ? event.startsAt : event.endsAt) }} ·
+                {{ t('standalone.beijingTime') }}</span
+              >
             </div>
+            <a-tag :color="event.status === '即将开始' ? 'blue' : 'gold'">{{ event.status }}</a-tag>
           </article>
         </div>
         <a-empty v-else :description="t('standalone.homeAgendaEmpty')" />
@@ -232,202 +212,156 @@ onUnmounted(() => {
 
 <style scoped>
 .home-overview {
-  max-width: 1440px;
-  margin: 0 auto;
+  max-width: 1400px;
+  margin: auto;
+}
+.home-sign-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 22px;
+  margin-top: 16px;
+  border-radius: 23px;
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text);
+}
+.sign-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: var(--ant-color-success-bg);
+  color: var(--ant-color-success-text);
+  font-size: 23px;
+  flex-shrink: 0;
+}
+.sign-icon--warning {
+  color: var(--ant-color-warning-text);
+  background: var(--ant-color-warning-bg);
+}
+.home-sign-summary > div {
+  flex: 1;
+  min-width: 0;
+}
+.home-sign-summary h2 {
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-weight: 650;
+}
+.home-sign-summary p,
+.home-sign-summary small {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+  line-height: 1.6;
+}
+.home-sign-summary > .anticon {
+  color: var(--ant-color-text-tertiary);
+  font-size: 13px;
+}
+.home-details {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 26px;
+  margin-top: 24px;
+}
+.home-details.sign-only {
+  grid-template-columns: 1fr;
 }
 .home-section-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--ant-color-border);
+  gap: 12px;
+  margin: 0 0 13px;
 }
 .home-section-heading h2 {
   margin: 0;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 650;
 }
-.home-section-heading > a,
-.home-section-heading > span {
+.home-section-heading a {
   font-size: 12px;
-  color: var(--ant-color-text-secondary);
-}
-.home-dashboard,
-.home-details {
-  display: grid;
-  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 1fr);
-  gap: 24px;
-  margin-bottom: 24px;
-}
-.home-calendar {
-  min-width: 0;
-  background: var(--ant-color-bg-container);
-  border-radius: 24px;
-  padding: 20px;
-}
-.home-details--sign-only {
-  grid-template-columns: minmax(0, 1fr);
-}
-.home-sign {
+  min-height: 32px;
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--ant-color-bg-container);
-  border-radius: 24px;
-  overflow: hidden;
+  align-items: center;
 }
-.home-sign > header {
+.home-notes-section,
+.home-reminders {
+  min-width: 0;
+}
+.home-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px;
+  align-items: stretch;
+}
+.home-note-empty,
+.home-agenda,
+.home-calendar-empty {
+  background: var(--ant-color-bg-container);
+  padding: 16px 20px;
+  border-radius: 24px;
+}
+.home-calendar-empty {
+  margin: 0;
+}
+.home-note-empty {
+  text-align: center;
+  padding: 22px;
+}
+.home-agenda article {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--ant-color-border);
-}
-.home-sign h2 {
-  font-size: 17px;
-  margin: 0;
-}
-.home-sign > header > span {
-  font-size: 12px;
-  color: var(--ant-color-text-secondary);
-}
-.home-sign-rows {
-  padding: 0 20px;
-  flex: 1;
-  max-height: 360px;
-  overflow: auto;
-}
-.home-sign-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 5px 12px;
+  gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid var(--ant-color-border-secondary);
 }
-.home-sign-row:last-child {
+.home-agenda article:last-child {
   border: 0;
 }
-.home-sign-row > div {
-  display: flex;
-  gap: 9px;
-  align-items: baseline;
-  flex-wrap: wrap;
-}
-.home-sign-row strong {
-  font-size: 13px;
-  font-weight: 600;
-}
-.home-sign-row > div > span {
-  font-size: 12px;
-  color: var(--ant-color-text-secondary);
-}
-.home-sign-row p {
-  grid-column: 1/-1;
-  margin: 0;
-  font-size: 12px;
-  color: var(--ant-color-text-secondary);
-  overflow-wrap: anywhere;
-}
-.home-sign-row p.sign-error {
-  color: var(--app-danger-ink);
-}
-.home-sign-row .ant-tag {
-  margin: 0;
-  font-size: 12px;
-}
-.home-sign-empty {
-  padding: 20px 0;
-  flex: 1;
-}
-.home-sign footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: auto;
-  padding: 13px 20px;
-  border-top: 1px solid var(--ant-color-border);
-  font-size: 12px;
-}
-.home-sign footer span {
-  font-size: 12px;
-  color: var(--ant-color-text-secondary);
-}
-.home-note {
+.home-agenda article > div {
   min-width: 0;
 }
-.home-note-empty {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding: 24px;
-  border: 1px solid var(--ant-color-border);
-  background: var(--ant-color-bg-container);
-  height: 100%;
-  min-height: 264px;
-  border-radius: 24px;
-}
-.home-reminders {
-  min-width: 0;
-  background: var(--ant-color-bg-container);
-  padding: 24px;
-  border-radius: 24px;
-}
-.home-agenda {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-}
-.home-agenda article {
-  background: var(--ant-color-bg-container);
-  border-bottom: 1px solid var(--ant-color-border-secondary);
-  padding: 12px 0;
-  min-width: 0;
-}
-.home-agenda p {
+.home-agenda p,
+.home-agenda .mono {
   margin: 0;
-  font-size: 12px;
   color: var(--ant-color-text-secondary);
+  font-size: 11px;
 }
 .home-agenda h3 {
   font-size: 13px;
-  margin: 6px 0 17px;
+  font-weight: 600;
+  margin: 6px 0 8px;
   overflow-wrap: anywhere;
-}
-.home-agenda article > div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
 }
 .home-agenda .ant-tag {
   margin: 0;
+  flex-shrink: 0;
+  font-size: 11px;
 }
-@media (max-width: 1180px) {
-  .home-dashboard,
+@media (max-width: 1000px) {
   .home-details {
-    grid-template-columns: minmax(0, 1.3fr) minmax(270px, 1fr);
-    gap: 16px;
-  }
-}
-@media (max-width: 900px) {
-  .home-dashboard,
-  .home-details {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 700px) {
-  .home-agenda {
-    grid-template-columns: minmax(0, 1fr);
+  .home-sign-summary {
+    padding: 15px 16px;
+    margin-top: 14px;
+    gap: 12px;
   }
-  .home-section-heading h2 {
-    font-size: 17px;
+  .home-sign-summary h2 {
+    font-size: 14px;
+  }
+  .home-sign-summary p {
+    font-size: 11px;
+  }
+  .home-details {
+    gap: 24px;
+    margin-top: 20px;
   }
 }
 </style>

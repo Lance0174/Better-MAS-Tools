@@ -1,7 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { getAccountSignSteps, getSignSummaryState, summarizeSignResults } from './signSummary'
+import {
+  getAccountSignSteps,
+  getSignSummaryState,
+  signRoleIdentity,
+  summarizeSignResults,
+} from './signSummary'
 
 describe('今日签到整体情况', () => {
+  it('只消除旧角色字段的重复名字，保留 UID 与不同名字', () => {
+    expect(signRoleIdentity('测试角色/测试角色(100000001)')).toEqual({
+      name: '测试角色',
+      uid: '100000001',
+    })
+    expect(signRoleIdentity('社区名/角色名(100000001)')).toEqual({
+      name: '社区名 / 角色名',
+      uid: '100000001',
+    })
+    expect(signRoleIdentity('带/斜线的普通昵称')).toEqual({ name: '带/斜线的普通昵称', uid: '' })
+  })
   it('成功和已签到均算成功，风控保留失败', () => {
     expect(
       summarizeSignResults(

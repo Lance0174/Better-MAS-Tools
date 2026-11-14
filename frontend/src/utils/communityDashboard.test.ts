@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { ActivitySnapshot } from '@/views/gamesign/useCommunityActivityApi'
-import { groupSnapshots, homeSignRows, snapshotKey } from '@/utils/communityDashboard'
+import {
+  artworkSources,
+  gameBackground,
+  groupSnapshots,
+  homeSignRows,
+  snapshotKey,
+} from '@/utils/communityDashboard'
 
 const note = (accountUid: string, game = '原神', roleUid = '100000001') =>
   ({
@@ -13,6 +19,21 @@ const note = (accountUid: string, game = '原神', roleUid = '100000001') =>
   }) as ActivitySnapshot
 
 describe('首页数据组织', () => {
+  it('缺活动图时依次使用大版本与原便笺背景，拒绝游戏图标', () => {
+    expect(artworkSources('starrail', '/event.webp', '/version.webp')).toEqual([
+      '/event.webp',
+      '/version.webp',
+      gameBackground('星穹铁道'),
+    ])
+    expect(artworkSources('starrail', '/icons/game.png', '/version.webp')).toEqual([
+      '/version.webp',
+      gameBackground('starrail'),
+    ])
+    expect(gameBackground('崩坏：星穹铁道')).toBe(gameBackground('starrail'))
+    expect(gameBackground('zzz')).toBe(gameBackground('绝区零'))
+    expect(gameBackground('原神')).toContain('genshin-background.webp')
+    expect(artworkSources('unknown')).toEqual([])
+  })
   it('保留多账号和多区服，并按游戏排序而不改写原始数据', () => {
     const source = [note('a'), note('b'), note('a', '终末地'), note('a', '原神', '500000001')]
     const original = [...source]

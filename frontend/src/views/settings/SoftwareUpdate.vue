@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Modal } from 'ant-design-vue'
+import ChoiceSelect from '@/components/ChoiceSelect.vue'
+import { confirmDialog } from '@/utils/confirmDialog'
 import type { UpdateCheckOut } from '@/api'
 import { useUpdatesApi } from '@/composables/useUpdatesApi'
 import { errorMessage } from '@/composables/useCommunityApi'
@@ -19,8 +20,8 @@ const failure = ref('')
 const notice = ref('')
 const canInstall = isAndroidLocal || (isDesktop && !!window.bmatDesktop)
 const channels = computed(() => [
-  { value: 'stable', label: t('standalone.updateStable') },
-  { value: 'beta', label: t('standalone.updateBeta') },
+  { value: 'stable' as const, label: t('standalone.updateStable') },
+  { value: 'beta' as const, label: t('standalone.updateBeta') },
 ])
 function resetResult() {
   result.value = null
@@ -70,7 +71,7 @@ async function download() {
 }
 function install() {
   if (!downloaded.value || busy.value) return
-  Modal.confirm({
+  confirmDialog({
     title: t('standalone.updateInstallTitle'),
     content: t(
       isAndroidLocal ? 'standalone.updateAndroidInstallHint' : 'standalone.updateDesktopInstallHint'
@@ -109,7 +110,7 @@ function install() {
     <h2>{{ t('standalone.softwareUpdate') }}</h2>
     <p>{{ t('standalone.updateCurrent', { version: currentVersion }) }}</p>
     <a-form-item :label="t('standalone.updateChannel')">
-      <a-select
+      <ChoiceSelect
         v-model:value="channel"
         :options="channels"
         :disabled="busy"

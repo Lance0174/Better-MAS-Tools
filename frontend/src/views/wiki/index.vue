@@ -3,18 +3,22 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import { ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons-vue'
-import type {
-  WikiCountsOut,
-  WikiEntryDataOut,
-  WikiSearchItemOut,
-  WikiStatusDataOut,
-} from '@/api'
+import type { WikiCountsOut, WikiEntryDataOut, WikiSearchItemOut, WikiStatusDataOut } from '@/api'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { useWikiApi } from '@/composables/useWikiApi'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
+import { useMobileUi } from '@/composables/useMobileUi'
 import { createDebouncer, createSequenceGuard } from '@/utils/asyncGuard'
 
 const { t } = useI18n()
 const wikiApi = useWikiApi()
+const mobile = useMobileUi()
+const entryOpen = ref(false)
+const closeEntry = () => {
+  entryOpen.value = false
+  entryGuard.next()
+  entryLoading.value = false
+}
 const keyword = ref('')
 const searching = ref(false)
 const searchError = ref('')
@@ -114,6 +118,8 @@ const search = async () => {
 }
 
 const openEntry = async (item: WikiSearchItemOut) => {
+  entryOpen.value = true
+  entry.value = null
   const token = entryGuard.next()
   entryLoading.value = true
   entryError.value = ''
@@ -146,9 +152,10 @@ onUnmounted(() => {
 <template>
   <section class="wiki-page">
     <header class="page-toolbar">
-
-      <a-space>
-        <a-tag v-if="status.ready" color="green">{{ status.version || t('standalone.wikiReady') }}</a-tag>
+      <a-space wrap>
+        <a-tag v-if="status.ready" color="green">{{
+          status.version || t('standalone.wikiReady')
+        }}</a-tag>
         <a-tag v-else color="orange">{{ t('standalone.wikiNotReady') }}</a-tag>
         <a-button :loading="syncing" @click="sync(false)">
           <template #icon><SyncOutlined /></template>{{ t('standalone.wikiSync') }}
@@ -185,24 +192,54 @@ onUnmounted(() => {
           size="large"
           @search="search"
         />
-        <a-alert v-if="searchError" type="error" show-icon :message="searchError" class="wiki-hint" />
-        <a-empty v-if="!searching && keyword && !results.length && !searchError" :description="t('standalone.wikiNoResult')" />
+        <a-alert
+          v-if="searchError"
+          type="error"
+          show-icon
+          :message="searchError"
+          class="wiki-hint"
+        />
+        <a-empty
+          v-if="!searching && keyword && !results.length && !searchError"
+          :description="t('standalone.wikiNoResult')"
+        />
         <ul v-else class="wiki-result-list">
           <li v-for="item in results" :key="`${item.kind}-${item.id}`">
             <button type="button" class="wiki-result glass-surface" @click="openEntry(item)">
-              <img v-if="item.icon" :src="item.icon" alt="" loading="lazy" referrerpolicy="no-referrer" />
+              <img
+                v-if="item.icon"
+                :src="item.icon"
+                alt=""
+                loading="lazy"
+                referrerpolicy="no-referrer"
+              />
               <span class="wiki-result-text">
                 <strong>{{ item.name }}</strong>
-                <small>{{ kindLabel[item.kind] }}{{ item.subtitle ? ` · ${item.subtitle}` : '' }}</small>
+                <small
+                  >{{ kindLabel[item.kind] }}{{ item.subtitle ? ` · ${item.subtitle}` : '' }}</small
+                >
               </span>
             </button>
           </li>
         </ul>
       </div>
 
-      <article class="wiki-entry glass-surface">
+      <component
+        :is="mobile ? AdaptivePanel : 'article'"
+        class="wiki-entry glass-surface"
+        :open="entryOpen"
+        :title="entry?.name || t('standalone.wiki')"
+        full-mobile
+        @close="closeEntry"
+      >
         <a-spin :spinning="entryLoading">
-          <a-alert v-if="entryError" type="error" show-icon :message="entryError" class="wiki-hint" />
+          <a-alert
+            v-if="entryError"
+            type="error"
+            show-icon
+            :message="entryError"
+            class="wiki-hint"
+          />
           <a-empty v-else-if="!entry" :description="t('standalone.wikiEntryHint')">
             <template #image><SearchOutlined class="wiki-entry-icon" /></template>
           </a-empty>
@@ -242,7 +279,7 @@ onUnmounted(() => {
             </section>
           </template>
         </a-spin>
-      </article>
+      </component>
     </div>
   </section>
 </template>

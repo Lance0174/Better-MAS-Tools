@@ -1463,7 +1463,7 @@ def _parse_kuro_waves(
     reason = str(parsed.get("reason") or "").strip()
 
     resources: list[dict[str, object]] = []
-    if current_value is not None or total_value is not None:
+    if current_value is not None and total_value is not None:
         # 是否需要倒计时由解析层给出：库洛的 refreshTimeStamp <= 0 是"无需刷新"
         # 的哨兵值（实测体力已满时返回 0），不能按时间戳符号在这里猜。
         refresh_pending = bool(parsed.get("refresh_pending"))
@@ -1485,7 +1485,73 @@ def _parse_kuro_waves(
         if resource is not None:
             resources.append(resource)
 
-    if not resources:
+    # 完整小组件的 livenessData / battlePassData 与 baseData 字段仅按明确合同读取。
+    # 协议参考 CM-Edelweiss/WutheringWavesUID utils/api/model.py；未复制实现代码。
+    root = payload.get("data")
+    root = root if isinstance(root, Mapping) else {}
+    items: list[dict[str, object]] = []
+    liveness = _named_progress(
+        root.get("livenessData"), current_names=("cur",), target_names=("total",)
+    )
+    if liveness is not None:
+        item = _activity_item("每日活跃度", {}, pair=liveness)
+        if item is not None:
+            items.append(item)
+    battle_pass = root.get("battlePassData")
+    if isinstance(battle_pass, list):
+        for index, entry in enumerate(battle_pass):
+            pair = _named_progress(
+                entry, current_names=("cur",), target_names=("total",)
+            )
+            if pair is None or not isinstance(entry, Mapping):
+                continue
+            name = (
+                str(entry.get("name") or f"先约电台 {index + 1}")
+                .strip()
+                .replace("经验", "进度")
+            )
+            item = _activity_item(name, {}, pair=pair)
+            if item is not None:
+                item["period"] = "weekly" if "周" in name else "other"
+                items.append(item)
+    base = payload.get("_base_data")
+    base = base if isinstance(base, Mapping) else {}
+    for name, current_key, total_key, period in (
+        ("周本剩余次数", "weeklyInstCount", "weeklyInstCountLimit", "weekly"),
+        ("结晶单质", "storeEnergy", "storeEnergyLimit", "resource"),
+        ("千道门扉的异想", "rougeScore", "rougeScoreLimit", "other"),
+    ):
+        pair = _named_progress(
+            base, current_names=(current_key,), target_names=(total_key,)
+        )
+        if pair is None:
+            continue
+        if period == "resource":
+            item = _resource_item(name, {}, pair=pair)
+            if item is not None:
+                resources.append(item)
+        else:
+            item = _activity_item(name, {}, pair=pair)
+            if item is not None:
+                item["period"] = period
+                if period == "weekly":
+                    item = _status_item(
+                        name, f"剩余 {pair[0]} / {pair[1]} 次", period="weekly"
+                    )
+                items.append(item)
+    missing: list[str] = []
+    if liveness is None:
+        missing.append("每日活跃度")
+    if not isinstance(battle_pass, list) or not battle_pass:
+        missing.append("先约电台")
+    if missing:
+        reason = "；".join(
+            filter(None, (reason, f"上游未返回{'、'.join(missing)}，暂不展示对应数据"))
+        )
+    if payload.get("_detail_reason"):
+        reason = "；".join(filter(None, (reason, str(payload["_detail_reason"]))))
+
+    if not resources and not items:
         return _failed_snapshot(
             account_uid=account_uid,
             account_name=account_name,
@@ -1502,7 +1568,7 @@ def _parse_kuro_waves(
         account_name=account_name,
         platform="库街区",
         game="鸣潮",
-        items=[],
+        items=items,
         resources=resources,
         role=role,
         source="/gamer/widget/game3/getData",

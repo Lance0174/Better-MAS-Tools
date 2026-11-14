@@ -20,6 +20,8 @@ final class NativePolicy {
             "as.hypergryph.com",
             "ak.hypergryph.com",
             "binding-api-account-prod.hypergryph.com",
+            // 森空岛数美设备验证：扫码确认换凭据、便笺与签到均需要（app/utils/constants.py）。
+            "fp-it.portal101.cn",
             // 终末地 webview 寻访记录（app/tools/gacha.py:373-380）
             "ef-webview.hypergryph.com",
             "ef-webview.gryphline.com",
@@ -72,11 +74,12 @@ final class NativePolicy {
 
     /**
      * 回传 JS 的响应头白名单，只留 Python 侧真正读取的键：content-type 供 network.py:39 判断
-     * JSON，Date/Age 供 skland.py:123-139 校时，set-cookie 供 miyoushe_qr.py:1103，
+     * JSON，content-encoding 供 HTTPX 解压显式 Accept-Encoding 对应的原始响应字节，
+     * Date/Age 供 skland.py:123-139 校时，set-cookie 供 miyoushe_qr.py:1103，
      * location 供 follow_redirects 的跳转；其余响应头一律不回传。
      */
     private static final Set<String> RESPONSE_HEADERS = Set.of(
-            "content-type", "content-length", "date", "age", "location", "set-cookie", "retcode");
+            "content-type", "content-length", "content-encoding", "date", "age", "location", "set-cookie", "retcode");
 
     private NativePolicy() {}
 

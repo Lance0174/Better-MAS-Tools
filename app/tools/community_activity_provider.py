@@ -510,8 +510,8 @@ class CommunityActivityProvider:
     ) -> CommunityActivityRoleDiscovery:
         """读取塔吉多角色卡，作为异环名片请求的角色来源。
 
-        能力固定为 ``ready``：角色列表读全了就正常请求名片，只读了一部分时
-        额外带上提示文案（请求照常进行，缺的角色只是没卡片）。
+        角色列表仍可用于昵称候选；日常便笺是否开放由活动注册表决定。
+        角色只读到一部分时保留已有结果，并额外给出提示。
         """
 
         from .taygedo import (
@@ -815,10 +815,41 @@ class CommunityActivityProvider:
                 request.source,
                 headers=headers,
                 data=request.form_data,
-                timeout=request.timeout,
+                timeout=min(request.timeout, 15.0),
             )
 
-        return await self._request_json(request, call, platform="库街区")
+        payload = await self._request_json(request, call, platform="库街区")
+        if not request.source.endswith("/game3/refresh"):
+            return payload
+        # 公开 baseData 仅补充周本、结晶单质与周期积分；失败保留已取得的日常数据。
+        detail_request = replace(
+            request,
+            source="https://api.kurobbs.com/aki/roleBox/akiBox/baseData",
+            form=tuple(
+                (key, value)
+                for key, value in request.form
+                if key not in {"type", "sizeType"}
+            ),
+        )
+
+        async def detail_call(client: httpx.AsyncClient) -> httpx.Response:
+            return await client.post(
+                detail_request.source,
+                headers=headers,
+                data=detail_request.form_data,
+                timeout=min(detail_request.timeout, 8.0),
+            )
+
+        try:
+            detail = await self._request_json(
+                detail_request, detail_call, platform="库街区"
+            )
+        except CommunityActivityTransportError:
+            return {
+                **payload,
+                "_detail_reason": "周本与结晶单质暂时未能获取，下次刷新时重试",
+            }
+        return {**payload, "_base_data": detail.get("data")}
 
     async def _request_taygedo(
         self, request: CommunityActivityRequest

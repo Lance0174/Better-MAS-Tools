@@ -14,6 +14,9 @@ from app.models.schema import (
     AccountIdIn,
     AccountOut,
     AccountReorderIn,
+    AccountRoleOut,
+    AccountRolesIn,
+    AccountRolesOut,
     AccountsOut,
     AccountUpdateIn,
     ActivityQueryIn,
@@ -50,6 +53,27 @@ async def create_account() -> AccountCreateOut:
     runtime.require_idle()
     uid = await state.create_account()
     return AccountCreateOut(data=AccountOut(uid=uid, data=state.require_account(uid)))
+
+
+@router.post(
+    "/accounts/roles", response_model=AccountRolesOut, operation_id="listAccountRoles"
+)
+async def list_account_roles(body: AccountRolesIn) -> AccountRolesOut:
+    discovery = await accounts.discover_roles(body.accountId, body.platform)
+    reason = discovery.activity_capability.reason
+    return AccountRolesOut(
+        status="partial" if reason else "success",
+        data=[
+            AccountRoleOut(
+                game=role.game,
+                roleUid=role.role_uid,
+                roleName=role.role_name,
+                server=role.server,
+            )
+            for role in discovery.roles
+        ],
+        warnings=[reason] if reason else [],
+    )
 
 
 @router.post("/accounts/update", response_model=OutBase, operation_id="updateAccount")

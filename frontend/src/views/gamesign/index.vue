@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { message, Modal } from 'ant-design-vue'
-import { HolderOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import {
+  HolderOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  UserOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+} from '@ant-design/icons-vue'
+import { useRoute } from 'vue-router'
+import { useMobileUi } from '@/composables/useMobileUi'
+import { confirmDialog } from '@/utils/confirmDialog'
 import draggable from 'vuedraggable'
 import type { AccountOut, StatusOut } from '@/api'
 import { useCommunityApi, errorMessage } from '@/composables/useCommunityApi'
@@ -13,6 +23,9 @@ import MiyousheVerificationPanel from './MiyousheVerificationPanel.vue'
 
 const { t } = useI18n()
 const api = useCommunityApi()
+const route = useRoute()
+const mobile = useMobileUi()
+const accountMode = computed(() => route.name === 'Accounts')
 const performance = usePerformanceStore()
 const accounts = ref<AccountOut[]>([])
 const status = ref<StatusOut | null>(null)
@@ -23,6 +36,7 @@ const ordering = ref(false)
 const error = ref('')
 const selected = ref<AccountOut | null>(null)
 const editorOpen = ref(false)
+const selectedNew = ref(false)
 const busy = computed(
   () => signing.value || status.value?.running === true || status.value?.activityRunning === true
 )
@@ -68,8 +82,9 @@ onUnmounted(() => {
   alive = false
   clearTimeout(timer)
 })
-const edit = (account: AccountOut) => {
+const edit = (account: AccountOut, newlyCreated = false) => {
   selected.value = account
+  selectedNew.value = newlyCreated
   editorOpen.value = true
 }
 const add = async () => {
@@ -77,7 +92,7 @@ const add = async () => {
   try {
     const response = await api.createAccount()
     await load()
-    edit(response.data)
+    edit(response.data, true)
   } catch (cause) {
     message.error(errorMessage(cause, t('standalone.saveFailed')))
   } finally {
@@ -85,7 +100,7 @@ const add = async () => {
   }
 }
 const remove = (account: AccountOut) =>
-  Modal.confirm({
+  confirmDialog({
     title: t('standalone.deleteTitle'),
     content: t('standalone.deleteHint'),
     okButtonProps: { danger: true },
@@ -110,6 +125,13 @@ const reorder = async () => {
     ordering.value = false
   }
 }
+const move = async (index: number, offset: number) => {
+  const next = index + offset
+  if (next < 0 || next >= accounts.value.length) return
+  const [item] = accounts.value.splice(index, 1)
+  accounts.value.splice(next, 0, item!)
+  await reorder()
+}
 const sign = async () => {
   signing.value = true
   try {
@@ -124,83 +146,121 @@ const sign = async () => {
 </script>
 
 <template>
-  <section class="community-sign-page">
+  <section class="community-sign-page" :class="{ 'accounts-page': accountMode }">
     <header class="page-toolbar">
-      <a-space wrap>
-        <a-button :loading="loading" @click="load"
+      <p>{{ t(accountMode ? 'standalone.ui.accountSubtitle' : 'standalone.ui.signSubtitle') }}</p>
+      <a-space wrap
+        ><a-button :loading="loading" @click="load"
           ><ReloadOutlined />{{ t('standalone.refresh') }}</a-button
         >
-        <a-button :loading="adding" :disabled="busy" @click="add"
+        <a-button
+          v-if="accountMode"
+          class="add-account"
+          type="primary"
+          :loading="adding"
+          :disabled="busy"
+          @click="add"
           ><PlusOutlined />{{ t('standalone.addAccount') }}</a-button
         >
-        <a-button type="primary" :loading="busy" :disabled="!accounts.length" @click="sign">{{
-          t('standalone.signNow')
-        }}</a-button>
+        <template v-else
+          ><router-link to="/accounts"
+            ><a-button>{{ t('standalone.accountList') }}</a-button></router-link
+          ><a-button type="primary" :loading="busy" :disabled="!accounts.length" @click="sign">{{
+            t('standalone.signNow')
+          }}</a-button></template
+        >
       </a-space>
     </header>
     <a-alert v-if="error" type="error" show-icon :message="error" class="page-alert" />
-    <h2 v-if="accounts.length" class="section-title">{{ t('standalone.accountList') }}</h2>
-    <a-spin :spinning="loading">
-      <a-empty
-        v-if="!accounts.length && !loading"
-        class="page-state"
-        :description="t('standalone.noAccounts')"
-      />
-      <draggable
-        v-else
-        v-model="accounts"
-        item-key="uid"
-        handle=".account-handle"
-        :disabled="busy || ordering"
-        :animation="performance.isLowPower ? 0 : 150"
-        class="account-list"
-        @end="reorder"
-      >
-        <template #item="{ element: account }"
-          ><div
-            class="account-row industrial-panel"
-            :class="{
-              selected: editorOpen && selected?.uid === account.uid,
-              'reduced-motion': performance.isLowPower,
-            }"
-          >
-            <HolderOutlined class="account-handle" />
-            <div class="account-info">
-              <strong>{{ account.data.Name }}</strong>
+    <template v-if="accountMode">
+      <a-spin :spinning="loading">
+        <a-empty
+          v-if="!accounts.length && !loading"
+          class="page-state"
+          :description="t('standalone.noAccounts')"
+        />
+        <draggable
+          v-else
+          v-model="accounts"
+          item-key="uid"
+          handle=".account-handle"
+          :disabled="busy || ordering || mobile"
+          :animation="performance.isLowPower ? 0 : 150"
+          class="account-list"
+          @end="reorder"
+        >
+          <template #item="{ element: account, index }"
+            ><article
+              class="account-row"
+              :class="{ selected: editorOpen && selected?.uid === account.uid }"
+            >
+              <div class="account-heading">
+                <span class="account-avatar">{{ account.data.Name?.slice(0, 1) || '?' }}</span>
+                <div class="account-info">
+                  <h2>{{ account.data.Name }}</h2>
+                  <p>
+                    {{
+                      t(account.data.Enabled ? 'standalone.accountEnabled' : 'standalone.disabled')
+                    }}
+                  </p>
+                </div>
+                <HolderOutlined
+                  v-if="!mobile"
+                  class="account-handle"
+                  :title="t('gamesign.activity.drag')"
+                /><UserOutlined v-else />
+              </div>
               <div class="platforms">
                 <span
                   v-for="item in fields"
                   :key="item.field"
                   :class="{ configured: account.data[item.field] }"
-                  >{{ t(`standalone.${item.name}`) }} ·
-                  {{
-                    t(
-                      account.data[item.field]
-                        ? 'standalone.configured'
-                        : 'standalone.emptyCredential'
-                    )
-                  }}</span
+                  >{{ t(`standalone.${item.name}`)
+                  }}<small>{{
+                    t(account.data[item.field] ? 'standalone.ui.bound' : 'standalone.ui.unbound')
+                  }}</small></span
                 >
               </div>
-            </div>
-            <a-tag v-if="!account.data.Enabled">{{ t('standalone.disabled') }}</a-tag>
-            <a-space
-              ><a-button :disabled="busy" @click="edit(account)">{{
-                t('standalone.edit')
-              }}</a-button
-              ><a-button danger :disabled="busy" @click="remove(account)">{{
-                t('standalone.delete')
-              }}</a-button></a-space
-            >
-          </div></template
-        >
-      </draggable>
-    </a-spin>
-    <MiyousheVerificationPanel :busy="busy" @completed="load" />
-    <SignResults :results="status?.results ?? {}" :today="status?.today ?? ''" />
+              <footer>
+                <div class="account-order">
+                  <template v-if="mobile"
+                    ><a-button
+                      type="text"
+                      :disabled="busy || ordering || index === 0"
+                      :aria-label="t('standalone.ui.moveUp')"
+                      @click="move(index, -1)"
+                      ><ArrowUpOutlined /></a-button
+                    ><a-button
+                      type="text"
+                      :disabled="busy || ordering || index === accounts.length - 1"
+                      :aria-label="t('standalone.ui.moveDown')"
+                      @click="move(index, 1)"
+                      ><ArrowDownOutlined /></a-button
+                  ></template>
+                </div>
+                <a-space
+                  ><a-button type="text" danger :disabled="busy" @click="remove(account)">{{
+                    t('standalone.delete')
+                  }}</a-button
+                  ><a-button :disabled="busy" @click="edit(account)">{{
+                    t('standalone.edit')
+                  }}</a-button></a-space
+                >
+              </footer>
+            </article></template
+          >
+        </draggable>
+      </a-spin>
+    </template>
+    <template v-else
+      ><MiyousheVerificationPanel :busy="busy" @completed="load" /><SignResults
+        :results="status?.results ?? {}"
+        :today="status?.today ?? ''"
+    /></template>
     <AccountEditor
       :open="editorOpen"
       :account="selected"
+      :suggest-name="selectedNew"
       @close="editorOpen = false"
       @saved="load"
     />
@@ -208,67 +268,114 @@ const sign = async () => {
 </template>
 
 <style scoped>
-.page-alert {
-  margin-bottom: 16px;
+.page-toolbar p {
+  margin: 0;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
 }
 .account-list {
   display: grid;
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
 }
 .account-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 24px;
-  border: 1px solid var(--ant-color-border-secondary);
-  border-left: 1px solid var(--ant-color-border-secondary);
+  padding: 22px;
+  border: 1px solid transparent;
   border-radius: 24px;
   background: var(--ant-color-bg-container);
-  transition:
-    background-color 200ms ease,
-    border-color 200ms ease;
+  min-width: 0;
 }
-.account-row:hover,
 .account-row.selected {
+  border-color: var(--ant-color-primary);
+}
+.account-heading {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
   background: var(--ant-color-primary-bg);
-  border-color: var(--ant-color-primary-border);
-}
-.account-row.reduced-motion {
-  transition: none;
-}
-.account-handle {
-  color: var(--ant-color-text-tertiary);
-  cursor: grab;
-}
-.account-handle:active {
-  cursor: grabbing;
+  color: var(--ant-color-link);
+  font-size: 20px;
+  flex-shrink: 0;
 }
 .account-info {
   flex: 1;
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.account-info > strong {
-  font-size: 16px;
+.account-info h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+  font-weight: 650;
+}
+.account-info p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+}
+.account-heading > .anticon {
+  color: var(--ant-color-text-tertiary);
+}
+.account-handle {
+  cursor: grab;
 }
 .platforms {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin-top: 8px;
-  color: var(--ant-color-text-tertiary);
-  font-size: 12px;
+  gap: 8px;
+  margin: 20px 0 16px;
 }
-.platforms .configured {
+.platforms > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: var(--ant-color-fill-quaternary);
+  border-radius: 10px;
+  font-size: 11px;
   color: var(--ant-color-text-secondary);
 }
-@media (max-width: 760px) {
-  .account-row {
-    flex-wrap: wrap;
-    gap: 12px;
+.platforms small {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.platforms .configured {
+  color: var(--ant-color-link);
+  background: var(--ant-color-primary-bg);
+}
+.account-row footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 13px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+.account-order {
+  display: flex;
+}
+@media (max-width: 700px) {
+  .account-list {
+    grid-template-columns: 1fr;
+    gap: 13px;
   }
-  .account-info {
-    min-width: calc(100% - 48px);
+  .account-row {
+    padding: 19px;
+  }
+  .page-toolbar {
+    align-items: stretch;
+  }
+  .page-toolbar > .ant-space {
+    width: 100%;
+  }
+  .page-toolbar :deep(.ant-space-item:last-child) {
+    margin-left: auto;
   }
 }
 </style>

@@ -1,3 +1,8 @@
+import arknights from '@/assets/community-notes/arknights-background.webp'
+import endfield from '@/assets/community-notes/endfield-background.webp'
+import genshin from '@/assets/community-notes/genshin-background.webp'
+import starrail from '@/assets/community-notes/star-rail-background.webp'
+import zenless from '@/assets/community-notes/zenless-background.webp'
 import type { SignAccountOut } from '@/api'
 import type { ActivitySnapshot } from '@/views/gamesign/useCommunityActivityApi'
 import { getAccountSignSteps } from '@/views/gamesign/signSummary'
@@ -14,17 +19,24 @@ export const GAME_NAMES: Record<string, string> = {
   stellasora: '星塔旅人',
   infinitynikki: '无限暖暖',
 }
-const BACKGROUNDS: Record<string, string> = {
-  arknights: 'arknights-background.webp?v=6a23195b201d',
-  endfield: 'endfield-background.webp?v=9d3a6fee469e',
-  genshin: 'genshin-background.webp?v=f06788a6cb81',
-  starrail: 'star-rail-background.webp?v=1048d29ea88f',
-  zenless: 'zenless-background.webp?v=e4f8798de02c',
-}
+const BACKGROUNDS: Record<string, string> = { arknights, endfield, genshin, starrail, zenless }
 export function gameBackground(game: string) {
-  const key = Object.keys(GAME_NAMES).find(key => key === game || GAME_NAMES[key] === game)
-  const file = key ? BACKGROUNDS[key] : undefined
-  return file ? `https://doc.auto-mas.top/community-notes/${file}` : ''
+  const aliases: Record<string, string> = { '崩坏：星穹铁道': 'starrail', zzz: 'zenless' }
+  const key =
+    aliases[game] ?? Object.keys(GAME_NAMES).find(key => key === game || GAME_NAMES[key] === game)
+  return key ? (BACKGROUNDS[key] ?? '') : ''
+}
+
+/** 活动原图、大版本主视觉、便笺默认背景依次回退，不使用游戏图标。 */
+export function artworkSources(game: string, banner = '', cover = '', preferCover = false) {
+  const images = preferCover ? [cover, banner] : [banner, cover]
+  return [
+    ...new Set(
+      [...images, gameBackground(game)].filter(
+        image => image && !/(?:\/icons?\/|\/avatars?\/|game[-_]?icon)/i.test(image)
+      )
+    ),
+  ]
 }
 export const snapshotKey = (snapshot: ActivitySnapshot) =>
   JSON.stringify([

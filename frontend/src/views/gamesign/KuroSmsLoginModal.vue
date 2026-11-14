@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import type { GeetestV4Data } from '@/api'
 import { useCommunityApi, errorMessage } from '@/composables/useCommunityApi'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
 import CaptchaModal from '@/components/CaptchaModal.vue'
 
 const props = defineProps<{ open: boolean; accountId?: string }>()
@@ -130,14 +131,12 @@ const login = async () => {
 </script>
 
 <template>
-  <a-modal
+  <AdaptivePanel
     :open="open"
     :title="t('standalone.kuroSmsLogin')"
-    :confirm-loading="busy"
-    :ok-button-props="{ disabled: !sent }"
-    :ok-text="t('standalone.login')"
-    @ok="login"
-    @cancel="emit('close')"
+    desktop-modal
+    :busy="busy"
+    @close="emit('close')"
   >
     <a-alert type="info" show-icon :message="t('standalone.smsLoginHint')" class="sms-hint" />
     <a-form layout="vertical" :model="{ phone, code }">
@@ -176,7 +175,13 @@ const login = async () => {
       :message="t('standalone.captchaAutomaticPending')"
     />
     <a-alert v-else-if="automaticFailure" type="warning" show-icon :message="automaticFailure" />
-  </a-modal>
+    <template #footer
+      ><a-button :disabled="busy" @click="emit('close')">{{ t('standalone.cancel') }}</a-button
+      ><a-button type="primary" :loading="busy" :disabled="!sent" @click="login">{{
+        t('standalone.login')
+      }}</a-button></template
+    >
+  </AdaptivePanel>
   <CaptchaModal
     :open="verifying"
     :version="4"

@@ -105,6 +105,8 @@ html .glass-surface {
 
 /* 浮层材质使用间接偏好变量，安卓和关闭特效时可降级成实色。 */
 :root {
+  --app-safe-area-top: env(safe-area-inset-top, 0px);
+  --app-safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --app-glass-blur: var(--app-glass-blur-pref, 18px);
   --app-glass-tint: var(--app-glass-tint-pref, #fff);
   --app-glass-tint-strong: var(--app-glass-tint-strong-pref, #fff);
@@ -113,6 +115,11 @@ html .glass-surface {
   --app-glass-border-body: var(--app-glass-border-body-pref, var(--ant-color-border));
   --app-glass-radius: 24px;
   --app-danger-ink: #b5341f;
+}
+/* Android 已由原生容器避让通知栏、刘海和系统导航栏，网页不重复叠加。 */
+html.android-local {
+  --app-safe-area-top: 0px;
+  --app-safe-area-bottom: 0px;
 }
 html.glass-lite,
 html.android-local {
@@ -165,5 +172,109 @@ a:focus-visible {
   }
   .ant-modal-body {
     max-height: calc(100dvh - 180px);
+  }
+}
+
+/* 手机与桌面共用实色内容表面，图像仅保留在活动与便笺头部。 */
+.preference-group {
+  border-radius: 24px;
+  background: var(--ant-color-bg-container);
+  padding: 0 18px;
+}
+.preference-row {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 17px 0;
+  min-height: 72px;
+  color: var(--ant-color-text);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+.preference-row:last-child {
+  border: 0;
+}
+.preference-row > div {
+  flex: 1;
+  min-width: 0;
+}
+.preference-row strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.preference-row p {
+  margin: 5px 0 0;
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.preference-row > .anticon:last-child {
+  color: var(--ant-color-text-tertiary);
+  font-size: 13px;
+}
+.preference-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-link);
+  font-size: 18px;
+}
+button,
+a,
+input,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+.mobile-layout .ant-btn:not(.ant-btn-sm):not(.ant-btn-circle) {
+  min-height: 44px;
+}
+.mobile-layout .ant-input,
+.mobile-layout .ant-input-affix-wrapper {
+  min-height: 44px;
+}
+.mobile-layout .ant-input-affix-wrapper .ant-input {
+  min-height: 0;
+}
+.mobile-layout .ant-card-body {
+  padding: 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
+
+.app-confirm .ant-modal-confirm-title,
+.app-confirm .ant-modal-confirm-content {
+  color: var(--ant-color-text) !important;
+}
+.app-confirm .ant-btn-default {
+  background: var(--ant-color-bg-elevated);
+  border-color: var(--ant-color-border);
+  color: var(--ant-color-text);
+}
+.app-confirm .ant-modal-confirm-btns {
+  display: flex;
+  gap: 10px;
+}
+.app-confirm .ant-modal-confirm-btns .ant-btn + .ant-btn {
+  margin: 0;
+}
+@media (max-width: 700px) {
+  .app-confirm .ant-modal {
+    max-width: calc(100vw - 32px);
+  }
+  .app-confirm .ant-modal-confirm-btns .ant-btn {
+    min-height: 44px;
+    flex: 1;
   }
 }

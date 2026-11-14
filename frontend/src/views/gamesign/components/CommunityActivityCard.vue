@@ -20,6 +20,7 @@ import zenlessNoteImage from '@/assets/community-notes/zenless.webp'
 import type { ActivitySnapshot } from '../useCommunityActivityApi'
 import { gameLabelKey, platformLabelKey, presentActivity } from '../communityActivityPresentation'
 import CommunityActivityMetric from './CommunityActivityMetric.vue'
+import { gameBackground } from '@/utils/communityDashboard'
 
 interface GameVisual {
   accent: string
@@ -29,46 +30,47 @@ interface GameVisual {
   uiClass: string
 }
 
-const props = defineProps<{ snapshot: ActivitySnapshot }>()
+const props = withDefaults(defineProps<{ snapshot: ActivitySnapshot; draggable?: boolean }>(), {
+  draggable: true,
+})
 const { t, locale } = useI18n()
 const backgroundAttempt = ref(0)
 
-// 背景由文档站分发；哈希前缀与 public/community-notes/manifest.json 对应，绕过发布前缓存。
-const NOTE_BACKGROUND_BASE = 'https://doc.auto-mas.top/community-notes'
+// 原便笺背景随包离线保存，来源与摘要见素材目录的归属记录。
 
 // 这些中文值是后端稳定游戏枚举，只用于映射，不参与界面翻译；名称文案在 presentation 里映射 i18n 键。
 const GAME_VISUALS: Record<string, GameVisual> = {
   明日方舟: {
     accent: 'var(--ant-color-primary)',
-    backgroundImage: `${NOTE_BACKGROUND_BASE}/arknights-background.webp?v=6a23195b201d`,
+    backgroundImage: gameBackground('arknights'),
     icon: AimOutlined,
     image: arknightsNoteImage,
     uiClass: 'activity-card--arknights',
   },
   终末地: {
     accent: 'var(--ant-color-success)',
-    backgroundImage: `${NOTE_BACKGROUND_BASE}/endfield-background.webp?v=9d3a6fee469e`,
+    backgroundImage: gameBackground('endfield'),
     icon: ApiOutlined,
     image: endfieldNoteImage,
     uiClass: 'activity-card--endfield',
   },
   原神: {
     accent: '#8fe3b0',
-    backgroundImage: `${NOTE_BACKGROUND_BASE}/genshin-background.webp?v=f06788a6cb81`,
+    backgroundImage: gameBackground('genshin'),
     icon: CompassOutlined,
     image: genshinNoteImage,
     uiClass: 'activity-card--genshin',
   },
   星穹铁道: {
     accent: '#62c4e7',
-    backgroundImage: `${NOTE_BACKGROUND_BASE}/star-rail-background.webp?v=1048d29ea88f`,
+    backgroundImage: gameBackground('starrail'),
     icon: RocketOutlined,
     image: starRailNoteImage,
     uiClass: 'activity-card--star-rail',
   },
   绝区零: {
     accent: '#ffd24a',
-    backgroundImage: `${NOTE_BACKGROUND_BASE}/zenless-background.webp?v=e4f8798de02c`,
+    backgroundImage: gameBackground('zenless'),
     icon: ThunderboltOutlined,
     image: zenlessNoteImage,
     uiClass: 'activity-card--zenless',
@@ -99,9 +101,7 @@ const cardStyle = computed(
   () =>
     ({ '--activity-accent': visual.value?.accent ?? 'var(--ant-color-primary)' }) as CSSProperties
 )
-const backgroundUrl = computed(
-  () => `${visual.value?.backgroundImage ?? ''}${backgroundAttempt.value ? '&retry=1' : ''}`
-)
+const backgroundUrl = computed(() => visual.value?.backgroundImage ?? '')
 const statusMeta = computed(() => {
   const colors = {
     success: 'success',
@@ -145,11 +145,7 @@ watch(
 </script>
 
 <template>
-  <a-card
-    :bordered="false"
-    :class="['activity-card', visual?.uiClass]"
-    :style="cardStyle"
-  >
+  <a-card :bordered="false" :class="['activity-card', visual?.uiClass]" :style="cardStyle">
     <img
       v-if="visual?.backgroundImage && backgroundAttempt < 2"
       class="activity-background"
@@ -164,6 +160,7 @@ watch(
     />
     <header class="activity-card-header">
       <span
+        v-if="draggable"
         class="activity-drag-handle"
         :title="t('gamesign.activity.drag')"
         :aria-label="t('gamesign.activity.drag')"
@@ -180,11 +177,13 @@ watch(
       <a-tag :color="statusMeta.color">{{ statusMeta.label }}</a-tag>
     </header>
     <div class="activity-identity">
-      <strong>{{ snapshot.account }}</strong>
-      <span v-if="snapshot.roleName && snapshot.roleName !== snapshot.account">{{
-        snapshot.roleName
-      }}</span>
-      <span v-if="snapshot.server">{{ snapshot.server }}</span>
+      <slot name="identity"
+        ><strong>{{ snapshot.account }}</strong>
+        <span v-if="snapshot.roleName && snapshot.roleName !== snapshot.account">{{
+          snapshot.roleName
+        }}</span>
+        <span v-if="snapshot.server">{{ snapshot.server }}</span></slot
+      >
     </div>
 
     <div
@@ -200,7 +199,6 @@ watch(
           v-for="metric in presentation.featured"
           :key="metric.name"
           :metric="metric"
-          
           featured
         />
       </div>

@@ -8,6 +8,8 @@
 
 游戏图标与背景的权利归各自权利人，相关来源说明随资源保留，软件许可证不替代游戏美术资源的许可。
 
+2026-11-14 按用户要求恢复五款日常便笺的既有背景（明日方舟、终末地、原神、星穹铁道、绝区零）。本地资源见 `frontend/src/assets/community-notes/`，`background-manifest.json` 记录原文档站文件摘要与转换记录，`ATTRIBUTION.md` 保留用户提供、Wiki 素材的历史说明。具体 Wiki 页面与素材许可尚未补齐，不能用代码许可证替代；桌面和 Android 本地分发均附带这些说明。游戏图标仅用于小尺寸身份标记，不用作活动或便笺背景。
+
 ## 本轮登录、抽卡与远端参考
 
 | 来源 | 核对版本 | 使用范围 |
@@ -21,6 +23,8 @@
 | [gxy12345/arknights-plugin](https://github.com/gxy12345/arknights-plugin) | `3b6683cfe72a8379c8b3e4659c932cef572d7dae` | 明日方舟角色授权与寻访协议参考 |
 | [bhaoo/endfield-gacha](https://github.com/bhaoo/endfield-gacha) | `72c526d49136fd23271f77e9ef33549de3721283` | 终末地角色/武器寻访协议参考，未复制实现源码 |
 | [TomyJan/Yunzai-Kuro-Plugin](https://github.com/TomyJan/Yunzai-Kuro-Plugin) | `93699159c1730a7453f28be73f5207830ed5d7d2` | 库街区鸣潮结晶波片便笺（`gamer/widget/game3/getData`）公开接口协议参考：端点、表单字段与响应字段名。**仅参考其公开接口协议，未复制其源代码**；本项目按自身的工具/解析分层重写，未修改或分发该插件代码，因此不产生 MPL-2.0 的文件级义务 |
+
+鸣潮完整便笺在 2026-11-14 对照 [CM-Edelweiss/WutheringWavesUID](https://github.com/CM-Edelweiss/WutheringWavesUID/tree/ec8696f078a8451104fe501c7a64a9812eb66996) 的公开接口协议核对：`gamer/widget/game3/refresh`（type=1、sizeType=2）、`aki/roleBox/akiBox/baseData` 及活跃度、电台、周本、结晶单质字段。该参考项目为 GPL-3.0；本仓仅核对接口合同与字段含义，未复制其实现代码或素材、未新增依赖。
 
 米游社「用登录态换抽卡 authkey」的协议（`genAuthKey`、请求体与 DS 盐版本线）在 2026-11 对照下列仍在维护的开源实现核对，均为**公开接口协议参考，未复制其实现源码**：[BTMuli/TeyvatGuide](https://github.com/BTMuli/TeyvatGuide)（MIT）、[Genshin-bots/gsuid_core](https://github.com/Genshin-bots/gsuid_core)（MIT）、[CMHopeSunshine/LittlePaimon](https://github.com/CMHopeSunshine/LittlePaimon)（MIT）、[ZZZure/ZZZ-Plugin](https://github.com/ZZZure/ZZZ-Plugin)（MIT）、[SnapHutaoRemasteringProject/Snap.Hutao.Remastered](https://github.com/SnapHutaoRemasteringProject/Snap.Hutao.Remastered)（MIT）。该链路尚未用真实账号验收，米游社换版本线后需同步更新 `_SALT_LINES`。
 

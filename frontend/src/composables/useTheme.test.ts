@@ -72,5 +72,30 @@ describe('useTheme', () => {
     expect(setProperty).toHaveBeenCalledWith('--app-glass-blur-pref', '0px')
     scope.stop()
   })
+
+  it('安卓系统深色时显式浅色优先，再切回跟随系统', async () => {
+    vi.stubGlobal('window', Object.assign(new EventTarget(), {
+      matchMedia: () => new MediaQuery(), __BMAT_SYSTEM_DARK__: true,
+    }))
+    const root = { classList: { toggle: vi.fn() }, style: { setProperty: vi.fn(), colorScheme: '' } }
+    vi.stubGlobal('document', { documentElement: root })
+    settings.data.value = { Theme: 'light' }
+    const { useTheme } = await import('./useTheme')
+    const scope = effectScope()
+    const state = scope.run(() => useTheme())!
+    expect(state.isDark.value).toBe(false)
+    expect(root.style.colorScheme).toBe('light')
+    window.dispatchEvent(new CustomEvent('bmat-system-theme-change', { detail: { dark: true } }))
+    await nextTick()
+    expect(state.isDark.value).toBe(false)
+    settings.data.value = { Theme: 'system' }
+    await nextTick()
+    expect(state.isDark.value).toBe(true)
+    expect(root.style.colorScheme).toBe('dark')
+    settings.data.value = { Theme: 'light' }
+    await nextTick()
+    expect(root.style.colorScheme).toBe('light')
+    scope.stop()
+  })
 })
 

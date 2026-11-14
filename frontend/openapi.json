@@ -105,6 +105,47 @@
         }
       }
     },
+    "/api/accounts/roles": {
+      "post": {
+        "tags": [
+          "Community"
+        ],
+        "summary": "List Account Roles",
+        "operationId": "listAccountRoles",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountRolesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRolesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/accounts/update": {
       "post": {
         "tags": [
@@ -834,7 +875,7 @@
           "Gacha"
         ],
         "summary": "Fetch Records By Cookie",
-        "description": "用米游社登录态换 authkey 读取官方记录；cookie 留空则用账号组已绑定的凭据。",
+        "description": "旧米游社 Cookie 入口暂不开放，返回 400；明日方舟使用 /fetch 的森空岛账号授权。",
         "operationId": "fetchGachaRecordsByCookie",
         "requestBody": {
           "content": {
@@ -867,7 +908,8 @@
               }
             }
           }
-        }
+        },
+        "deprecated": true
       }
     },
     "/api/gacha/import": {
@@ -2091,6 +2133,96 @@
           "order"
         ],
         "title": "AccountReorderIn"
+      },
+      "AccountRoleOut": {
+        "properties": {
+          "game": {
+            "type": "string",
+            "title": "Game"
+          },
+          "roleUid": {
+            "type": "string",
+            "title": "Roleuid"
+          },
+          "roleName": {
+            "type": "string",
+            "title": "Rolename",
+            "default": ""
+          },
+          "server": {
+            "type": "string",
+            "title": "Server",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "game",
+          "roleUid"
+        ],
+        "title": "AccountRoleOut"
+      },
+      "AccountRolesIn": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "森空岛",
+              "米游社",
+              "库街区",
+              "塔吉多"
+            ],
+            "title": "Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId",
+          "platform"
+        ],
+        "title": "AccountRolesIn"
+      },
+      "AccountRolesOut": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "状态码",
+            "default": 200
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "操作状态",
+            "default": "success"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "操作消息",
+            "default": "操作成功"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/AccountRoleOut"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "title": "AccountRolesOut"
       },
       "AccountUpdateIn": {
         "properties": {

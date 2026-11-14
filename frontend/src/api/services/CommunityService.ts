@@ -5,6 +5,8 @@
 import type { AccountCreateOut } from '../models/AccountCreateOut';
 import type { AccountIdIn } from '../models/AccountIdIn';
 import type { AccountReorderIn } from '../models/AccountReorderIn';
+import type { AccountRolesIn } from '../models/AccountRolesIn';
+import type { AccountRolesOut } from '../models/AccountRolesOut';
 import type { AccountsOut } from '../models/AccountsOut';
 import type { AccountUpdateIn } from '../models/AccountUpdateIn';
 import type { ActivityQueryIn } from '../models/ActivityQueryIn';
@@ -42,6 +44,25 @@ export class CommunityService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/accounts',
+        });
+    }
+    /**
+     * List Account Roles
+     * @param requestBody
+     * @returns AccountRolesOut Successful Response
+     * @throws ApiError
+     */
+    public static listAccountRoles(
+        requestBody: AccountRolesIn,
+    ): CancelablePromise<AccountRolesOut> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/api/accounts/roles',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
         });
     }
     /**

@@ -32,9 +32,13 @@ const PALETTE = {
 export function useTheme() {
   const settings = useSettingsStore()
   const media = window.matchMedia('(prefers-color-scheme: dark)')
-  const systemDark = ref(media.matches)
-  const onSystemTheme = () => {
-    systemDark.value = media.matches
+  const nativeScheme = () =>
+    (window as Window & { __BMAT_SYSTEM_DARK__?: boolean }).__BMAT_SYSTEM_DARK__
+  const systemDark = ref(nativeScheme() ?? media.matches)
+  const onSystemTheme = (event?: Event) => {
+    const detail = (event as CustomEvent<{ dark?: boolean }> | undefined)?.detail
+    systemDark.value =
+      typeof detail?.dark === 'boolean' ? detail.dark : (nativeScheme() ?? media.matches)
   }
   const mediaChange = media.addEventListener
     ? () => media.addEventListener('change', onSystemTheme)
@@ -63,7 +67,7 @@ export function useTheme() {
       colorSuccess: isDark.value ? '#80d7a3' : '#207946',
       colorError: '#c64141',
       colorInfo: '#2f6fbe',
-      colorWarning: '#a9781a',
+      colorWarning: isDark.value ? '#e8c07c' : '#a9781a',
       colorBgLayout: palette.value.canvas,
       colorBgContainer: palette.value.raised,
       colorBgElevated: palette.value.bright,
@@ -114,6 +118,15 @@ export function useTheme() {
     style.setProperty('--ant-color-text-secondary', String(tokens.colorTextSecondary))
     style.setProperty('--ant-color-text-tertiary', String(tokens.colorTextTertiary))
     style.setProperty('--ant-color-warning', String(tokens.colorWarning))
+    for (const [name, value] of Object.entries({
+      'success-bg': tokens.colorSuccessBg,
+      'success-text': tokens.colorSuccessText,
+      'warning-bg': tokens.colorWarningBg,
+      'warning-text': tokens.colorWarningText,
+      'fill-secondary': tokens.colorFillSecondary,
+      'fill-quaternary': tokens.colorFillQuaternary,
+    }))
+      style.setProperty(`--ant-color-${name}`, String(value))
     const dark = isDark.value
     document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
     style.setProperty('--app-panel', String(tokens.colorPrimaryBg))

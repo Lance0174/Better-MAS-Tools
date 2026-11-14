@@ -263,6 +263,11 @@ def main() -> None:
         licenses.mkdir(exist_ok=True)
         for name in ("LICENSE", "NOTICE.md"):
             shutil.copy2(ROOT / name, licenses)
+        shutil.copytree(
+            ROOT / "frontend/src/assets/community-notes",
+            licenses / "community-notes",
+            ignore=shutil.ignore_patterns("*.png", "*.jpg", "*.webp"),
+        )
         shutil.copytree(ROOT / "docs/licenses", licenses / "docs/licenses")
         shutil.copy2(ANDROID / "runtime/LICENSE-Pyodide.txt", licenses)
         frontend_licenses(licenses / "frontend")

@@ -8,6 +8,7 @@
 | --- | --- |
 | `/api/updates/check` | GET platform=windows/android、channel=stable/beta；仅查询本仓公开 Release，返回版本、说明、固定来源下载地址、大小及 SHA-256；不直接安装或接受用户下载地址 |
 | `/api/accounts` | 账号列表与新增；更新、删除等契约以OpenAPI为准 |
+| `/api/accounts/roles` | POST accountId＋platform（森空岛/米游社/库街区/塔吉多）；复用已登录凭据发现游戏昵称、UID、区服，用于命名候选及抽卡授权，不查询便笺、不回传凭据；部分角色读取失败时返回 partial 与 warnings |
 | `/api/settings` | 读取/保存设置，YunmaToken始终脱敏；null保留旧密钥，空字符串清除 |
 | `/api/status` | 运行状态、北京时间today和各平台结果 |
 | `/api/sign` | POST立即执行一次签到（force，不按今日是否已签去重） |
@@ -21,7 +22,7 @@
 | `/api/login/kuro/sms/cancel` | 取消会话和正在运行的自动验证 |
 | `/api/gacha` | GET按game、playerUid、pool、page、pageSize查询记录及统计 |
 | `/api/gacha/fetch` | POST读取官方记录；source只在本次请求使用 |
-| `/api/gacha/fetch-cookie` | POST用米游社Cookie换取authkey后读取官方记录；cookie留空则用账号组已绑定凭据，仅原神/崩铁/绝区零，尚未用真实账号验收 |
+| `/api/gacha/fetch-cookie` | POST旧米游社Cookie入口保留契约但暂不开放，返回400且不读取账号或访问上游；明日方舟使用 `/fetch` 的 accountId 与 playerUid |
 | `/api/gacha/import` | POST game＋payload（JSON字符串）导入，原数据合并去重 |
 | `/api/gacha/heybox` | POST heyboxId、playerUid、payload导入小黑盒「抽卡分析」响应；六星用真实记录，其余抽数补四星占位行与五星补名 |
 | `/api/gacha/heybox` | DELETE按playerUid撤销该 UID 的小黑盒补录行；官方六星记录不受影响 |
@@ -50,7 +51,7 @@
 | `/api/login/{provider}/qr/save` | POST按accountUid、cookie、scanCode保存登录凭据 |
 | `/api/login/taygedo` | POST按accountId、phone、password一次性登录并保存凭据 |
 
-抽卡 game 枚举为 `genshin`、`starrail`、`zzz`、`wuthering`、`arknights`、`endfield`。米家三游戏优先通过米游社 Cookie 换取临时 authkey，也可使用官方链接、UIGF/Starward JSON；只有网页 cookie_token 而没有 stoken 的凭据暂不支持换取。鸣潮使用官方链接或请求 JSON。明日方舟、终末地优先使用森空岛 accountId 与 playerUid；终末地也可传含 u8_token 的官方链接。六款游戏均可导入本工具的 BMASC JSON。终末地另可粘贴小黑盒「抽卡分析」overview 响应补录历史：六星保留原始时间，五星补名与四星占位是推算记录，明确标识并可撤销；被跳过卡池的旧补录不被删除。Cookie、临时授权和 overview 响应不落盘。
+抽卡 game 枚举为 `genshin`、`starrail`、`zzz`、`wuthering`、`arknights`、`endfield`。Cookie／已登录账号获取仅开放明日方舟，使用森空岛 accountId 与 playerUid 经 `/fetch` 获取。米家三游戏使用官方链接、UIGF/Starward JSON；鸣潮使用官方链接或请求 JSON；终末地使用含 u8_token 的官方链接。其他游戏的无链接账号获取及旧 `/fetch-cookie` 均在核心层拒绝，不读取凭据或发起上游请求；Android 复用同一限制。六款游戏均可导入本工具的 BMASC JSON。终末地另可粘贴小黑盒「抽卡分析」overview 响应补录历史：六星保留原始时间，五星补名与四星占位是推算记录，明确标识并可撤销；被跳过卡池的旧补录不被删除。Cookie、临时授权和 overview 响应不落盘。
 
 MAS 接入仅调用 `/mcp` 的 Streamable HTTP 入口，完成初始化、工具发现后调用队列查询、运行快照、启动和停止四个工具。不绕过 MCP 回退到 REST，也不开放任意工具调用。MAS 启动初期可能尚未挂载 MCP，404 时提示稍后重试；任务变更不自动重试，启动成功只表示已受理。仅接受环回服务地址，禁止跳转到外部地址。
 

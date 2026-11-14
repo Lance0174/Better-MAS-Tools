@@ -46,6 +46,8 @@ async def fetch_records(body: GachaFetchIn) -> GachaUpdateOut:
             timezone=body.timezone,
             max_pages=body.maxPages,
         )
+    except gacha.GachaAuthkeyError as error:
+        raise ValueError(str(error)) from None
     except ValueError:
         # Pydantic/JSON 等内部验证不能把原始条目或授权材料回显。
         raise ValueError(
@@ -65,9 +67,10 @@ async def fetch_records(body: GachaFetchIn) -> GachaUpdateOut:
     "/fetch-cookie",
     response_model=GachaUpdateOut,
     operation_id="fetchGachaRecordsByCookie",
+    deprecated=True,
 )
 async def fetch_records_by_cookie(body: GachaCookieFetchIn) -> GachaUpdateOut:
-    """用米游社登录态换 authkey 读取官方记录；cookie 留空则用账号组已绑定的凭据。"""
+    """旧米游社 Cookie 入口暂不开放，返回 400；明日方舟使用 /fetch 的森空岛账号授权。"""
 
     try:
         added, fetched, warnings = await gacha.fetch_mihoyo_by_cookie(
@@ -141,7 +144,9 @@ async def import_heybox(body: GachaHeyboxIn) -> GachaHeyboxOut:
     )
 
 
-@router.delete("/heybox", response_model=GachaUpdateOut, operation_id="revokeGachaHeybox")
+@router.delete(
+    "/heybox", response_model=GachaUpdateOut, operation_id="revokeGachaHeybox"
+)
 async def revoke_heybox(
     game: Literal["endfield"] = "endfield",
     playerUid: str = Query(..., min_length=1, max_length=120),
@@ -151,9 +156,7 @@ async def revoke_heybox(
     except Exception:
         raise ValueError("撤销未完成，请稍后重试；记录已保留") from None
     # 只删派生行（标记为补录的四星占位与五星补名），官方六星记录不受影响。
-    return GachaUpdateOut(
-        added=0, message=f"已撤销 {removed} 条小黑盒补录记录"
-    )
+    return GachaUpdateOut(added=0, message=f"已撤销 {removed} 条小黑盒补录记录")
 
 
 @router.get("/export", response_model=GachaExportOut, operation_id="exportGachaRecords")

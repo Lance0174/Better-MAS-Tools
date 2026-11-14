@@ -1,14 +1,29 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import draggable from 'vuedraggable'
 import { useActivityStore } from '@/stores/activity'
 import { usePerformanceStore } from '@/stores/performance'
 import { errorMessage } from '@/composables/useCommunityApi'
+import { useMobileUi } from '@/composables/useMobileUi'
+import GameTabs from '@/components/GameTabs.vue'
 import DailyNote from './components/DailyNote.vue'
 
 const { t } = useI18n()
 const activity = useActivityStore()
+const mobile = useMobileUi()
+const selectedGame = ref('')
+const gameOptions = computed(() =>
+  activity.groups.map(group => ({ value: group.game, label: group.game }))
+)
+watch(
+  gameOptions,
+  options => {
+    if (!options.some(item => item.value === selectedGame.value))
+      selectedGame.value = options[0]?.value ?? ''
+  },
+  { immediate: true }
+)
 const performance = usePerformanceStore()
 onMounted(() => {
   void activity.load()
@@ -21,7 +36,6 @@ const reorder = (groups: typeof activity.groups) => {
 <template>
   <section class="activity-overview">
     <header class="page-toolbar">
-      <p>{{ t('standalone.noteAccountHint') }}</p>
       <a-button type="primary" :loading="activity.loading" @click="activity.load(true)">{{
         t('gamesign.activity.refresh')
       }}</a-button>
@@ -40,7 +54,14 @@ const reorder = (groups: typeof activity.groups) => {
       :description="t('gamesign.activity.empty')"
     />
     <a-spin v-else :spinning="activity.loading">
+      <template v-if="mobile"
+        ><GameTabs
+          v-model:value="selectedGame"
+          :options="gameOptions"
+          :label="t('standalone.activity')" /><DailyNote :game="selectedGame"
+      /></template>
       <draggable
+        v-if="!mobile"
         :model-value="activity.groups"
         item-key="game"
         handle=".activity-drag-handle"
@@ -56,6 +77,9 @@ const reorder = (groups: typeof activity.groups) => {
 </template>
 
 <style scoped>
+.page-toolbar {
+  justify-content: flex-end;
+}
 .page-toolbar p {
   margin: 0;
   font-size: 12px;

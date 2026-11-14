@@ -18,7 +18,7 @@ export const useCalendarStore = defineStore('calendar', () => {
       .all()
       .then(response => {
         games.value = response.data ?? []
-        notice.value = response.message ?? ''
+        notice.value = response.status === 'partial' ? (response.message ?? '') : ''
       })
       .catch(cause => {
         failure.value = cause

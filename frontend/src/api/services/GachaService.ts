@@ -66,8 +66,9 @@ export class GachaService {
         });
     }
     /**
+     * @deprecated
      * Fetch Records By Cookie
-     * 用米游社登录态换 authkey 读取官方记录；cookie 留空则用账号组已绑定的凭据。
+     * 旧米游社 Cookie 入口暂不开放，返回 400；明日方舟使用 /fetch 的森空岛账号授权。
      * @param requestBody
      * @returns GachaUpdateOut Successful Response
      * @throws ApiError

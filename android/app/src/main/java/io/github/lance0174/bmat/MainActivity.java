@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.WindowInsets;
+import android.view.View;
 import android.view.Gravity;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebResourceError;
@@ -59,16 +60,30 @@ public final class MainActivity extends Activity {
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        if (webView != null) {
-            webView.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('bmat-system-theme-change'))", null);
-        }
+        publishSystemTheme();
+    }
+
+    private void publishSystemTheme() {
+        if (webView == null) return;
+        boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
+        webView.evaluateJavascript("window.__BMAT_SYSTEM_DARK__=" + dark
+                + ";window.dispatchEvent(new CustomEvent('bmat-system-theme-change',{detail:{dark:"
+                + dark + "}}))", null);
     }
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 原生容器统一避让系统栏，关闭 Decor 的额外避让，避免旧版与刘海屏重复留白。
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION);
+        }
         state = new LocalStateStore(getApplicationContext());
         wikiCache = new WikiCacheStore(getApplicationContext());
         diagnostics = new NativeDiagnostics(getApplicationContext());
@@ -86,24 +101,27 @@ public final class MainActivity extends Activity {
         FrameLayout.LayoutParams diagnosticLayout = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         diagnosticLayout.bottomMargin = 16;
         container.addView(diagnosticButton, diagnosticLayout);
-        setContentView(container);
         container.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(
-                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+                        WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout()
+                                | WindowInsets.Type.ime());
                 view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return WindowInsets.CONSUMED;
             } else {
                 view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
                         insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
+                WindowInsets consumed = insets.consumeSystemWindowInsets().consumeStableInsets();
+                return Build.VERSION.SDK_INT >= 28 ? consumed.consumeDisplayCutout() : consumed;
             }
-            return insets;
         });
+        setContentView(container);
+        container.requestApplyInsets();
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG);
         webView.setBackgroundColor(Color.WHITE);
         webView.getSettings().setJavaScriptEnabled(true);
-        // 跟随手机系统深色模式。FORCE_DARK_AUTO 让 WebView 按系统 UI 模式上报
-        // prefers-color-scheme（前端 Theme=system 依赖它）；AlgorithmicDarkening 补充
-        // 对未适配页面做算法转色。两者同时启用才能让 matchMedia 读到系统深浅。
+        // 保留安卓系统自动转色适配；应用显式选择的外观由页面 color-scheme 控制。
+        // 另行通知系统外观变化，供页面“跟随系统”偏好使用。
         if (Build.VERSION.SDK_INT >= 33) {
             webView.getSettings().setForceDark(android.webkit.WebSettings.FORCE_DARK_AUTO);
             webView.getSettings().setAlgorithmicDarkeningAllowed(true);
@@ -149,6 +167,7 @@ public final class MainActivity extends Activity {
 
             @Override public void onPageFinished(WebView view, String url) {
                 if (!"index.html".equals(NativePolicy.assetPath(url))) return;
+                publishSystemTheme();
                 // hash 导航可能再次触发完成回调；每份文档只交付一个端口。
                 if (port != null) return;
                 diagnostics.write("Main page loaded; sending native MessagePort");
@@ -383,8 +402,14 @@ public final class MainActivity extends Activity {
     }
 
     @Override public void onBackPressed() {
-        if (webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        // 先交给本地界面关闭选择、登录与确认层，再处理页面历史。
+        webView.evaluateJavascript(
+                "!window.dispatchEvent(new Event('bmat-android-back',{cancelable:true}))",
+                consumed -> {
+                    if (isFinishing() || isDestroyed() || "true".equals(consumed)) return;
+                    if (webView.canGoBack()) webView.goBack();
+                    else MainActivity.super.onBackPressed();
+                });
     }
 
     @Override protected void onDestroy() {

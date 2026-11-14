@@ -52,12 +52,12 @@ class _FakeClient:
         return False
 
 
-def test_taygedo_is_registered_for_nte_only():
+def test_unverified_nte_notes_are_not_registered():
     definitions = {
         definition.platform: definition.games
         for definition in ACTIVITY_COMMUNITY_DEFINITIONS
     }
-    assert definitions["塔吉多"] == ("异环",)
+    assert "塔吉多" not in definitions
 
 
 def test_normalize_taygedo_roles_keeps_only_nte_roles():
@@ -72,7 +72,7 @@ def test_normalize_taygedo_roles_keeps_only_nte_roles():
 def test_normalize_taygedo_roles_marks_capability_ready():
     discovery = normalize_taygedo_roles(_roles())
 
-    # 名片接口能给出真实数值，能力必须是 ready，否则上层会直接短路不请求。
+    # 角色发现继续可用；这不表示未验收的日常便笺已经上线。
     assert discovery.activity_capability.status == "ready"
     assert discovery.activity_capability.reason == ""
 

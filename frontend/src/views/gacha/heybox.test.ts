@@ -1,19 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
-  COOKIE_LIMIT,
   HEYBOX_PAYLOAD_LIMIT,
-  cookieReady,
   defaultSource,
   heyboxIdValid,
   heyboxPageUrl,
   heyboxPayloadReady,
   heyboxPayloadTooLarge,
-  isCookieGame,
   isHeyboxDerived,
   isHeyboxFill,
   sourceOptions,
 } from './heybox'
-
 
 describe('小黑盒补录的输入校验', () => {
   it('小黑盒 ID 只接受 4-12 位数字', () => {
@@ -43,20 +39,20 @@ describe('小黑盒补录的输入校验', () => {
 
 describe('按游戏给出可用来源', () => {
   it('小黑盒补录只在终末地出现', () => {
-    expect(sourceOptions('endfield')).toEqual(['skland', 'link', 'file', 'heybox'])
-    expect(sourceOptions('starrail')).toEqual(['cookie', 'link', 'file'])
+    expect(sourceOptions('endfield')).toEqual(['link', 'file', 'heybox'])
+    expect(sourceOptions('starrail')).toEqual(['link', 'file'])
     expect(sourceOptions('arknights')).toEqual(['skland', 'file'])
     for (const game of ['genshin', 'starrail', 'zzz', 'wuthering', 'arknights']) {
       expect(sourceOptions(game)).not.toContain('heybox')
     }
   })
 
-  it('米家三游戏多一个「米游社 Cookie」来源', () => {
-    for (const game of ['genshin', 'starrail', 'zzz']) {
-      expect(sourceOptions(game)).toContain('cookie')
-    }
-    for (const game of ['wuthering', 'arknights', 'endfield']) {
+  it('账号授权只向明日方舟开放', () => {
+    for (const game of ['genshin', 'starrail', 'zzz', 'wuthering', 'endfield']) {
+      expect(sourceOptions(game)).not.toContain('skland')
       expect(sourceOptions(game)).not.toContain('cookie')
+      expect(sourceOptions(game)).toContain('link')
+      expect(sourceOptions(game)).toContain('file')
     }
   })
 
@@ -64,9 +60,9 @@ describe('按游戏给出可用来源', () => {
     for (const game of ['genshin', 'starrail', 'zzz', 'wuthering', 'arknights', 'endfield']) {
       expect(sourceOptions(game)).toContain(defaultSource(game))
     }
-    expect(defaultSource('endfield')).toBe('skland')
+    expect(defaultSource('endfield')).toBe('link')
     for (const game of ['genshin', 'starrail', 'zzz']) {
-      expect(defaultSource(game)).toBe('cookie')
+      expect(defaultSource(game)).toBe('link')
     }
     expect(defaultSource('arknights')).toBe('skland')
   })
@@ -82,27 +78,5 @@ describe('记录行的来源标记', () => {
     expect(isHeyboxFill('heybox_fill')).toBe(true)
     expect(isHeyboxFill('heybox')).toBe(false)
     expect(isHeyboxFill()).toBe(false)
-  })
-})
-
-describe('米游社 Cookie 的输入校验', () => {
-  it('Cookie 或已绑定账号二选一即可', () => {
-    expect(cookieReady('', '')).toBe(false)
-    expect(cookieReady('   ', '')).toBe(false)
-    expect(cookieReady('ltuid=1; ltoken=abc', '')).toBe(true)
-    expect(cookieReady('', '5c1f0f7e-9f4b-4f2f-8d8a-1d2c3b4a5e6f')).toBe(true)
-  })
-
-  it('与后端 GachaCookieFetchIn 的 16000 上限一致', () => {
-    expect(cookieReady('x'.repeat(COOKIE_LIMIT), '')).toBe(true)
-    expect(cookieReady('x'.repeat(COOKIE_LIMIT + 1), '')).toBe(false)
-  })
-
-  it('只对米家三游戏开放', () => {
-    expect(isCookieGame('genshin')).toBe(true)
-    expect(isCookieGame('starrail')).toBe(true)
-    expect(isCookieGame('zzz')).toBe(true)
-    expect(isCookieGame('wuthering')).toBe(false)
-    expect(isCookieGame('endfield')).toBe(false)
   })
 })

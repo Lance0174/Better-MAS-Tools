@@ -1,152 +1,322 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { CheckOutlined, ClockCircleOutlined, ExclamationOutlined } from '@ant-design/icons-vue'
 import type { SignAccountOut } from '@/api'
-import { getAccountSignSteps, getSignSummaryState, summarizeSignResults } from '../signSummary'
-import { usePerformanceStore } from '@/stores/performance'
+import {
+  getAccountSignSteps,
+  getSignSummaryState,
+  signRoleIdentity,
+  summarizeSignResults,
+} from '../signSummary'
 
 const props = defineProps<{ results: Record<string, SignAccountOut[]>; today: string }>()
-const { t } = useI18n()
-const performance = usePerformanceStore()
-// 原始中文状态来自社区结果契约，不能翻译后参与判定。
-const isSuccess = (status: string | undefined) => status === '成功' || status === '已签到'
-const summary = (accounts: SignAccountOut[]) => {
-  const counts = summarizeSignResults(accounts, props.today)
-  if (!counts.success && !counts.failed) return t('standalone.todayPending')
-  if (!counts.failed && !counts.pending) return t('standalone.todayAllSuccess')
-  if (counts.failed && counts.success) return t('standalone.todayPartialFailure', counts)
-  return t('standalone.todaySummary', counts)
-}
-const summaryStyles = {
-  success: { color: 'success', label: 'standalone.signAllSuccess' },
-  partial: { color: 'warning', label: 'standalone.signPartialFailure' },
-  failed: { color: 'error', label: 'standalone.signFailedStatus' },
-  pending: { color: 'default', label: 'standalone.signPendingStatus' },
+const { t, locale } = useI18n()
+const counts = computed(() =>
+  summarizeSignResults(Object.values(props.results).flat(), props.today)
+)
+const summaryLabels = {
+  success: 'standalone.signAllSuccess',
+  partial: 'standalone.signPartialFailure',
+  failed: 'standalone.signFailedStatus',
+  pending: 'standalone.signPendingStatus',
 } as const
 const groups = computed(() =>
-  Object.entries(props.results).map(([platform, accounts]) => ({
-    platform,
-    summary: summary(accounts),
-    accounts: accounts.map(account => ({
-      ...account,
-      steps: getAccountSignSteps(account),
-      summary: summaryStyles[getSignSummaryState(summarizeSignResults([account], props.today))],
-    })),
-  }))
+  Object.entries(props.results)
+    .filter(([, accounts]) => accounts.length)
+    .map(([platform, accounts]) => ({
+      platform,
+      accounts: accounts.map(account => ({
+        ...account,
+        state: getSignSummaryState(summarizeSignResults([account], props.today)),
+        steps: getAccountSignSteps(account).map(step => ({
+          ...step,
+          role: signRoleIdentity(step.account),
+          state:
+            !props.today || step.signedAt?.slice(0, 10) !== props.today
+              ? 'pending'
+              : step.status === '成功' || step.status === '已签到'
+                ? 'success'
+                : 'failed',
+        })),
+      })),
+    }))
 )
+const time = (value?: string) => {
+  const date = new Date(value || '')
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleString(locale.value, {
+        timeZone: 'Asia/Shanghai',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+}
 </script>
 
 <template>
-  <section class="sign-results" :class="{ 'reduced-motion': performance.isLowPower }">
-    <h2 class="section-title">{{ t('standalone.signResults') }}</h2>
-    <a-empty
-      v-if="!Object.keys(results).length"
-      :description="t('standalone.noResult')"
-      :image="undefined"
-    />
-    <a-collapse v-else :default-active-key="Object.keys(results)">
-      <a-collapse-panel v-for="group in groups" :key="group.platform" :header="group.platform">
-        <template #extra
-          ><span class="platform-summary">{{ group.summary }}</span></template
+  <section class="sign-results">
+    <div class="sign-overview" :aria-label="t('standalone.ui.signOverview')">
+      <div
+        v-for="state in ['success', 'failed', 'pending'] as const"
+        :key="state"
+        :data-state="state"
+      >
+        <span>{{ t(`standalone.ui.signCounts.${state}`) }}</span
+        ><strong class="mono">{{ counts[state] }}</strong>
+      </div>
+    </div>
+    <a-empty v-if="!groups.length" :description="t('standalone.noResult')" />
+    <section v-for="group in groups" :key="group.platform" class="sign-platform">
+      <header class="platform-heading">
+        <h2>{{ group.platform }}</h2>
+        <span>{{ t('standalone.ui.accountCount', { count: group.accounts.length }) }}</span>
+      </header>
+      <div class="sign-account-grid">
+        <article
+          v-for="(account, index) in group.accounts"
+          :key="account.account_uid || index"
+          class="result-account"
         >
-        <div v-for="account in group.accounts" :key="account.account_uid" class="result-account">
-          <div class="result-account-header">
-            <strong>{{ account.account_alias }}</strong>
-            <a-tag :color="account.summary.color">{{ t(account.summary.label) }}</a-tag>
-          </div>
+          <header class="result-account-header">
+            <strong>{{ account.account_alias || t('gamesign.unknownUser') }}</strong>
+            <span class="result-status" :data-state="account.state">{{
+              t(summaryLabels[account.state])
+            }}</span>
+          </header>
           <p v-if="!account.steps.length" class="result-detail">
             {{ t('standalone.todayPending') }}
           </p>
-          <div
-            v-for="(step, index) in account.steps"
-            :key="index"
-            class="result-step"
-            :data-kind="step.kind"
-          >
-            <div class="result-line">
-              <a-tag :color="isSuccess(step.status) ? 'success' : 'error'">{{ step.status }}</a-tag>
-              <span class="result-game">{{
-                step.kind === 'community'
-                  ? t('standalone.kuroCoinSign')
-                  : step.kind === 'game'
-                    ? t('standalone.gameSignTask', { game: step.game })
-                    : step.game
-              }}</span>
-              <span v-if="step.account" class="result-role">{{ step.account }}</span>
-            </div>
-            <p v-if="step.reward" class="result-detail">{{ step.reward }}</p>
-            <p v-if="step.reason" class="result-reason">{{ step.reason }}</p>
-          </div>
-        </div>
-      </a-collapse-panel>
-    </a-collapse>
+          <ul v-else class="result-steps">
+            <li
+              v-for="(step, stepIndex) in account.steps"
+              :key="stepIndex"
+              class="result-step"
+              :data-kind="step.kind"
+              :data-state="step.state"
+            >
+              <span class="result-symbol" aria-hidden="true"
+                ><CheckOutlined v-if="step.state === 'success'" /><ExclamationOutlined
+                  v-else-if="step.state === 'failed'" /><ClockCircleOutlined v-else
+              /></span>
+              <div class="result-content">
+                <div class="result-line">
+                  <strong>{{
+                    step.kind === 'community'
+                      ? t('standalone.kuroCoinSign')
+                      : step.kind === 'game'
+                        ? t('standalone.gameSignTask', { game: step.game })
+                        : step.game
+                  }}</strong>
+                  <span class="step-status">{{
+                    step.state === 'pending'
+                      ? t('standalone.signPendingStatus')
+                      : step.status || t('standalone.signFailedStatus')
+                  }}</span>
+                </div>
+                <p
+                  v-if="step.role.name && step.role.name !== account.account_alias"
+                  class="result-role"
+                >
+                  {{ step.role.name }}
+                </p>
+                <p v-if="step.role.uid" class="result-role mono">UID {{ step.role.uid }}</p>
+                <p v-if="step.reward" class="result-reward">{{ step.reward }}</p>
+                <p v-if="step.reason" class="result-reason">{{ step.reason }}</p>
+                <time v-if="time(step.signedAt)" class="result-time">{{
+                  t('standalone.ui.lastSignRun', { time: time(step.signedAt) })
+                }}</time>
+              </div>
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
   </section>
 </template>
 
 <style scoped>
 .sign-results {
-  margin-top: 24px;
+  margin-top: 22px;
 }
-.sign-results :deep(.ant-collapse) {
-  border: 0;
-  background: transparent;
+.sign-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
 }
-.sign-results :deep(.ant-collapse > .ant-collapse-item) {
+.sign-overview > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px;
+  border-radius: 20px;
   background: var(--ant-color-bg-container);
-  border: 1px solid var(--ant-color-primary-border);
-  border-radius: 8px;
-  overflow: hidden;
+}
+.sign-overview span {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+.sign-overview strong {
+  font-size: 27px;
+  line-height: 1;
+}
+.sign-overview [data-state='success'] strong {
+  color: var(--ant-color-success);
+}
+.sign-overview [data-state='failed'] strong {
+  color: var(--ant-color-error);
+}
+.sign-platform + .sign-platform {
+  margin-top: 26px;
+}
+.platform-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
-.sign-results :deep(.ant-collapse-header) {
+.platform-heading h2 {
+  margin: 0;
+  font-size: 15px;
   font-weight: 600;
-  transition: background-color 200ms ease;
 }
-.sign-results :deep(.ant-collapse-header:hover),
-.sign-results :deep(.ant-collapse-header:focus-visible),
-.sign-results :deep(.ant-collapse-item-active > .ant-collapse-header) {
-  background: var(--ant-color-primary-bg);
+.platform-heading > span {
+  color: var(--ant-color-text-tertiary);
+  font-size: 11px;
 }
-.sign-results.reduced-motion :deep(.ant-collapse-header) {
-  transition: none;
+.sign-account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+  align-items: start;
 }
-.platform-summary {
-  color: var(--ant-color-primary);
-  font-size: 12px;
-  font-weight: 400;
-}
-.result-account + .result-account {
-  margin-top: 16px;
+.result-account {
+  min-width: 0;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--ant-color-bg-container);
 }
 .result-account-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 16px;
+}
+.result-account-header > strong {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.result-status {
+  flex-shrink: 0;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--ant-color-text-secondary);
+  background: var(--ant-color-fill-secondary);
+}
+.result-status[data-state='success'] {
+  color: var(--ant-color-success-text);
+  background: var(--ant-color-success-bg);
+}
+.result-status[data-state='failed'],
+.result-status[data-state='partial'] {
+  color: var(--ant-color-warning-text);
+  background: var(--ant-color-warning-bg);
+}
+.result-steps {
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 .result-step {
+  display: flex;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+.result-step:last-child {
+  padding-bottom: 0;
+}
+.result-symbol {
+  flex: 0 0 25px;
+  display: grid;
+  place-content: center;
+  align-self: flex-start;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--ant-color-fill-secondary);
+  color: var(--ant-color-text-secondary);
+}
+[data-state='success'] > .result-symbol {
+  color: var(--ant-color-success-text);
+  background: var(--ant-color-success-bg);
+}
+[data-state='failed'] > .result-symbol {
+  color: var(--ant-color-error);
+}
+.result-content {
+  min-width: 0;
+  flex: 1;
   overflow-wrap: anywhere;
 }
 .result-line {
   display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 12px;
-  overflow-wrap: anywhere;
+  gap: 10px;
 }
-.result-game {
-  font-weight: 500;
+.result-line strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.step-status {
+  color: var(--ant-color-text-secondary);
+  font-size: 11px;
+  flex-shrink: 0;
 }
 .result-role,
 .result-detail {
   color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  margin: 5px 0 0;
 }
-.result-detail,
-.result-reason {
-  margin: 4px 0 0;
+.result-reward {
+  margin: 10px 0 0;
+  font-size: 12px;
 }
 .result-reason {
   color: var(--ant-color-error);
+  margin: 7px 0 0;
+  font-size: 12px;
+}
+.result-time {
+  display: block;
+  color: var(--ant-color-text-tertiary);
+  margin-top: 8px;
+  font-size: 10px;
+}
+@media (max-width: 700px) {
+  .sign-overview {
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .sign-overview > div {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 17px 16px;
+  }
+  .sign-account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .result-account {
+    padding: 18px;
+  }
 }
 </style>

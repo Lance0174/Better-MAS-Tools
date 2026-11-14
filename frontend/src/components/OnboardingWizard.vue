@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{ open: boolean }>()
@@ -31,15 +32,13 @@ const skip = () => emit('skip')
 </script>
 
 <template>
-  <a-modal
+  <AdaptivePanel
     :open="open"
     :title="t('onboarding.title')"
     :width="520"
-    :footer="null"
+    desktop-modal
     :mask-closable="false"
-    :keyboard="false"
-    centered
-    @cancel="skip"
+    @close="skip"
   >
     <a-steps :current="step" size="small" class="onboarding-steps">
       <a-step :title="t('onboarding.step1Title')" />
@@ -95,7 +94,7 @@ const skip = () => emit('skip')
     </div>
 
     <div class="onboarding-actions">
-      <a-space>
+      <a-space wrap>
         <a-button v-if="step > 0" @click="prev">{{ t('onboarding.prev') }}</a-button>
         <a-button v-if="step < STEPS - 1" type="primary" @click="next">{{
           t('onboarding.next')
@@ -104,7 +103,7 @@ const skip = () => emit('skip')
         <a-button @click="skip">{{ t('onboarding.skip') }}</a-button>
       </a-space>
     </div>
-  </a-modal>
+  </AdaptivePanel>
 </template>
 
 <style scoped>

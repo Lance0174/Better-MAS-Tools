@@ -6,11 +6,19 @@ import { ReloadOutlined } from '@ant-design/icons-vue'
 import type { WikiCalendarGameOut } from '@/api'
 import { errorMessage } from '@/composables/useCommunityApi'
 import { useCalendarStore } from '@/stores/calendar'
+import ChoiceSelect from '@/components/ChoiceSelect.vue'
+import GameTabs from '@/components/GameTabs.vue'
+import { useMobileUi } from '@/composables/useMobileUi'
+import MonthCalendar from './MonthCalendar.vue'
+import { occursOnDay } from './calendarDays'
 import CalendarCarousel from '@/components/CalendarCarousel.vue'
+import GameArtwork from '@/components/GameArtwork.vue'
 import { filterAndSortActivities } from './calendarFilter'
 
 const { t, locale } = useI18n()
 const calendar = useCalendarStore()
+const mobile = useMobileUi()
+const selectedDay = ref('')
 const { games, loading } = storeToRefs(calendar)
 const message = computed(() =>
   calendar.failure
@@ -24,6 +32,16 @@ const sortBy = ref<'endsAt' | 'startsAt' | 'title'>('endsAt')
 const hidePermanent = ref(false)
 
 const STATUS_OPTIONS = ['all', 'active', 'running', 'upcoming', 'permanent', 'ended'] as const
+const statusOptions = computed(() =>
+  STATUS_OPTIONS.map(value => ({ value, label: statusLabel(value) }))
+)
+const sortOptions = computed(() =>
+  (['endsAt', 'startsAt', 'title'] as const).map(value => ({
+    value,
+    label: t(`standalone.calendarSort${value[0]!.toUpperCase()}${value.slice(1)}`),
+  }))
+)
+const monthEvents = computed(() => selectedGames.value.flatMap(group => group.activities ?? []))
 
 type CalendarActivity = NonNullable<WikiCalendarGameOut['activities']>[number]
 
@@ -39,7 +57,9 @@ const selectedGames = computed(() =>
 const visibleGames = computed(() =>
   selectedGames.value
     .map(group => {
-      const raw = group.activities ?? []
+      const raw = (group.activities ?? []).filter(
+        event => !selectedDay.value || occursOnDay(event, selectedDay.value)
+      )
       return {
         ...group,
         rawCount: raw.length,
@@ -61,7 +81,12 @@ const hasAnyActivity = computed(() =>
   selectedGames.value.some(group => (group.activities ?? []).length > 0)
 )
 
-const gameTabs = computed(() => games.value.filter(item => item.name))
+const gameTabs = computed(() => [
+  { value: 'all', label: t('standalone.calendarAll') },
+  ...games.value
+    .filter(item => item.name)
+    .map(item => ({ value: item.game, label: item.name || item.game })),
+])
 
 const visibleCount = computed(() =>
   visibleGames.value.reduce((total, group) => total + group.activities.length, 0)
@@ -134,39 +159,34 @@ onMounted(load)
 
 <template>
   <section class="calendar-page">
-    <CalendarCarousel
-      v-if="selectedGames.length"
-      v-model:game="bannerGame"
-      :groups="selectedGames"
-      :autoplay="activeGame === 'all'"
-    />
+    <GameTabs v-model:value="activeGame" :options="gameTabs" :label="t('standalone.gachaGame')" />
+    <div class="calendar-top">
+      <CalendarCarousel
+        v-if="selectedGames.length && !mobile"
+        v-model:game="bannerGame"
+        :groups="selectedGames"
+        :autoplay="activeGame === 'all'"
+      /><MonthCalendar v-model:value="selectedDay" :events="monthEvents" />
+    </div>
     <header class="page-toolbar">
-      <a-space wrap>
-        <a-radio-group v-model:value="activeGame" size="small" button-style="solid">
-          <a-radio-button value="all">{{ t('standalone.calendarAll') }}</a-radio-button>
-          <a-radio-button v-for="item in gameTabs" :key="item.game" :value="item.game">
-            {{ item.name }}
-          </a-radio-button>
-        </a-radio-group>
-        <a-button :loading="loading" @click="load">
-          <template #icon><ReloadOutlined /></template>{{ t('standalone.calendarRefresh') }}
-        </a-button>
-      </a-space>
+      <span>{{ t('standalone.calendarCount', { count: visibleCount }) }}</span
+      ><a-button :loading="loading" @click="load"
+        ><ReloadOutlined />{{ t('standalone.calendarRefresh') }}</a-button
+      >
     </header>
-
     <div class="calendar-filters glass-surface">
-      <a-select v-model:value="statusFilter" size="small" class="calendar-filter-field">
-        <a-select-option v-for="value in STATUS_OPTIONS" :key="value" :value="value">
-          {{ statusLabel(value) }}
-        </a-select-option>
-      </a-select>
-      <a-select v-model:value="sortBy" size="small" class="calendar-filter-field">
-        <a-select-option value="endsAt">{{ t('standalone.calendarSortEndsAt') }}</a-select-option>
-        <a-select-option value="startsAt">{{
-          t('standalone.calendarSortStartsAt')
-        }}</a-select-option>
-        <a-select-option value="title">{{ t('standalone.calendarSortTitle') }}</a-select-option>
-      </a-select>
+      <ChoiceSelect
+        v-model:value="statusFilter"
+        :options="statusOptions"
+        class="calendar-filter-field"
+        :aria-label="t('standalone.calendarStatusAll')"
+      />
+      <ChoiceSelect
+        v-model:value="sortBy"
+        :options="sortOptions"
+        class="calendar-filter-field"
+        :aria-label="t('standalone.calendarSortEndsAt')"
+      />
       <a-checkbox v-model:checked="hidePermanent">
         {{ t('standalone.calendarHidePermanent') }}
       </a-checkbox>
@@ -177,7 +197,7 @@ onMounted(load)
 
     <a-alert
       v-if="message"
-      type="info"
+      :type="calendar.failure ? 'error' : 'warning'"
       show-icon
       class="glass-surface calendar-hint"
       :message="message"
@@ -216,10 +236,12 @@ onMounted(load)
             <ul v-else class="calendar-list">
               <li v-for="(item, index) in group.activities ?? []" :key="rowKey(group, item, index)">
                 <article class="calendar-card glass-surface">
-                  <img v-if="item.banner" :src="item.banner" alt="" loading="lazy" />
-                  <div v-else class="calendar-card-placeholder" aria-hidden="true">
-                    {{ (item.title || '?').slice(0, 1) }}
-                  </div>
+                  <GameArtwork
+                    class="calendar-card-artwork"
+                    :game="group.game"
+                    :banner="item.banner"
+                    :cover="group.cover"
+                  />
                   <div class="calendar-card-body">
                     <header>
                       <strong>{{ item.title }}</strong>
@@ -265,6 +287,22 @@ onMounted(load)
 </template>
 
 <style scoped>
+.calendar-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+.calendar-top :deep(.calendar-banner) {
+  height: 100%;
+  min-height: 300px;
+}
+.page-toolbar {
+  margin-bottom: 14px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
 .calendar-page {
   display: flex;
   flex-direction: column;
@@ -322,21 +360,12 @@ onMounted(load)
   padding: 16px;
   border-radius: 24px;
 }
-.calendar-card img,
-.calendar-card-placeholder {
+.calendar-card-artwork {
   width: 100%;
   height: 88px;
   flex: 0 0 auto;
   border-radius: 16px;
   object-fit: cover;
-}
-.calendar-card-placeholder {
-  display: grid;
-  place-items: center;
-  background: var(--app-panel);
-  color: var(--ant-color-text-tertiary);
-  font-size: 24px;
-  font-weight: 700;
 }
 .calendar-card-body {
   display: flex;
@@ -422,11 +451,38 @@ onMounted(load)
   }
 }
 @media (max-width: 700px) {
+  .calendar-top,
+  .calendar-list {
+    grid-template-columns: 1fr;
+  }
+  .calendar-summary {
+    display: none !important;
+  }
+  .calendar-filters {
+    padding: 14px;
+  }
+  .calendar-filter-field {
+    flex: 1 1 40%;
+    min-width: 0;
+  }
+  .calendar-card {
+    padding: 0;
+    gap: 0;
+    overflow: hidden;
+  }
+  .calendar-card-artwork {
+    height: 110px;
+    border-radius: 0;
+  }
+  .calendar-card-body {
+    padding: 16px;
+  }
+
   .calendar-summary {
     display: block;
   }
   .calendar-filters {
-    padding: 12px 0;
+    padding: 14px;
   }
   .calendar-filter-field {
     min-width: 120px;

@@ -19,6 +19,10 @@ module.exports = {
       from: 'src/assets/community-notes/standalone-manifest.json',
       to: 'community-notes-manifest.json',
     },
+    {
+      from: 'src/assets/community-notes/background-manifest.json',
+      to: 'community-notes-background-manifest.json',
+    },
   ],
   npmRebuild: false,
   electronDist: 'node_modules/electron/dist',

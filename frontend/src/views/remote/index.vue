@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { confirmDialog } from '@/utils/confirmDialog'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import type { RelayCommandStatusOut, RelayNodeOut } from '@/api'
 import { RelayService } from '@/api'
@@ -107,7 +108,7 @@ const start = async (queue: { id: string }) => {
 }
 
 const stop = (task: { id: string; stopping: boolean }) =>
-  Modal.confirm({
+  confirmDialog({
     title: t('standalone.masStopTitle'),
     content: task.id,
     onOk: async () => {
@@ -127,7 +128,7 @@ const stop = (task: { id: string; stopping: boolean }) =>
   })
 
 const remoteSign = () =>
-  Modal.confirm({
+  confirmDialog({
     title: t('standalone.relay.signConfirmTitle'),
     content: t('standalone.relay.signConfirmContent'),
     onOk: async () => {

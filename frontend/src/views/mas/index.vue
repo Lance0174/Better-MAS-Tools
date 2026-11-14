@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { confirmDialog } from '@/utils/confirmDialog'
 import { ref } from 'vue'
-import { message, Modal } from 'ant-design-vue'
+import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
 import type { MasSnapshotOut, MasQueueOut, MasTaskOut } from '@/api'
 import { useMasApi } from '@/composables/useMasApi'
@@ -27,7 +28,7 @@ const start = async (queue: MasQueueOut) => {
   } catch (cause) { message.error(errorMessage(cause, t('standalone.masFailed'))) }
   finally { await connect() }
 }
-const stop = (task: MasTaskOut) => Modal.confirm({
+const stop = (task: MasTaskOut) => confirmDialog({
   title: t('standalone.masStopTitle'), content: task.id,
   onOk: async () => {
     busy.value = true

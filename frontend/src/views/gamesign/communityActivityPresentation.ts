@@ -63,7 +63,7 @@ export function presentActivity(snapshot: ActivitySnapshot) {
   }
   const remainingResources = resources.filter(resource => !featured.includes(resource))
   const remainingTasks = tasks.filter(task => !featured.includes(task))
-  // 鸣潮便笺只有结晶波片一项资源，用单列总览把体力与回满倒计时放大展示。
+  // 资源总览下方保留各类任务、周本与储备资源，不把小组件裁剪为单项体力。
   const overview =
     snapshot.game === '明日方舟' || snapshot.game === '绝区零' || snapshot.game === '鸣潮'
   const groups = overview

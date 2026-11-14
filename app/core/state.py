@@ -184,9 +184,15 @@ class CommunityState:
 
     async def create_account(self) -> str:
         uid = str(uuid4())
-        await self.mutate(
-            lambda candidate: candidate.accounts.update({uid: AccountData()})
-        )
+
+        def create(candidate: SavedState) -> None:
+            names = {account.Name for account in candidate.accounts.values()}
+            number = 1
+            while f"账号 {number}" in names:
+                number += 1
+            candidate.accounts[uid] = AccountData(Name=f"账号 {number}")
+
+        await self.mutate(create)
         return uid
 
     async def update_account(

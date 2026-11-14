@@ -30,32 +30,48 @@ export const router = createRouter({
       path: '/calendar',
       name: 'Calendar',
       component: () => import('@/views/calendar/index.vue'),
-      meta: { title: 'standalone.calendar' },
+      meta: {
+        title: 'standalone.calendar',
+        primary: true,
+        subtitle: 'standalone.ui.calendarSubtitle',
+      },
     },
     {
       path: '/gacha',
       name: 'Gacha',
       component: () => import('@/views/gacha/index.vue'),
-      meta: { title: 'standalone.gacha' },
+      meta: { title: 'standalone.gacha', primary: true, subtitle: 'standalone.ui.gachaSubtitle' },
     },
     { path: '/', redirect: '/home' },
     {
       path: '/home',
       name: 'Home',
       component: () => import('@/views/home/index.vue'),
-      meta: { title: 'standalone.home' },
+      meta: { title: 'standalone.home', primary: true },
     },
     {
       path: '/sign',
       name: 'CommunitySign',
       component: () => import('@/views/gamesign/index.vue'),
-      meta: { title: 'standalone.sign' },
+      meta: { title: 'standalone.homeSignResults', parent: '/more' },
+    },
+    {
+      path: '/accounts',
+      name: 'Accounts',
+      component: () => import('@/views/gamesign/index.vue'),
+      meta: { title: 'standalone.accountList', parent: '/more' },
+    },
+    {
+      path: '/more',
+      name: 'More',
+      component: () => import('@/views/more/index.vue'),
+      meta: { title: 'standalone.more', primary: true, subtitle: 'standalone.ui.moreSubtitle' },
     },
     {
       path: '/activity',
       name: 'CommunityActivity',
       component: () => import('@/views/home/ActivityOverview.vue'),
-      meta: { title: 'standalone.activity' },
+      meta: { title: 'standalone.activity', primary: true, subtitle: 'standalone.noteAccountHint' },
     },
     ...(import.meta.env.BMAT_ANDROID || isAndroidLocal
       ? []

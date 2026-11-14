@@ -417,16 +417,16 @@ def test_waves_definition_is_registered():
 def test_build_request_targets_waves_widget():
     requests = build_community_activity_requests(_target())
 
-    assert len(requests) == 1
+    assert len(requests) == 2
     request = requests[0]
-    assert request.source == "https://api.kurobbs.com/gamer/widget/game3/getData"
+    assert request.source == "https://api.kurobbs.com/gamer/widget/game3/refresh"
     assert request.method == "POST"
     assert request.form_data == {
         "gameId": "3",
         "roleId": "role-1",
         "serverId": "server-1",
-        "type": "2",
-        "sizeType": "1",
+        "type": "1",
+        "sizeType": "2",
     }
     assert request.auth_scope == "kuro"
     assert request.signature_profile == "kuro_widget"
@@ -517,7 +517,7 @@ def test_kuro_provider_serializes_post_form(monkeypatch):
         platform="库街区",
         raw_credential='{"token":"offline-token","userId":"1"}',
     )
-    request = build_community_activity_requests(_target())[0]
+    request = build_community_activity_requests(_target())[1]
     payload = _run(provider.request(request))
 
     assert captured["url"] == request.source

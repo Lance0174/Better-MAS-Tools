@@ -11,7 +11,6 @@ from app.services.endfield_wiki import wiki as endfield_wiki
 from app.services.network import network
 from app.tools import gacha as protocol
 from app.tools import gacha_heybox as heybox
-from app.tools import gacha_mihoyo_authkey as authkey_protocol
 from app.tools.gacha_heybox import HeyboxError as HeyboxError
 from app.tools.gacha_mihoyo_authkey import GachaAuthkeyError as GachaAuthkeyError
 from app.version import VERSION
@@ -67,6 +66,10 @@ async def fetch(
     timezone: int,
     max_pages: int,
 ) -> tuple[int, int, list[str]]:
+    if game != "arknights" and not source.strip():
+        raise GachaAuthkeyError(
+            "仅明日方舟开放 Cookie／已登录账号获取；其他游戏请使用官方链接或 JSON 导入"
+        )
     if _fetch_lock.locked():
         raise ValueError("抽卡记录正在读取，请稍后重试")
     async with _fetch_lock:
@@ -90,9 +93,6 @@ async def fetch(
                     source,
                     player_uid,
                     max_pages=max_pages,
-                    credential=state.require_account(account_id).SklandToken
-                    if not source.strip()
-                    else "",
                 )
         added = await merge(records) if records else 0
         if not records and warnings:
@@ -110,46 +110,12 @@ async def fetch_mihoyo_by_cookie(
     timezone: int = 8,
     max_pages: int = 100,
 ) -> tuple[int, int, list[str]]:
-    """用米游社登录态换一次性 authkey 后读取官方记录。
+    """保留旧接口契约；米游社 Cookie 获取暂不开放，不读取凭据或发起请求。"""
 
-    官方接口只认 authkey：先按 game/UID/区域换 authkey，再复用 fetch_mihoyo 的
-    分页链路。Cookie 只在本进程内用于换取（不落盘、不写日志），未传时复用所选
-    账号组里已保存的米游社凭据（社区签到扫码绑定的那一份）。
-    """
-
-    if game not in protocol.MIHOYO:
-        raise authkey_protocol.GachaAuthkeyError(
-            "按米游社 Cookie 读取记录只支持原神、崩坏：星穹铁道与绝区零"
-        )
-    if _fetch_lock.locked():
-        raise ValueError("抽卡记录正在读取，请稍后重试")
-    async with _fetch_lock:
-        credential = cookie.strip()
-        if not credential and account_id:
-            credential = str(state.require_account(account_id).MiyousheToken or "")
-        async with network.client(
-            proxy=state.proxy, trust_env=False, timeout=25, follow_redirects=False
-        ) as client:
-            grant = await authkey_protocol.request_authkey(
-                client,
-                game=game,
-                player_uid=player_uid,
-                cookie=credential,
-                region=region,
-            )
-            records, warnings = await protocol.fetch_mihoyo(
-                client,
-                game,
-                authkey_protocol.build_source(game, grant),
-                timezone=timezone,
-                max_pages=max_pages,
-            )
-        added = await merge(records) if records else 0
-        if not records and warnings:
-            raise ValueError(
-                "没有取得有效抽卡记录，请检查游戏 UID 与米游社登录状态后重试"
-            )
-        return added, len(records), warnings
+    raise GachaAuthkeyError(
+        "仅明日方舟开放 Cookie／已登录账号获取；请在明日方舟中选择森空岛账号，"
+        "其他游戏请使用官方链接或 JSON 导入"
+    )
 
 
 async def import_records(game: str, payload: str) -> tuple[int, int, list[str]]:

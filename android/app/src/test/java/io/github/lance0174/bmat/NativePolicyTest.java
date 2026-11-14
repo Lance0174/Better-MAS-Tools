@@ -63,6 +63,35 @@ public class NativePolicyTest {
                 NativePolicy.requestHost("https://data.akedata.wiki./manifest.json"));
     }
 
+    @Test public void sklandLoginAndDailyRequestsAreAllowed() {
+        String[] endpoints = {
+                "https://as.hypergryph.com/general/v1/gen_scan/login",
+                "https://as.hypergryph.com/general/v1/scan_status",
+                "https://fp-it.portal101.cn/deviceprofile/v4",
+                "https://as.hypergryph.com/user/auth/v1/token_by_scan_code",
+                "https://as.hypergryph.com/user/oauth2/v2/grant",
+                "https://zonai.skland.com/web/v1/user/auth/generate_cred_by_code",
+                "https://zonai.skland.com/web/v1/auth/refresh",
+                "https://zonai.skland.com/api/v1/game/player/binding",
+                "https://zonai.skland.com/api/v1/game/player/info",
+                "https://zonai.skland.com/web/v1/game/endfield/card/detail",
+                "https://zonai.skland.com/api/v1/game/attendance",
+                "https://zonai.skland.com/web/v1/game/endfield/attendance"
+        };
+        for (String endpoint : endpoints) {
+            assertNotNull("森空岛链路不应被原生桥阻断：" + endpoint, NativePolicy.requestHost(endpoint));
+        }
+    }
+
+    @Test public void sklandDeviceVerificationCannotWidenNativeAccess() {
+        assertNull(NativePolicy.requestHost("https://fp-it.portal101.cn.evil.test/deviceprofile/v4"));
+        assertNull(NativePolicy.requestHost("https://other.portal101.cn/deviceprofile/v4"));
+        assertNull(NativePolicy.requestHost("https://portal101.cn/deviceprofile/v4"));
+        assertNull(NativePolicy.requestHost("https://fp-it.portal101.cn@evil.test/deviceprofile/v4"));
+        assertNull(NativePolicy.requestHost("http://fp-it.portal101.cn/deviceprofile/v4"));
+        assertNull(NativePolicy.requestHost("https://fp-it.portal101.cn:8443/deviceprofile/v4"));
+    }
+
     @Test public void nativeRequestsRejectInternalAndDisguisedTargets() {
         assertNull(NativePolicy.requestHost("https://127.0.0.1/api"));
         assertNull(NativePolicy.requestHost("https://10.0.0.5/internal"));
@@ -92,6 +121,12 @@ public class NativePolicyTest {
         assertFalse(NativePolicy.isResponseHeader("server"));
         assertFalse(NativePolicy.isResponseHeader("x-internal-token"));
         assertFalse(NativePolicy.isResponseHeader(null));
+    }
+
+    @Test public void compressedResponseMetadataReachesPythonDecoder() {
+        // Python 已发送 Accept-Encoding，原生层会收到压缩字节；解码标记必须随字节回传。
+        assertTrue(NativePolicy.isResponseHeader("content-encoding"));
+        assertTrue(NativePolicy.isResponseHeader("Content-Encoding"));
     }
 
     @Test public void cloudHostsAreNotAvailableOnAndroid() {

@@ -2,7 +2,7 @@
 
 全部用 httpx.MockTransport 注入假传输层：不产生真实请求，也不使用真实凭据
 （COOKIE 里的 stoken 是假值）。覆盖请求构造、authkey 传递给 getGachaLog、
-上游失败的中文脱敏文案，以及没有账号凭据时的绑定提示。
+上游失败的中文脱敏文案，以及未开放入口的说明。
 """
 
 import json
@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from app.core import gacha as core
-from app.services.network import network
+from app.tools import gacha as protocol
 from app.tools import gacha_mihoyo_authkey as authkey
 
 COOKIE = (
@@ -27,17 +27,6 @@ AUTHKEY_OK = {
 
 def _offline_client(handler) -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler), trust_env=False)
-
-
-def _install_network(monkeypatch, handler) -> None:
-    """把社区请求工厂换成假传输层，核心层链路不可能发出真实请求。"""
-
-    transport = httpx.MockTransport(handler)
-    monkeypatch.setattr(
-        network,
-        "client",
-        lambda **_options: httpx.AsyncClient(transport=transport, trust_env=False),
-    )
 
 
 def _gacha_urls(requests: list[httpx.Request]) -> list[httpx.Request]:
@@ -111,7 +100,7 @@ async def test_region_override_wins_over_uid_prefix():
 
 
 @pytest.mark.asyncio
-async def test_core_cookie_fetch_passes_authkey_to_gachalog(monkeypatch):
+async def test_protocol_authkey_reaches_gachalog():
     """换取到的 authkey 必须出现在后续 getGachaLog 请求上，而不是只停在内存里。"""
 
     captured: list[httpx.Request] = []
@@ -124,12 +113,18 @@ async def test_core_cookie_fetch_passes_authkey_to_gachalog(monkeypatch):
             200, json={"retcode": 0, "data": {"list": []}}, request=request
         )
 
-    _install_network(monkeypatch, handler)
-    added, fetched, warnings = await core.fetch_mihoyo_by_cookie(
-        "genshin", player_uid="100000001", cookie=COOKIE
-    )
-
-    assert (added, fetched, warnings) == (0, 0, [])
+    async with _offline_client(handler) as client:
+        grant = await authkey.request_authkey(
+            client, game="genshin", player_uid="100000001", cookie=COOKIE
+        )
+        records, warnings = await protocol.fetch_mihoyo(
+            client,
+            "genshin",
+            authkey.build_source("genshin", grant),
+            timezone=8,
+            max_pages=1,
+        )
+    assert (records, warnings) == ([], [])
     gacha_requests = _gacha_urls(captured)
     assert gacha_requests, "没有向官方记录接口发起请求"
     first = gacha_requests[0]
@@ -148,7 +143,10 @@ async def test_upstream_rejection_is_chinese_and_hides_cookie():
         captured.append(request)
         return httpx.Response(
             200,
-            json={"retcode": -1, "message": "系统繁忙，请稍后重试 password=upstream-secret"},
+            json={
+                "retcode": -1,
+                "message": "系统繁忙，请稍后重试 password=upstream-secret",
+            },
             request=request,
         )
 
@@ -192,14 +190,9 @@ async def test_credential_retcode_stops_retrying():
 
 
 @pytest.mark.asyncio
-async def test_missing_account_cookie_points_to_game_sign():
-    """没有绑定米游社账号时，提示必须指到「游戏签到 → 米游社」。"""
-
-    with pytest.raises(authkey.GachaAuthkeyError) as error:
+async def test_unopened_cookie_entry_explains_alternatives():
+    with pytest.raises(authkey.GachaAuthkeyError, match="仅明日方舟开放"):
         await core.fetch_mihoyo_by_cookie("genshin", player_uid="100000001")
-
-    message = str(error.value)
-    assert "游戏签到" in message and "米游社" in message
 
 
 @pytest.mark.asyncio

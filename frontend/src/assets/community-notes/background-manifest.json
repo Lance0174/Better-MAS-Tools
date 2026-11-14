@@ -1,0 +1,125 @@
+{
+  "origin": "https://doc.auto-mas.top/community-notes/",
+  "files": [
+    {
+      "source": "arknights-background.png",
+      "sourceSha256": "22aa487da66082f0b932d691ea8073238752477a684751f04363211f6b620af7",
+      "sourceBytes": 2496380,
+      "sourceDimensions": [
+        1600,
+        900
+      ],
+      "file": "arknights-background.webp",
+      "sha256": "6a23195b201d265fa5adf3d0a8f94e439cde562bddcc687b75da7c8ab4293486",
+      "bytes": 163450,
+      "dimensions": [
+        1600,
+        900
+      ],
+      "conversion": {
+        "quality": 82,
+        "method": 6,
+        "maxDimensions": [
+          1600,
+          900
+        ]
+      }
+    },
+    {
+      "source": "endfield-background.png",
+      "sourceSha256": "c2cf843682a82b20890bf5228d9a68e5965b4dae3c36cd951b8988fa1737b01c",
+      "sourceBytes": 2471166,
+      "sourceDimensions": [
+        1920,
+        1080
+      ],
+      "file": "endfield-background.webp",
+      "sha256": "9d3a6fee469e04f776f76d44e1ba0dd5f17ae7210510ece807e0d1dacff1f22c",
+      "bytes": 154724,
+      "dimensions": [
+        1600,
+        900
+      ],
+      "conversion": {
+        "quality": 82,
+        "method": 6,
+        "maxDimensions": [
+          1600,
+          900
+        ]
+      }
+    },
+    {
+      "source": "genshin-background.png",
+      "sourceSha256": "322f83d8731c2744f1fdbfa4de9aff8ae973c76f22c724d7d83877c73b9c3b48",
+      "sourceBytes": 196764,
+      "sourceDimensions": [
+        490,
+        233
+      ],
+      "file": "genshin-background.webp",
+      "sha256": "f06788a6cb81f4e9bfac3625940717ce817a623c9653fb6c6ffcf00d98d06455",
+      "bytes": 16084,
+      "dimensions": [
+        490,
+        233
+      ],
+      "conversion": {
+        "quality": 82,
+        "method": 6,
+        "maxDimensions": [
+          1600,
+          900
+        ]
+      }
+    },
+    {
+      "source": "star-rail-background.png",
+      "sourceSha256": "4d6766536fc768657047218bbe885c78bd2badef551f8e4b44b0e9b613b6c3a7",
+      "sourceBytes": 497086,
+      "sourceDimensions": [
+        800,
+        450
+      ],
+      "file": "star-rail-background.webp",
+      "sha256": "1048d29ea88fd9181c346b6ed8fa6d9f62d0e727162e80d56490abc61137f7a1",
+      "bytes": 36776,
+      "dimensions": [
+        800,
+        450
+      ],
+      "conversion": {
+        "quality": 82,
+        "method": 6,
+        "maxDimensions": [
+          1600,
+          900
+        ]
+      }
+    },
+    {
+      "source": "zenless-background.png",
+      "sourceSha256": "3a7a6cdbb24307a77d02d6ef5a27db1a9e379a71a39fc6ba35e1aa4ee6137658",
+      "sourceBytes": 662463,
+      "sourceDimensions": [
+        900,
+        496
+      ],
+      "file": "zenless-background.webp",
+      "sha256": "e4f8798de02caa73ecb0c91295825ed409982585d83d4ccd5d823a9fe11abec3",
+      "bytes": 33924,
+      "dimensions": [
+        900,
+        496
+      ],
+      "conversion": {
+        "quality": 82,
+        "method": 6,
+        "maxDimensions": [
+          1600,
+          900
+        ]
+      }
+    }
+  ]
+}

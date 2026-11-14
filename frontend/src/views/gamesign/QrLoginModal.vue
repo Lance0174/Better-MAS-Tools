@@ -1,5 +1,11 @@
 <template>
-  <a-modal :open="open" :title="modalTitle" :footer="null" :width="360" @cancel="emit('cancel')">
+  <AdaptivePanel
+    :open="open"
+    :title="modalTitle"
+    :width="360"
+    desktop-modal
+    @close="emit('cancel')"
+  >
     <div class="qr-login-container">
       <!-- 二维码 -->
       <div
@@ -48,11 +54,12 @@
         </a-button>
       </div>
     </div>
-  </a-modal>
+  </AdaptivePanel>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
 import { useI18n } from 'vue-i18n'
 import {
   CheckCircleOutlined,
@@ -109,8 +116,9 @@ const emit = defineEmits<{
 }
 
 .qr-code-img {
-  width: 240px;
-  height: 240px;
+  width: min(240px, 100%);
+  height: auto;
+  aspect-ratio: 1;
   border: 1px solid var(--ant-color-border);
   border-radius: 8px;
 }

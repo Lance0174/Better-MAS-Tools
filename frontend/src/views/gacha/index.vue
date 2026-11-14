@@ -4,9 +4,14 @@ import {
   Table as ATable,
   InputNumber as AInputNumber,
   Pagination as APagination,
-  Popconfirm as APopconfirm,
   message,
 } from 'ant-design-vue'
+import AdaptivePanel from '@/components/AdaptivePanel.vue'
+import ChoiceSelect from '@/components/ChoiceSelect.vue'
+import GameTabs from '@/components/GameTabs.vue'
+import { useMobileUi } from '@/composables/useMobileUi'
+import { confirmDialog } from '@/utils/confirmDialog'
+import { ExportOutlined, GiftOutlined, ImportOutlined, ReloadOutlined } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import type {
   AccountOut,
@@ -20,23 +25,22 @@ import { useCommunityApi, errorMessage } from '@/composables/useCommunityApi'
 import { isAndroidLocal } from '@/services/android'
 import { saveTextFile } from '@/utils/download'
 import {
-  COOKIE_LIMIT,
   HEYBOX_PAYLOAD_LIMIT,
-  cookieReady,
   defaultSource,
   heyboxIdValid,
   heyboxPageUrl,
   heyboxPayloadReady,
   heyboxPayloadTooLarge,
-  isCookieGame,
   isHeyboxDerived,
   isHeyboxFill,
   sourceOptions,
   type FetchSource,
 } from './heybox'
+import { useOfficialGacha } from './useOfficialGacha'
 
 const { t } = useI18n()
 const api = useGachaApi()
+const mobile = useMobileUi()
 const accountsApi = useCommunityApi()
 const game = ref<GachaRecord['game']>('genshin')
 const player = ref('')
@@ -49,14 +53,15 @@ const loading = ref(false)
 const error = ref('')
 const warnings = ref<string[]>([])
 const fetchOpen = ref(false)
+const exportOpen = ref(false)
 // 「获取记录」弹窗的状态：source 是本次要用的来源，linkText / heyboxPayload 只在本次请求使用。
 const source = ref<FetchSource>(defaultSource('genshin'))
 const linkText = ref('')
-// 米游社 Cookie 只在本次弹窗里保存，提交后立即清空；留空时改用下面选中的账号组。
-const cookieText = ref('')
-const cookieAccountId = ref('')
-const accountId = ref('')
+// 明日方舟复用已登录森空岛账号；其他游戏使用链接或文件。
 const playerUid = ref('')
+const official = useOfficialGacha(game, accounts, () => t('standalone.loadFailed'))
+const accountId = official.accountId
+const preparing = ref(false)
 const timezone = ref(8)
 const maxPages = ref(100)
 const heyboxId = ref('')
@@ -65,9 +70,10 @@ const heyboxResult = ref<GachaHeyboxOut | null>(null)
 const revoking = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 let generation = 0
+let sourcePreparation = 0
 const games = computed(() =>
   ['genshin', 'starrail', 'zzz', 'wuthering', 'arknights', 'endfield'].map(value => ({
-    value,
+    value: value as GachaRecord['game'],
     label: t(`standalone.gachaGames.${value}`),
   }))
 )
@@ -86,22 +92,12 @@ const pools = computed(() => [
     ).values()
   ),
 ])
-const sklandAccounts = computed(() =>
-  accounts.value
-    .filter(item => item.data.SklandToken)
-    .map(item => ({ value: item.uid, label: item.data.Name }))
-)
-const miyousheAccounts = computed(() =>
-  accounts.value
-    .filter(item => item.data.MiyousheToken)
-    .map(item => ({ value: item.uid, label: item.data.Name }))
-)
+const sklandAccounts = official.options
 const supportsUigf = computed(() => ['genshin', 'starrail', 'zzz'].includes(game.value))
 // 明日方舟只走森空岛授权；小黑盒补录只在终末地出现。
 const sourceChoices = computed(() => {
   const labels: Record<FetchSource, string> = {
     link: t('standalone.gachaSourceNames.link'),
-    cookie: t('standalone.gachaSourceNames.cookie'),
     skland: t('standalone.gachaSourceNames.skland'),
     file: t('standalone.gachaSourceNames.file'),
     heybox: t('standalone.gachaSourceNames.heybox'),
@@ -113,7 +109,6 @@ const heyboxIdInvalid = computed(
   () => heyboxId.value.trim().length > 0 && !heyboxIdValid(heyboxId.value)
 )
 const heyboxPayloadOver = computed(() => heyboxPayloadTooLarge(heyboxPayload.value))
-const cookieOverLimit = computed(() => cookieText.value.length > COOKIE_LIMIT)
 const heyboxIssues = computed(() => [
   ...(heyboxResult.value?.warnings ?? []),
   ...(heyboxResult.value?.skipped ?? []),
@@ -128,16 +123,16 @@ const heyboxSummary = computed(() => {
   })
 })
 const canSubmit = computed(() => {
+  if (preparing.value || importing.value || revoking.value) return false
   if (source.value === 'link') {
     return (
       linkText.value.trim().length > 0 && (!needsPlayerUid.value || playerUid.value.trim() !== '')
     )
   }
-  if (source.value === 'cookie') {
-    return playerUid.value.trim() !== '' && cookieReady(cookieText.value, cookieAccountId.value)
-  }
   if (source.value === 'skland') {
-    return accountId.value !== '' && playerUid.value.trim() !== ''
+    return (
+      !official.loading.value && accountId.value !== '' && official.playerUid.value.trim() !== ''
+    )
   }
   if (source.value === 'heybox') {
     return (
@@ -181,24 +176,45 @@ watch(game, () => {
   warnings.value = []
   // 换游戏后原来选的来源可能不适用（例如小黑盒补录只有终末地有）。
   if (!sourceOptions(game.value).includes(source.value)) source.value = defaultSource(game.value)
+  if (fetchOpen.value) void prepareSource()
   refresh()
 })
-const openFetch = () => {
-  source.value = defaultSource(game.value)
+const prepareSource = async () => {
+  const current = ++sourcePreparation
+  preparing.value = false
+  if (source.value === 'skland') {
+    preparing.value = true
+    try {
+      await official.prepare()
+    } catch (cause) {
+      if (current === sourcePreparation && fetchOpen.value)
+        message.error(errorMessage(cause, t('standalone.loadFailed')))
+    } finally {
+      if (current === sourcePreparation) preparing.value = false
+    }
+  }
+}
+const openFetch = (nextSource?: FetchSource) => {
+  source.value =
+    nextSource && sourceOptions(game.value).includes(nextSource)
+      ? nextSource
+      : defaultSource(game.value)
   fetchOpen.value = true
+  void prepareSource()
 }
 watch(fetchOpen, open => {
   if (!open) {
+    sourcePreparation++
+    preparing.value = false
     linkText.value = ''
-    cookieText.value = ''
     heyboxPayload.value = ''
     heyboxResult.value = null
   }
 })
 onBeforeUnmount(() => {
   generation++
+  sourcePreparation++
   linkText.value = ''
-  cookieText.value = ''
   heyboxPayload.value = ''
 })
 onMounted(async () => {
@@ -228,33 +244,11 @@ const fetchRecords = async () => {
     const response = await api.fetch({
       game: game.value,
       source: linkText.value,
-      accountId: accountId.value,
-      playerUid: playerUid.value,
+      accountId: source.value === 'skland' ? accountId.value : '',
+      playerUid: source.value === 'skland' ? official.playerUid.value : playerUid.value,
       timezone: timezone.value,
       maxPages: maxPages.value,
     })
-    fetchOpen.value = false
-    await finish(response)
-  } catch (cause) {
-    message.error(errorMessage(cause, t('standalone.gachaFetchFailed')))
-  } finally {
-    importing.value = false
-  }
-}
-const fetchByCookie = async () => {
-  if (!canSubmit.value || !isCookieGame(game.value)) return
-  importing.value = true
-  try {
-    const response = await api.fetchCookie({
-      game: game.value,
-      accountId: cookieAccountId.value,
-      playerUid: playerUid.value.trim(),
-      cookie: cookieText.value,
-      timezone: timezone.value,
-      maxPages: maxPages.value,
-    })
-    // Cookie 是敏感凭据：用过就丢，不留在组件状态里。
-    cookieText.value = ''
     fetchOpen.value = false
     await finish(response)
   } catch (cause) {
@@ -304,6 +298,13 @@ const revokeHeybox = async () => {
     revoking.value = false
   }
 }
+const confirmRevoke = () =>
+  confirmDialog({
+    title: t('standalone.gachaHeyboxRevoke'),
+    content: t('standalone.gachaHeyboxRevokeHint'),
+    okButtonProps: { danger: true },
+    onOk: revokeHeybox,
+  })
 const importFile = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -311,8 +312,8 @@ const importFile = async (event: Event) => {
   importing.value = true
   try {
     if (file.size > 20_000_000) throw new Error(t('standalone.gachaFileTooLarge'))
-    fetchOpen.value = false
     await finish(await api.import(game.value, await file.text()))
+    fetchOpen.value = false
   } catch (cause) {
     message.error(errorMessage(cause, t('standalone.gachaImportFailed')))
   } finally {
@@ -325,6 +326,7 @@ const exportFile = async (format: 'bmasc' | 'uigf') => {
   try {
     const response = await api.export(game.value, player.value, format)
     await saveTextFile(response.filename, response.content)
+    exportOpen.value = false
   } catch (cause) {
     message.error(errorMessage(cause, t('standalone.gachaExportFailed')))
   } finally {
@@ -339,48 +341,53 @@ const changePage = (value: { current?: number }) => {
 
 <template>
   <section class="gacha-page">
-    <header class="page-toolbar">
-      <a-space wrap>
-        <a-button :disabled="importing || !data.total" @click="exportFile('bmasc')">{{
-          t('standalone.gachaExport')
-        }}</a-button>
-        <a-button
-          v-if="supportsUigf"
-          :disabled="importing || !data.total"
-          @click="exportFile('uigf')"
-          >{{ t('standalone.gachaUigf') }}</a-button
-        >
-        <a-button type="primary" :loading="importing" @click="openFetch">{{
-          t('standalone.gachaFetch')
-        }}</a-button>
-      </a-space>
-    </header>
-    <div class="gacha-filters">
-      <a-select
-        v-model:value="game"
+    <div class="gacha-workspace">
+      <GameTabs
+        :value="game"
         :options="games"
         :disabled="importing"
-        class="gacha-select"
-        :aria-label="t('standalone.gachaGame')"
+        :label="t('standalone.gachaGame')"
+        @update:value="value => (game = value as GachaRecord['game'])"
       />
-      <a-select
-        v-model:value="player"
-        :options="players"
-        :disabled="importing"
-        class="gacha-select"
-        :aria-label="t('standalone.allPlayers')"
-        @change="refresh"
-      />
-      <a-select
-        v-model:value="pool"
-        :options="pools"
-        :disabled="importing"
-        class="gacha-select"
-        :aria-label="t('standalone.allPools')"
-        @change="refresh"
-      />
+      <header class="page-toolbar">
+        <div class="gacha-actions">
+          <a-button class="gacha-fetch" type="primary" :loading="importing" @click="openFetch()">{{
+            t('standalone.ui.getRecords')
+          }}</a-button>
+          <a-button :disabled="importing" @click="openFetch('file')"
+            ><ImportOutlined />{{ t('standalone.gachaImport') }}</a-button
+          >
+          <a-button
+            :disabled="importing || !data.total"
+            :aria-label="t('standalone.ui.exportRecords')"
+            @click="exportOpen = true"
+            ><ExportOutlined /><span v-if="!mobile">{{
+              t('standalone.ui.exportRecords')
+            }}</span></a-button
+          >
+        </div>
+        <p class="gacha-entry-hint">{{ t('standalone.ui.gachaEntryHint') }}</p>
+      </header>
+      <div class="gacha-filters">
+        <ChoiceSelect
+          v-model:value="player"
+          :options="players"
+          :disabled="importing"
+          class="gacha-select"
+          :aria-label="t('standalone.allPlayers')"
+          @change="refresh"
+        />
+        <ChoiceSelect
+          v-model:value="pool"
+          :options="pools"
+          :disabled="importing"
+          class="gacha-select"
+          :aria-label="t('standalone.allPools')"
+          @change="refresh"
+        />
+      </div>
+      <p class="gacha-history-hint">{{ t('standalone.gachaHistoryHint') }}</p>
     </div>
-    <a-alert type="info" show-icon :message="t('standalone.gachaHistoryHint')" class="page-alert" />
     <a-alert v-if="error" type="error" show-icon :message="error" class="page-alert" />
     <a-alert
       v-for="warning in warnings"
@@ -403,10 +410,29 @@ const changePage = (value: { current?: number }) => {
         }}</span>
       </article>
     </div>
-    <a-spin v-if="isAndroidLocal" :spinning="loading || importing">
+    <h2 v-if="data.total || loading" class="records-heading">
+      {{ t('standalone.ui.latestRecords')
+      }}<a-button type="text" size="small" :loading="loading" :disabled="importing" @click="refresh"
+        ><ReloadOutlined />{{ t('standalone.ui.refreshRecords') }}</a-button
+      ><small>{{ t('standalone.ui.recordCount', { count: data.total }) }}</small>
+    </h2>
+    <div v-if="!data.total && !loading" class="gacha-empty">
+      <span class="gacha-empty-icon" aria-hidden="true"><GiftOutlined /></span>
+      <h2>{{ t('standalone.ui.noRecords') }}</h2>
+      <p>{{ t('standalone.ui.gachaEmptyHint') }}</p>
+      <a-button type="primary" :disabled="importing" @click="openFetch()">{{
+        t('standalone.ui.getRecords')
+      }}</a-button>
+    </div>
+    <a-spin v-else-if="mobile" :spinning="loading || importing">
       <div class="mobile-records">
-        <a-empty v-if="!data.total" />
-        <article v-for="record in data.data" :key="keyOf(record)" class="mobile-record">
+        <a-empty v-if="!data.total" :description="t('standalone.ui.noRecords')" />
+        <article
+          v-for="record in data.data"
+          :key="keyOf(record)"
+          class="mobile-record"
+          :class="{ 'top-rarity': record.rarity >= 5 }"
+        >
           <div>
             <strong>{{ record.name }}</strong>
             <span class="mobile-tags">
@@ -452,33 +478,64 @@ const changePage = (value: { current?: number }) => {
         </template>
       </template>
     </a-table>
-    <a-modal
+    <AdaptivePanel
+      :open="exportOpen"
+      :title="t('standalone.ui.exportRecords')"
+      :busy="importing"
+      @close="exportOpen = false"
+    >
+      <div class="export-options">
+        <a-button :disabled="importing" @click="exportFile('bmasc')">{{
+          t('standalone.gachaExport')
+        }}</a-button
+        ><a-button v-if="supportsUigf" :disabled="importing" @click="exportFile('uigf')">{{
+          t('standalone.gachaUigf')
+        }}</a-button>
+      </div>
+    </AdaptivePanel>
+    <AdaptivePanel
       :open="fetchOpen"
-      :title="t('standalone.gachaFetch')"
-      :closable="!importing"
-      :mask-closable="!importing"
-      @cancel="fetchOpen = false"
+      :title="t('standalone.ui.getRecords')"
+      :busy="importing || revoking"
+      desktop-modal
+      @close="fetchOpen = false"
     >
       <a-form
         layout="vertical"
         :model="{ linkText, playerUid, accountId, timezone, maxPages, heyboxId, heyboxPayload }"
-        :disabled="importing"
+        :disabled="importing || revoking"
       >
-        <a-form-item name="source" :label="t('standalone.gachaSourceMode')">
-          <a-radio-group v-model:value="source" button-style="solid">
-            <a-radio-button
-              v-for="choice in sourceChoices"
-              :key="choice.value"
-              :value="choice.value"
-            >
-              {{ choice.label }}
-            </a-radio-button>
-          </a-radio-group>
-        </a-form-item>
         <a-alert
+          v-if="source === 'skland' && !preparing && !official.options.value.length"
           type="info"
           show-icon
-          :message="t(`standalone.gachaHints.${game}`)"
+          :message="t('standalone.ui.gachaNeedsAccount')"
+          class="page-alert"
+        >
+          <template #action
+            ><router-link to="/accounts" @click="fetchOpen = false">{{
+              t('standalone.accountList')
+            }}</router-link></template
+          >
+        </a-alert>
+        <a-form-item name="source" :label="t('standalone.gachaSourceMode')">
+          <ChoiceSelect
+            v-model:value="source"
+            :options="sourceChoices"
+            :disabled="importing || revoking"
+            :aria-label="t('standalone.gachaSourceMode')"
+            @change="prepareSource"
+          />
+        </a-form-item>
+        <a-alert
+          v-if="source === 'link' || source === 'skland'"
+          type="info"
+          show-icon
+          :message="
+            source === 'skland'
+              ? t('standalone.ui.gachaSklandHint')
+              : t(`standalone.gachaHints.${game}`)
+          "
           class="page-alert"
         />
         <template v-if="source === 'link'">
@@ -488,67 +545,39 @@ const changePage = (value: { current?: number }) => {
           <a-form-item v-if="needsPlayerUid" name="playerUid" label="UID" required>
             <a-input v-model:value="playerUid" autocomplete="off" />
           </a-form-item>
-          <a-form-item v-if="supportsUigf" name="timezone" :label="t('standalone.gachaTimezone')">
-            <a-input-number v-model:value="timezone" :min="-12" :max="14" />
-          </a-form-item>
-          <a-form-item
-            v-if="game !== 'wuthering'"
-            name="maxPages"
-            :label="t('standalone.gachaMaxPages')"
-          >
-            <a-input-number v-model:value="maxPages" :min="1" :max="500" />
-          </a-form-item>
-        </template>
-        <template v-else-if="source === 'cookie'">
-          <a-alert
-            type="info"
-            show-icon
-            :message="t('standalone.gachaCookieHint')"
-            class="page-alert"
-          />
-          <a-form-item name="cookieAccountId" :label="t('standalone.gachaCookieAccount')">
-            <a-select
-              v-model:value="cookieAccountId"
-              :options="miyousheAccounts"
-              allow-clear
-              :placeholder="t('standalone.gachaCookieAccountHint')"
-            />
-          </a-form-item>
-          <a-form-item name="cookieText" :label="t('standalone.gachaCookieLabel')">
-            <a-input-password
-              v-model:value="cookieText"
-              autocomplete="new-password"
-              spellcheck="false"
-              :status="cookieOverLimit ? 'error' : undefined"
-            />
-            <template #extra>
-              <span v-if="cookieOverLimit">{{ t('standalone.gachaCookieTooLong') }}</span>
-              <span v-else>{{ t('standalone.gachaCookieExtra') }}</span>
-            </template>
-          </a-form-item>
-          <a-form-item name="playerUid" :label="t('standalone.gachaCookieUid')" required>
-            <a-input v-model:value="playerUid" autocomplete="off" />
-          </a-form-item>
-          <a-form-item name="timezone" :label="t('standalone.gachaTimezone')">
-            <a-input-number v-model:value="timezone" :min="-12" :max="14" />
-          </a-form-item>
-          <a-form-item name="maxPages" :label="t('standalone.gachaMaxPages')">
-            <a-input-number v-model:value="maxPages" :min="1" :max="500" />
-          </a-form-item>
         </template>
         <template v-else-if="source === 'skland'">
           <a-form-item name="accountId" :label="t('standalone.skland')" required>
-            <a-select v-model:value="accountId" :options="sklandAccounts" allow-clear />
+            <ChoiceSelect
+              v-model:value="accountId"
+              :options="sklandAccounts"
+              :disabled="importing || revoking || preparing"
+              allow-clear
+            />
           </a-form-item>
-          <a-form-item name="playerUid" label="UID" required>
-            <a-input v-model:value="playerUid" autocomplete="off" />
-          </a-form-item>
-          <a-form-item
-            v-if="game !== 'wuthering'"
-            name="maxPages"
-            :label="t('standalone.gachaMaxPages')"
-          >
-            <a-input-number v-model:value="maxPages" :min="1" :max="500" />
+          <a-alert
+            v-if="official.issue.value"
+            type="warning"
+            show-icon
+            :message="official.issue.value"
+            class="page-alert"
+          />
+          <a-form-item name="playerUid" :label="t('standalone.gachaCookieUid')" required>
+            <ChoiceSelect
+              v-if="official.roleOptions.value.length"
+              v-model:value="official.playerUid.value"
+              :options="official.roleOptions.value"
+              :disabled="importing || revoking || preparing || official.loading.value"
+              :loading="official.loading.value"
+              :placeholder="t('standalone.gachaChooseRole')"
+            />
+            <a-input
+              v-else
+              v-model:value="official.playerUid.value"
+              :disabled="official.loading.value || preparing"
+              :placeholder="t('standalone.gachaUidFallback')"
+              autocomplete="off"
+            />
           </a-form-item>
         </template>
         <template v-else-if="source === 'file'">
@@ -613,16 +642,29 @@ const changePage = (value: { current?: number }) => {
               <li v-for="item in heyboxIssues" :key="item">{{ item }}</li>
             </ul>
           </div>
-          <a-popconfirm
-            :title="t('standalone.gachaHeyboxRevokeHint')"
+          <a-button
+            danger
+            size="small"
+            :loading="revoking"
             :disabled="!playerUid.trim() || revoking"
-            @confirm="revokeHeybox"
+            @click="confirmRevoke"
+            >{{ t('standalone.gachaHeyboxRevoke') }}</a-button
           >
-            <a-button danger size="small" :loading="revoking" :disabled="!playerUid.trim()">
-              {{ t('standalone.gachaHeyboxRevoke') }}
-            </a-button>
-          </a-popconfirm>
         </template>
+        <a-collapse
+          v-if="['skland', 'link'].includes(source) && game !== 'wuthering'"
+          ghost
+          class="gacha-advanced"
+        >
+          <a-collapse-panel key="options" :header="t('standalone.ui.gachaAdvanced')">
+            <a-form-item v-if="supportsUigf" name="timezone" :label="t('standalone.gachaTimezone')"
+              ><a-input-number v-model:value="timezone" :min="-12" :max="14"
+            /></a-form-item>
+            <a-form-item name="maxPages" :label="t('standalone.gachaMaxPages')"
+              ><a-input-number v-model:value="maxPages" :min="1" :max="500"
+            /></a-form-item>
+          </a-collapse-panel>
+        </a-collapse>
       </a-form>
       <input
         ref="fileInput"
@@ -632,7 +674,7 @@ const changePage = (value: { current?: number }) => {
         @change="importFile"
       />
       <template #footer>
-        <a-button :disabled="importing" @click="fetchOpen = false">{{
+        <a-button :disabled="importing || revoking" @click="fetchOpen = false">{{
           t('standalone.cancel')
         }}</a-button>
         <a-button
@@ -641,14 +683,6 @@ const changePage = (value: { current?: number }) => {
           :loading="importing"
           @click="fileInput?.click()"
           >{{ t('standalone.gachaImport') }}</a-button
-        >
-        <a-button
-          v-else-if="source === 'cookie'"
-          type="primary"
-          :loading="importing"
-          :disabled="!canSubmit"
-          @click="fetchByCookie"
-          >{{ t('standalone.gachaCookieSubmit') }}</a-button
         >
         <a-button
           v-else-if="source === 'heybox'"
@@ -667,11 +701,66 @@ const changePage = (value: { current?: number }) => {
           >{{ t('standalone.gachaFetch') }}</a-button
         >
       </template>
-    </a-modal>
+    </AdaptivePanel>
   </section>
 </template>
 
 <style scoped>
+.gacha-workspace {
+  padding: 24px;
+  margin-bottom: 24px;
+  background: var(--ant-color-bg-container);
+  border-radius: 24px;
+}
+.gacha-workspace .page-toolbar {
+  display: block;
+  margin: 20px 0;
+}
+.gacha-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.gacha-entry-hint {
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 12px 0 0;
+}
+.gacha-empty {
+  padding: 40px 24px;
+  text-align: center;
+  border-radius: 24px;
+  background: var(--ant-color-bg-container);
+}
+.gacha-empty-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 22px;
+  color: var(--ant-color-primary);
+  background: var(--ant-color-primary-bg);
+  font-size: 28px;
+}
+.gacha-empty h2 {
+  margin: 18px 0 8px;
+  font-size: 17px;
+}
+.gacha-empty p {
+  color: var(--ant-color-text-secondary);
+  font-size: 12px;
+  line-height: 1.8;
+  margin: 0 auto 22px;
+  max-width: 420px;
+}
+.gacha-advanced {
+  margin-top: 12px;
+}
+.export-options {
+  display: grid;
+  gap: 12px;
+}
 /* 保留表内横向滚动与外部分页，避免空表测量反复触发尺寸通知。 */
 .gacha-table :deep(.ant-table-content) {
   overflow-x: auto;
@@ -699,8 +788,8 @@ const changePage = (value: { current?: number }) => {
   flex-direction: column;
   gap: 8px;
   padding: 16px;
-  background: var(--ant-color-primary-bg);
-  border: 1px solid var(--ant-color-primary-border);
+  background: var(--ant-color-bg-container);
+  border: 0;
   border-radius: 24px;
 }
 .gacha-pool span {
@@ -718,10 +807,13 @@ const changePage = (value: { current?: number }) => {
 }
 .mobile-records {
   min-height: 120px;
+  padding: 4px 18px;
+  background: var(--ant-color-bg-container);
+  border-radius: 24px;
   margin-bottom: 16px;
 }
 .mobile-record {
-  padding: 12px 0;
+  padding: 16px 0;
   border-bottom: 1px solid var(--ant-color-border-secondary);
   overflow-wrap: anywhere;
 }
@@ -741,14 +833,76 @@ const changePage = (value: { current?: number }) => {
   color: var(--ant-color-text-secondary);
   font-size: 12px;
 }
+.records-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 17px;
+  margin: 24px 0 14px;
+  flex-wrap: wrap;
+}
+.records-heading > .ant-btn {
+  margin-left: auto;
+}
+.records-heading small {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+  font-weight: 400;
+}
+.gacha-history-hint {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+  margin: 12px 0 0;
+  line-height: 1.7;
+}
+.mobile-record.top-rarity strong {
+  color: var(--ant-color-warning-text);
+}
 @media (max-width: 600px) {
+  .gacha-workspace {
+    padding: 18px 16px;
+    margin-bottom: 18px;
+  }
+  .gacha-workspace .page-toolbar {
+    margin-block: 16px;
+  }
+  .gacha-actions {
+    width: 100%;
+    gap: 8px;
+  }
+  .gacha-actions .gacha-fetch {
+    flex: 1;
+  }
+  .gacha-actions .ant-btn {
+    font-size: 12px;
+    padding-inline: 12px;
+  }
   .gacha-select {
-    flex: 1 1 100%;
+    flex: 1 1 40%;
     min-width: 0;
     width: 100%;
   }
   .gacha-summary {
-    grid-template-columns: minmax(0, 1fr);
+    display: flex;
+    overflow-x: auto;
+    gap: 12px;
+    padding-bottom: 5px;
+  }
+  .gacha-pool {
+    min-width: 240px;
+    flex-shrink: 0;
+  }
+  .gacha-empty {
+    padding: 32px 20px;
+  }
+  .records-heading {
+    font-size: 16px;
+    gap: 6px;
+  }
+  .records-heading > .ant-btn {
+    padding-inline: 4px;
+    font-size: 12px;
   }
 }
 </style>

@@ -74,3 +74,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+
+## 2026-11-14 恢复原日常便笺背景
+
+根据用户要求，随应用保存原先由文档站分发的五张 `*-background.webp`，用于便笺、活动轮播及活动缺图回退；游戏图标不再充当背景。素材来自上述用户提供的原图，不包含源仓库实现代码。版权归原权利人，具体 Wiki 页面与图片许可的历史记录仍待补齐，未将其重新标注为 MIT。
+
+`background-manifest.json` 保留原 PNG 摘要、WebP 摘要、尺寸与转换参数；原五个 WebP 的摘要与文档站清单逐项一致。原图归属和软件许可证说明继续有效。

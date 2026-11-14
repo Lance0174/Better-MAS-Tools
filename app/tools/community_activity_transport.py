@@ -391,9 +391,27 @@ def build_community_activity_requests(
         return (
             CommunityActivityRequest(
                 target=target,
+                source=f"{KURO_BBS_BASE_URL}/gamer/widget/game3/refresh",
+                method="POST",
+                # 完整便笺布局（CM-Edelweiss/WutheringWavesUID 的公开协议）：
+                # 小布局 type=2/sizeType=1 只有波片，不能当成完整日常。
+                form=(
+                    ("gameId", "3"),
+                    ("roleId", role_uid),
+                    ("serverId", server),
+                    ("type", "1"),
+                    ("sizeType", "2"),
+                ),
+                headers=_kuro_bbs_headers(target),
+                auth_scope="kuro",
+                signature_profile="kuro_widget",
+                requires_device_id=False,
+            ),
+            # 完整便笺失败时退回小组件；解析器会明确提示未返回的字段。
+            CommunityActivityRequest(
+                target=target,
                 source=f"{KURO_BBS_BASE_URL}/gamer/widget/game3/getData",
                 method="POST",
-                # gameId=3 固定对应鸣潮，type/sizeType 为上游确认的小组件参数。
                 form=(
                     ("gameId", "3"),
                     ("roleId", role_uid),
@@ -404,7 +422,6 @@ def build_community_activity_requests(
                 headers=_kuro_bbs_headers(target),
                 auth_scope="kuro",
                 signature_profile="kuro_widget",
-                requires_device_id=False,
             ),
         )
 

@@ -138,6 +138,22 @@ class AccountIdIn(BaseModel):
     accountId: str
 
 
+class AccountRolesIn(AccountIdIn):
+    platform: Literal["森空岛", "米游社", "库街区", "塔吉多"]
+
+
+class AccountRoleOut(BaseModel):
+    game: str
+    roleUid: str
+    roleName: str = ""
+    server: str = ""
+
+
+class AccountRolesOut(OutBase):
+    data: list[AccountRoleOut] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class AccountReorderIn(BaseModel):
     order: list[str]
 
