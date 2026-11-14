@@ -50,8 +50,8 @@ android {
         applicationId = "io.github.lance0174.bmat"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2003
-        versionName = "0.2.0-beta.4"
+        versionCode = 2004
+        versionName = "0.2.0-beta.5"
         buildConfigField("String", "RELEASE_CERTIFICATE_SHA256", "\"$releaseCertificateSha256\"")
     }
 
